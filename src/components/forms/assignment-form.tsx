@@ -38,7 +38,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { type Wave } from '@/types/wave';
 import { type Employee, WorkHistoryItem } from '@/types/employee';
-import { type Position } from '@/types/position';
+import { type ManpowerPosition } from '@/types/position';
 import { type CooldownPolicy } from '@/types/cooldown-policy';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -195,11 +195,11 @@ export default function AssignmentForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const employeesQuery = useMemoFirebase(() => db ? collection(db, 'employees') : null, [db]);
+  const employeesQuery = useMemoFirebase(() => db ? query(collection(db, 'employees'), where('employeeType', '==', 'FIELD')) : null, [db]);
   const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(employeesQuery);
 
-  const positionsQuery = useMemoFirebase(() => db ? collection(db, 'positions') : null, [db]);
-  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  const positionsQuery = useMemoFirebase(() => db ? collection(db, 'manpowerPositions') : null, [db]);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -378,7 +378,7 @@ export default function AssignmentForm({
               name="employeeId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Employee</FormLabel>
+                  <FormLabel>Employee (ลูกจ้าง)</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -438,7 +438,7 @@ export default function AssignmentForm({
               name="positionId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Position</FormLabel>
+                  <FormLabel>Position (ลูกจ้าง)</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} disabled={!selectedEmployeeId || isLoadingPositions || availablePositionsForEmployee.length <= 1}>
                     <FormControl>
                       <SelectTrigger>

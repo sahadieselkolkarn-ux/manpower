@@ -536,7 +536,7 @@ export default function EmployeeForm({
             <h3 className="text-lg font-medium pt-4">Positions & Skills</h3>
             <FormField name="positionIds" render={() => (
                 <FormItem>
-                    <FormLabel>Positions</FormLabel>
+                    <FormLabel>Positions ({employeeType === 'OFFICE' ? 'พนักงานออฟฟิศ' : 'ลูกจ้างแมนพาวเวอร์'})</FormLabel>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 rounded-md border p-4">
                     {(availablePositions || []).map((pos) => (
                         <FormField key={pos.id} control={form.control} name="positionIds" render={({ field }) => (

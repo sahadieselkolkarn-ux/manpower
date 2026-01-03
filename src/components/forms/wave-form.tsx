@@ -52,7 +52,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { type Wave, WaveWithProject, ManpowerRequirement } from "@/types/wave";
-import { type Position } from "@/types/position";
+import { type ManpowerPosition } from "@/types/position";
 import { ProjectWithContract, Project } from "@/types/project";
 import { toDate } from "@/lib/utils";
 import { Contract } from "@/types/contract";
@@ -135,8 +135,8 @@ export default function WaveForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const positionsQuery = useMemoFirebase(() => (db ? collection(db, "positions") : null), [db]);
-  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  const positionsQuery = useMemoFirebase(() => (db ? collection(db, "manpowerPositions") : null), [db]);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
 
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, "certificateTypes") : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
@@ -440,7 +440,7 @@ export default function WaveForm({
                         name={`manpowerRequirement.${index}.positionId`}
                         render={({ field }) => (
                         <FormItem className="col-span-2">
-                            <FormLabel>Position</FormLabel>
+                            <FormLabel>Position (ลูกจ้าง)</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
                                 <SelectTrigger>

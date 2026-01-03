@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -202,7 +203,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
                     </Button>
                   <FormField control={form.control} name={`saleRates.${index}.positionId`} render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel>Position</FormLabel>
+                        <FormLabel>Position (ลูกจ้าง)</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
                            <FormControl>
                             <SelectTrigger>
