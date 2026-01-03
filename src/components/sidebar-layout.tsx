@@ -39,7 +39,8 @@ import {
   BookUser,
   CalendarDays,
   CalendarCheck,
-  FileCog
+  FileCog,
+  Settings
 } from "lucide-react";
 
 import {
@@ -166,7 +167,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
             {canViewHR && (
               <SidebarGroup>
-                <SidebarGroupLabel>HR & Manpower</SidebarGroupLabel>
+                <SidebarGroupLabel>HR &amp; Manpower</SidebarGroupLabel>
                  <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/employees/office")}>
                     <Link href="/dashboard/hr/employees/office">
@@ -200,14 +201,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/payroll")}>
-                    <Link href="#">
-                      <DollarSign />
-                      <span>Payroll</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/pnd1")}>
                     <Link href="/dashboard/hr/pnd1">
                       <FileText />
@@ -215,108 +208,131 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                 <SidebarSeparator />
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/holidays")}>
-                    <Link href="/dashboard/hr/holidays">
-                      <CalendarDays />
-                      <span>Holidays</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/policies")}>
-                    <Link href="/dashboard/hr/policies/attendance">
-                      <FileCog />
-                      <span>Policies</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                 <Collapsible>
+                    <CollapsibleTrigger asChild className="w-full">
+                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/hr/holidays") || pathname.startsWith("/dashboard/hr/policies") || pathname.startsWith("/dashboard/admin/master")}>
+                            <Settings />
+                            <span>HR Settings</span>
+                       </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/holidays")}>
+                                <Link href="/dashboard/hr/holidays"><CalendarDays /><span>Holidays</span></Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/policies")}>
+                                <Link href="/dashboard/hr/policies/attendance"><FileCog /><span>Policies</span></Link>
+                            </SidebarMenuButton>
+                         </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/master/positions")}>
+                                <Link href="/dashboard/admin/master/positions"><Database /><span>Positions</span></Link>
+                            </SidebarMenuButton>
+                         </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/master/certificate-types")}>
+                                <Link href="/dashboard/admin/master/certificate-types"><Award /><span>Certificate Types</span></Link>
+                            </SidebarMenuButton>
+                         </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/hospitals")}>
+                                <Link href="/dashboard/hr/hospitals"><Hospital /><span>Hospitals</span></Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </CollapsibleContent>
+                 </Collapsible>
               </SidebarGroup>
             )}
 
             {canViewFinance && (
                  <SidebarGroup>
                     <SidebarGroupLabel>Finance</SidebarGroupLabel>
+                     <Collapsible>
+                        <CollapsibleTrigger asChild className="w-full">
+                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance/cash")}>
+                                <Landmark /><span>Cash Management</span>
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-4">
+                           <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname === "/dashboard/finance/cash/dashboard"}>
+                                    <Link href="/dashboard/finance/cash/dashboard"><LayoutDashboard /><span>Cash Dashboard</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/bank-accounts")}>
+                                    <Link href="/dashboard/finance/cash/bank-accounts"><Landmark /><span>Bank Accounts</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/movements")}>
+                                    <Link href="/dashboard/finance/cash/movements"><ArrowRightLeft /><span>Cash Movements</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </CollapsibleContent>
+                     </Collapsible>
+                     <Collapsible>
+                        <CollapsibleTrigger asChild className="w-full">
+                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance/ar")}>
+                                <Receipt /><span>Accounts Receivable</span>
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-4">
+                           <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/invoices")}>
+                                    <Link href="/dashboard/finance/ar/invoices"><Receipt /><span>A/R Invoices</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/payments")}>
+                                    <Link href="/dashboard/finance/ar/payments"><DollarSign /><span>A/R Payments</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/aging")}>
+                                    <Link href="/dashboard/finance/ar/aging"><WalletCards /><span>A/R Aging</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </CollapsibleContent>
+                     </Collapsible>
+                      <Collapsible>
+                        <CollapsibleTrigger asChild className="w-full">
+                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance/ap")}>
+                                <FileBox /><span>Accounts Payable</span>
+                            </SidebarMenuButton>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-4">
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/bills")}>
+                                    <Link href="/dashboard/finance/ap/bills"><FileBox /><span>A/P Bills</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/payments")}>
+                                    <Link href="/dashboard/finance/ap/payments"><Coins /><span>A/P Payments</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/aging")}>
+                                    <Link href="/dashboard/finance/ap/aging"><WalletCards /><span>A/P Aging</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </CollapsibleContent>
+                     </Collapsible>
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/dashboard")}>
-                            <Link href="/dashboard/finance/cash/dashboard">
-                                <LayoutDashboard />
-                                <span>Cash Dashboard</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/bank-accounts")}>
-                            <Link href="/dashboard/finance/cash/bank-accounts">
-                                <Landmark />
-                                <span>Bank Accounts</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/movements")}>
-                            <Link href="/dashboard/finance/cash/movements">
-                                <ArrowRightLeft />
-                                <span>Cash Movements</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarSeparator />
-                    <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/invoices")}>
-                            <Link href="/dashboard/finance/ar/invoices">
-                                <Receipt />
-                                <span>A/R Invoices</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/payments")}>
-                            <Link href="/dashboard/finance/ar/payments">
+                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/payroll")} isDisabled>
+                            <Link href="#">
                                 <DollarSign />
-                                <span>A/R Payments</span>
+                                <span>Payroll</span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/aging")}>
-                            <Link href="/dashboard/finance/ar/aging">
-                                <WalletCards />
-                                <span>A/R Aging</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarSeparator />
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/bills")}>
-                            <Link href="/dashboard/finance/ap/bills">
-                                <FileBox />
-                                <span>A/P Bills</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/payments")}>
-                            <Link href="/dashboard/finance/ap/payments">
-                                <Coins />
-                                <span>A/P Payments</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/aging")}>
-                            <Link href="/dashboard/finance/ap/aging">
-                                <WalletCards />
-                                <span>A/P Aging</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarSeparator />
                      <SidebarMenuItem>
                         <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/pending-billing")}>
                             <Link href="/dashboard/finance/pending-billing">
-                                <DollarSign />
+                                <FileUp />
                                 <span>Pending Payment/Billing</span>
                             </Link>
                         </SidebarMenuButton>
@@ -348,31 +364,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     <Link href="/dashboard/admin/permissions">
                       <ShieldCheck />
                       <span>Permissions</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarSeparator />
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/master/positions")}>
-                    <Link href="/dashboard/admin/master/positions">
-                      <Database />
-                      <span>Positions</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/master/certificate-types")}>
-                    <Link href="/dashboard/admin/master/certificate-types">
-                      <Award />
-                      <span>Certificate Types</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/hospitals")}>
-                    <Link href="/dashboard/hr/hospitals">
-                      <Hospital />
-                      <span>Hospitals</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
