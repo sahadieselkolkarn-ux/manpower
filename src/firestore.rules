@@ -130,6 +130,11 @@ service cloud.firestore {
         allow write: if isHrManager() || isAdmin();
     }
     
+    // Legacy rule for safety, can be removed later
+    match /positions/{positionId} {
+        allow read: if isSignedIn();
+    }
+    
     match /certificateTypes/{typeId} {
         allow read: if isSignedIn();
         allow write: if isHrManager() || isAdmin();

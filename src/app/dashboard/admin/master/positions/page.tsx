@@ -60,7 +60,7 @@ function PositionsTable({ positions, onEdit, type, isLoading }: { positions: Pos
             </TableRow>
           ))
         ) : (
-          <TableRow><TableCell colSpan={type === 'MANPOWER' ? 4 : 2} className="h-24 text-center">No positions found.</TableCell></TableRow>
+          <TableRow><TableCell colSpan={type === 'MANPOWER' ? 5 : 3} className="h-24 text-center">No positions found.</TableCell></TableRow>
         )}
       </TableBody>
     </Table>
