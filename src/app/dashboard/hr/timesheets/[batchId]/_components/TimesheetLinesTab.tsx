@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { TimesheetBatch, TimesheetLine } from '@/types/timesheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +80,7 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments, isL
           if (line) {
             form.reset({
               ...line,
+              assignmentId: line.assignmentId || '',
               workDate: line.workDate.toDate(),
               workType: line.workType || 'NORMAL',
             });
@@ -211,7 +211,7 @@ export default function TimesheetLinesTab({ batch, isLocked }: TimesheetLinesTab
     const assignmentsQuery = useMemoFirebase(() => {
         if (!db || !batch.waveId) return null;
         const assignmentPath = `clients/${batch.clientId}/contracts/${batch.contractId}/projects/${batch.projectId}/waves/${batch.waveId}/assignments`;
-        return query(collection(db, assignmentPath));
+        return query(collection(db, assignmentPath), where('status', '!=', 'CANCELLED'));
     }, [db, batch.clientId, batch.contractId, batch.projectId, batch.waveId]);
     const { data: assignments, isLoading: isLoadingAssignments } = useCollection<Assignment>(assignmentsQuery);
     const assignmentMap = useMemo(() => new Map(assignments?.map(a => [a.id, a])), [assignments]);

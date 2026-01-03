@@ -6,19 +6,13 @@ export type EligibilityStatus = 'PASS' | 'ALERT' | 'FAIL';
 
 export interface Assignment {
   id: string;
-  waveId: string;
   employeeId: string;
+  employeeName: string; // Denormalized for display
   positionId: string;
-  positionName?: string; // Denormalized for display
-
-  // Denormalized from Wave for rule calculation
-  workMode: 'Onshore' | 'Offshore';
+  positionName: string; // Denormalized for display
   
-  // Snapshots from Cooldown Policy at time of assignment
-  policyVersion?: string;
-  workModePair?: 'onshore_to_onshore' | 'onshore_to_offshore' | 'offshore_to_onshore' | 'offshore_to_offshore';
-  appliedRestDays?: number;
-
+  status: 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  
   // Eligibility check results at time of assignment
   eligibility: {
     passportStatus: EligibilityStatus;
@@ -36,7 +30,11 @@ export interface Assignment {
     overrideAt?: Timestamp;
   };
   
-  status: 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+  // Snapshots from Cooldown Policy at time of assignment
+  policyVersion?: string;
+  workModePair?: string;
+  appliedRestDays?: number;
+
   assignedAt: Timestamp;
   assignedBy: string;
 

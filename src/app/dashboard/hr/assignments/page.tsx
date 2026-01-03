@@ -36,37 +36,41 @@ export default function AssignmentsPage() {
       setIsLoading(true);
 
       try {
-        const wavesSnap = await getDocs(collectionGroup(db, 'waves'));
-        const wavesMap = new Map(wavesSnap.docs.map(doc => [doc.id, doc.data() as Wave]));
+        const assignmentsSnap = await getDocs(query(collectionGroup(db, 'assignments'), orderBy('assignedAt', 'desc')));
         
-        const projectsSnap = await getDocs(collectionGroup(db, 'projects'));
-        const projectsMap = new Map(projectsSnap.docs.map(doc => [doc.id, doc.data() as Project]));
+        const wavePromises = new Map<string, Promise<any>>();
+        const projectPromises = new Map<string, Promise<any>>();
 
-        const assignmentsSnap = await getDocs(query(collectionGroup(db, 'assignments')));
+        const getDocAndCache = (ref: any, cache: Map<string, Promise<any>>) => {
+            if (!cache.has(ref.path)) {
+                cache.set(ref.path, getDoc(ref));
+            }
+            return cache.get(ref.path);
+        };
         
-        const detailedAssignments = assignmentsSnap.docs.map(doc => {
+        const detailedAssignments = await Promise.all(assignmentsSnap.docs.map(async (doc) => {
             const assignment = { id: doc.id, ...doc.data() } as AssignmentWithDetails;
             assignment.path = doc.ref.path;
             
-            const waveId = assignment.path.split('/')[7];
-            const wave = wavesMap.get(waveId);
-            if (wave) {
-                assignment.waveCode = wave.waveCode;
-                const projectId = wave.path.split('/')[5];
-                const project = projectsMap.get(projectId);
-                if (project) {
-                    assignment.projectName = project.name;
-                }
+            const waveRef = doc.ref.parent.parent; // This is the wave document
+            if (!waveRef) return assignment;
+
+            const waveSnap = await getDocAndCache(waveRef, wavePromises);
+            if (waveSnap && waveSnap.exists()) {
+                const waveData = waveSnap.data() as Wave;
+                assignment.waveCode = waveData.waveCode;
+
+                const projectRef = waveRef.parent.parent; // This is the project document
+                 if (!projectRef) return assignment;
+
+                 const projectSnap = await getDocAndCache(projectRef, projectPromises);
+                 if (projectSnap && projectSnap.exists()) {
+                     const projectData = projectSnap.data() as Project;
+                     assignment.projectName = projectData.name;
+                 }
             }
             return assignment;
-        });
-
-        // Sort on the client side
-        detailedAssignments.sort((a, b) => {
-            const dateA = a.assignedAt?.toMillis() || 0;
-            const dateB = b.assignedAt?.toMillis() || 0;
-            return dateB - dateA;
-        });
+        }));
 
         setAssignments(detailedAssignments);
       } catch (error) {
@@ -80,7 +84,7 @@ export default function AssignmentsPage() {
   });
 
 
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'hrManager' || userProfile?.role === 'operationManager';
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes('HR_MANAGER') || userProfile?.roleIds.includes('OPERATION_MANAGER');
 
   const getWavePath = (assignment: AssignmentWithDetails) => {
     if (!assignment.path) return '#';

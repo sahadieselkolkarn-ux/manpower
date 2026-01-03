@@ -10,7 +10,7 @@ export interface TimesheetBatch {
   clientId: string;
   contractId: string;
   projectId: string;
-  waveId: string; // Made non-optional
+  waveId: string;
   periodStart: Timestamp;
   periodEnd: Timestamp;
   templateVersion: string;
@@ -31,7 +31,7 @@ export type DayCategory = 'WORKDAY' | 'WEEKLY_HOLIDAY' | 'CONTRACT_HOLIDAY';
 export interface TimesheetLine {
   id: string;
   batchId: string;
-  assignmentId: string; // Link to assignment instead of just employeeId
+  assignmentId: string; 
   employeeId: string; // Denormalized for easier lookup
   workDate: Timestamp;
   workType: WorkType;
