@@ -695,6 +695,11 @@
           "type": "string",
           "description": "The name of the project."
         },
+        "workMode": {
+          "type": "string",
+          "enum": ["Onshore", "Offshore"],
+          "description": "Determines the work environment for the project."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"
@@ -709,6 +714,7 @@
       },
       "required": [
         "name",
+        "workMode",
         "createdAt",
         "updatedAt",
         "createdBy"

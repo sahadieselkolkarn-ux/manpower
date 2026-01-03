@@ -74,7 +74,7 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
 
       if (project) {
         // Update existing project
-        const projectRef = doc(db, projectCollectionPath, project.id);
+        const projectRef = doc(db, `clients/${project.clientId}/contracts/${project.contractId}/projects`, project.id);
         await updateDoc(projectRef, {
             ...projectData,
             updatedAt: serverTimestamp(),
@@ -88,6 +88,7 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
         const collectionRef = collection(db, projectCollectionPath);
         await addDoc(collectionRef, {
             ...projectData,
+            status: 'active',
             createdBy: userProfile.displayName || userProfile.email,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),

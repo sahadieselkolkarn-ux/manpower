@@ -16,6 +16,7 @@ import { type ProjectWithContract } from "@/types/project";
 import ProjectForm from "@/components/forms/project-form";
 import Link from "next/link";
 import { useEffectOnce } from "react-use";
+import { Badge } from "@/components/ui/badge";
 
 
 export default function ProjectPage() {
@@ -28,7 +29,7 @@ export default function ProjectPage() {
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const isAdmin = userProfile?.role === 'admin';
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
 
   const fetchData = async () => {
     if (!db) {
@@ -105,7 +106,7 @@ export default function ProjectPage() {
         <h1 className="text-3xl font-bold tracking-tight font-headline">
           Projects
         </h1>
-        {isAdmin && (
+        {canManage && (
           <Button onClick={handleAddProject}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add Project
           </Button>
@@ -129,8 +130,9 @@ export default function ProjectPage() {
                 <TableHead>Project Name</TableHead>
                 <TableHead>Contract</TableHead>
                 <TableHead>Client</TableHead>
+                <TableHead>Work Mode</TableHead>
                 <TableHead>Created At</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -140,8 +142,9 @@ export default function ProjectPage() {
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    {isAdmin && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
+                    {canManage && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
               ) : projects.length > 0 ? (
@@ -163,10 +166,13 @@ export default function ProjectPage() {
                       </Link>
                     </TableCell>
                     <TableCell>
+                      <Badge variant={project.workMode === 'Onshore' ? 'secondary' : 'default'}>{project.workMode}</Badge>
+                    </TableCell>
+                    <TableCell>
                       {/* @ts-ignore */}
                       {project.createdAt?.toDate().toLocaleDateString()}
                     </TableCell>
-                    {isAdmin && (
+                    {canManage && (
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -196,7 +202,7 @@ export default function ProjectPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 5 : 4} className="h-24 text-center">
+                  <TableCell colSpan={canManage ? 6 : 5} className="h-24 text-center">
                     No projects found.
                   </TableCell>
                 </TableRow>
@@ -205,7 +211,7 @@ export default function ProjectPage() {
           </Table>
         </CardContent>
       </Card>
-      {isAdmin && (
+      {canManage && (
         <ProjectForm 
           open={isFormOpen}
           onOpenChange={setIsFormOpen}

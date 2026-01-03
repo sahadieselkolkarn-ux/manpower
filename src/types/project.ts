@@ -2,11 +2,8 @@ import { type Timestamp } from 'firebase/firestore';
 
 export interface Project {
   id: string;
-  projectCode: string;
-  contractId: string;
   name: string;
   workMode: 'Onshore' | 'Offshore';
-  location?: string;
   status: 'active' | 'inactive';
   note?: string;
   createdAt: Timestamp;
@@ -17,5 +14,6 @@ export interface Project {
 export interface ProjectWithContract extends Project {
     clientId: string;
     clientName: string;
+    contractId: string;
     contractName: string;
 }

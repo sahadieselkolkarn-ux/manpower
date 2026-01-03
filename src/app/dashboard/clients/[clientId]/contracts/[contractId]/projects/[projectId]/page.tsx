@@ -76,7 +76,7 @@ export default function ProjectDetailsPage({
   } = useDoc<Project>(projectRef);
   
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const isAdmin = userProfile?.role === "admin";
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
 
   const fetchData = async () => {
     if (!db || !clientId || !contractId || !projectId) return;
@@ -204,7 +204,7 @@ export default function ProjectDetailsPage({
               List of all work waves for this project.
             </CardDescription>
           </div>
-          {isAdmin && (
+          {canManage && (
             <Button onClick={() => setIsWaveFormOpen(true)}>
               <PlusCircle className="mr-2 h-4 w-4" /> Add Wave
             </Button>
@@ -217,13 +217,14 @@ export default function ProjectDetailsPage({
                 <TableHead>Wave Code</TableHead>
                 <TableHead>Start Date</TableHead>
                 <TableHead>End Date</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isDataLoading ? (
                 <TableRow>
-                  <TableCell colSpan={4}>Loading waves...</TableCell>
+                  <TableCell colSpan={5}>Loading waves...</TableCell>
                 </TableRow>
               ) : waves.length > 0 ? (
                 waves.map((wave) => (
@@ -239,8 +240,11 @@ export default function ProjectDetailsPage({
                      <TableCell>
                       {wave.planningWorkPeriod.endDate?.toDate().toLocaleDateString()}
                     </TableCell>
+                     <TableCell>
+                       <Badge variant={wave.status === 'active' ? 'default' : 'secondary'}>{wave.status}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
-                      {isAdmin ? (
+                      {canManage ? (
                         <Button variant="ghost" size="icon">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
@@ -250,7 +254,7 @@ export default function ProjectDetailsPage({
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     No waves found for this project.
                   </TableCell>
                 </TableRow>
@@ -260,7 +264,7 @@ export default function ProjectDetailsPage({
         </CardContent>
       </Card>
       
-       {isAdmin && (
+       {canManage && (
         <WaveForm
           open={isWaveFormOpen}
           onOpenChange={setIsWaveFormOpen}
