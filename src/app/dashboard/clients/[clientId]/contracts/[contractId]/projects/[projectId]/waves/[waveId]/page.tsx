@@ -1,0 +1,339 @@
+
+
+"use client";
+
+import { use, useMemo, useState, useEffect } from "react";
+import {
+  doc,
+  DocumentReference,
+  collection,
+  getDoc,
+} from "firebase/firestore";
+import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy } from "lucide-react";
+import FullPageLoader from "@/components/full-page-loader";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { type Wave } from "@/types/wave";
+import { type Assignment } from "@/types/assignment";
+import { type Project } from "@/types/project";
+import AssignmentForm from "@/components/forms/assignment-form";
+import { Skeleton } from "@/components/ui/skeleton";
+import { type Position } from "@/types/position";
+import { CertificateType } from "@/types/certificate-type";
+import WaveForm from "@/components/forms/wave-form";
+import { useToast } from "@/hooks/use-toast";
+
+export default function WaveDetailsPage({ params }: { params: Promise<{ clientId: string, contractId: string, projectId: string, waveId: string }> }) {
+  const resolvedParams = use(params);
+  const { clientId, contractId, projectId, waveId } = resolvedParams;
+
+  const db = useFirestore();
+  const { userProfile, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  
+  const [isAssignmentFormOpen, setIsAssignmentFormOpen] = useState(false);
+  const [isWaveFormOpen, setIsWaveFormOpen] = useState(false);
+  const [project, setProject] = useState<Project | null>(null);
+
+  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'operationManager';
+
+  const waveRef = useMemoFirebase(
+    () =>
+      db && waveId
+        ? (doc(
+            db,
+            "clients",
+            clientId,
+            "contracts",
+            contractId,
+            "projects",
+            projectId,
+            "waves",
+            waveId
+          ) as DocumentReference<Wave>)
+        : null,
+    [db, clientId, contractId, projectId, waveId]
+  );
+  
+  const assignmentsQuery = useMemoFirebase(
+      () => waveRef ? collection(waveRef, 'assignments') : null,
+      [waveRef]
+  );
+  
+  const positionsQuery = useMemoFirebase(() => (db ? collection(db, 'positions') : null), [db]);
+  const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
+
+
+  const { data: wave, isLoading: isLoadingWave, error: waveError, refetch: refetchWave } = useDoc<Wave>(waveRef);
+  const { data: assignments, isLoading: isLoadingAssignments, error: assignmentsError, refetch: refetchAssignments } = useCollection<Assignment>(assignmentsQuery);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  const { data: certificateTypes, isLoading: isLoadingCertificateTypes } = useCollection<CertificateType>(certificateTypesQuery);
+
+  const positionMap = useMemo(() => new Map(positions?.map(p => [p.id, p.name])), [positions]);
+  const certificateTypeMap = useMemo(() => new Map(certificateTypes?.map(ct => [ct.id, ct.name])), [certificateTypes]);
+
+
+  useEffect(() => {
+    if (db && projectId) {
+      const projectRef = doc(db, "clients", clientId, "contracts", contractId, "projects", projectId);
+      getDoc(projectRef).then(snap => {
+        if (snap.exists()) {
+          setProject({id: snap.id, ...snap.data()} as Project);
+        }
+      });
+    }
+  }, [db, clientId, contractId, projectId]);
+
+  const handleSuccess = () => {
+    refetchWave();
+    refetchAssignments();
+  }
+  
+  const copyEmployeeNames = () => {
+    if (!assignments || assignments.length === 0) return;
+    const names = assignments.map(a => a.employeeName).join('\n');
+    navigator.clipboard.writeText(names);
+    toast({
+      title: "Copied!",
+      description: "Employee names have been copied to your clipboard.",
+    });
+  };
+
+
+  const isLoading = isLoadingWave || isLoadingAssignments || authLoading || !project || isLoadingPositions || isLoadingCertificateTypes;
+
+  if (isLoading) {
+    return <FullPageLoader />;
+  }
+  
+  const error = waveError || assignmentsError;
+  if (error) {
+      return <div className="p-8 text-destructive">Error loading data: {error.message}</div>
+  }
+  
+  if (!wave) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <h1 className="text-2xl font-bold">Wave Not Found</h1>
+        <p>The wave with ID <span className="font-mono bg-muted p-1 rounded">{waveId}</span> could not be found.</p>
+        <Button onClick={() => window.history.back()} className="mt-4">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Go Back
+        </Button>
+      </div>
+    );
+  }
+  
+  const totalRequired = Array.isArray(wave.manpowerRequirement) ? wave.manpowerRequirement.reduce((sum, req) => sum + req.count, 0) : 0;
+
+  return (
+    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+      <header className="flex items-center justify-between space-y-2">
+        <div>
+           <Link href={`/dashboard/clients/${clientId}/contracts/${contractId}/projects/${projectId}`} className="text-sm text-muted-foreground hover:underline flex items-center gap-2 mb-2">
+            <ArrowLeft className="h-4 w-4" />
+            Back to Project: {project?.name || '...'}
+          </Link>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Wave: {wave.waveCode}</h1>
+          <p className="text-muted-foreground">
+            Manage assignments and requirements for this work period.
+          </p>
+        </div>
+      </header>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Planned Period</CardDescription>
+            <CardTitle className="text-lg">{wave.planningWorkPeriod.startDate.toDate().toLocaleDateString()} - {wave.planningWorkPeriod.endDate.toDate().toLocaleDateString()}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+           <CardHeader className="pb-2">
+            <CardDescription>Actual Period</CardDescription>
+            <CardTitle className="text-lg text-muted-foreground italic">
+              {/* Placeholder for actual dates */}
+              Not Started
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Manpower Assigned</CardDescription>
+             <CardTitle className="text-lg">{assignments?.length || 0} / {totalRequired}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+    <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5"/>Manpower Requirements</CardTitle>
+                  <CardDescription>Required positions and counts for this wave.</CardDescription>
+                </div>
+                 {canManage && (
+                  <Button variant="outline" size="sm" onClick={() => setIsWaveFormOpen(true)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit Requirements
+                  </Button>
+                )}
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Position</TableHead>
+                            <TableHead>Details</TableHead>
+                            <TableHead className="text-right">Required</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoadingPositions || isLoadingCertificateTypes ? (
+                             <TableRow><TableCell colSpan={3}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                        ) : wave.manpowerRequirement && wave.manpowerRequirement.length > 0 ? (
+                            wave.manpowerRequirement.map((req, index) => (
+                                <TableRow key={index}>
+                                    <TableCell className="font-medium">{positionMap.get(req.positionId) || req.positionId}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col gap-1">
+                                            {req.requiredCertificateIds && req.requiredCertificateIds.map(certId => (
+                                                <Badge variant="outline" key={certId} className="flex gap-1 items-center w-fit"><Award className="h-3 w-3"/> {certificateTypeMap.get(certId) || 'Unknown Cert'}</Badge>
+                                            ))}
+                                            {req.requiredSkillTags && req.requiredSkillTags.map(skill => (
+                                                 <Badge variant="secondary" key={skill} className="flex gap-1 items-center w-fit"><Tag className="h-3 w-3"/>{skill}</Badge>
+                                            ))}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">{req.count}</TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center h-24">No requirements specified.</TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+
+        <div className="space-y-6">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>Assignments</CardTitle>
+                        <CardDescription>List of all employees assigned to this wave.</CardDescription>
+                    </div>
+                     {canManage && (
+                      <Button onClick={() => setIsAssignmentFormOpen(true)}>
+                        <PlusCircle className="mr-2 h-4 w-4" /> Add Assignment
+                      </Button>
+                    )}
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Employee Name</TableHead>
+                                <TableHead>Position</TableHead>
+                                <TableHead>Status</TableHead>
+                                {canManage && <TableHead className="text-right">Actions</TableHead>}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoadingAssignments ? (
+                                Array.from({length: 3}).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                        <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                        <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                                        {canManage && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
+                                    </TableRow>
+                                ))
+                            ) : assignments && assignments.length > 0 ? (
+                                assignments.map(assignment => (
+                                    <TableRow key={assignment.id}>
+                                        <TableCell className="font-medium">{assignment.employeeName || 'N/A'}</TableCell>
+                                        <TableCell>{assignment.positionName || 'N/A'}</TableCell>
+                                        <TableCell><Badge variant="outline">{assignment.status}</Badge></TableCell>
+                                        {canManage && <TableCell className="text-right"><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></TableCell>}
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={canManage ? 4 : 3} className="h-24 text-center">
+                                        No employees assigned to this wave yet.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+             <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Timesheet Employee List</CardTitle>
+                    <CardDescription>A list of assigned employees for client timesheet creation.</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={copyEmployeeNames} disabled={!assignments || assignments.length === 0}>
+                    <Copy className="mr-2 h-4 w-4" /> Copy List
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {assignments && assignments.length > 0 ? (
+                    <ul className="list-disc pl-5 text-sm space-y-1">
+                      {assignments.map(a => (
+                        <li key={a.id}>{a.employeeName}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center">No employees assigned yet.</p>
+                  )}
+                </CardContent>
+              </Card>
+        </div>
+      </div>
+
+      {canManage && wave && project && (
+        <>
+            <AssignmentForm
+            open={isAssignmentFormOpen}
+            onOpenChange={setIsAssignmentFormOpen}
+            wave={{...wave, id: waveId, workMode: project.workMode}}
+            routeParams={{ clientId, contractId, projectId, waveId }}
+            onSuccess={handleSuccess}
+            />
+            <WaveForm
+                open={isWaveFormOpen}
+                onOpenChange={setIsWaveFormOpen}
+                wave={{...wave, id: waveId, clientId, contractId, projectId, projectName: project.name, workMode: project.workMode }}
+                onSuccess={handleSuccess}
+                projects={project ? [{...project, clientId, clientName: '' ,contractId, contractName: ''}] : []}
+            />
+        </>
+      )}
+    </div>
+  );
+}
+
+
+

@@ -1,0 +1,1686 @@
+
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user account within the system.",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique identifier for the user, matching Firebase Auth UID."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "The display name of the user."
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Grants full system access, bypassing role checks."
+        },
+        "roleIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of role IDs assigned to the user."
+        },
+        "employeeId": {
+          "type": "string",
+          "description": "Optional link to the corresponding document in the /employees collection."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "DISABLED"
+          ],
+          "description": "The status of the user account."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the user was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last update."
+        }
+      },
+      "required": [
+        "uid",
+        "email"
+      ]
+    },
+    "Role": {
+      "title": "Role",
+      "description": "Defines a functional role within the application.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Unique code for the role (e.g., 'HR_MANAGER')."
+        },
+        "department": {
+          "type": "string",
+          "enum": [
+            "HR",
+            "OPERATION",
+            "FINANCE",
+            "MANAGEMENT",
+            "ADMIN"
+          ],
+          "description": "The department the role belongs to."
+        },
+        "level": {
+          "type": "string",
+          "enum": [
+            "OFFICER",
+            "MANAGER",
+            "SYSTEM"
+          ],
+          "description": "The organizational level of the role."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the role's responsibilities."
+        },
+        "isSystem": {
+          "type": "boolean",
+          "description": "True if the role is a system-level role (e.g., ADMIN)."
+        }
+      },
+      "required": [
+        "code",
+        "department",
+        "level",
+        "description",
+        "isSystem"
+      ]
+    },
+    "Employee": {
+      "title": "Employee",
+      "description": "Represents an employee or manpower resource.",
+      "type": "object",
+      "properties": {
+        "employeeCode": {
+          "type": "string"
+        },
+        "employeeType": {
+          "type": "string",
+          "enum": [
+            "OFFICE",
+            "FIELD"
+          ],
+          "description": "Categorizes the employee as office staff or field manpower."
+        },
+        "orgLevel": {
+          "type": "string",
+          "enum": [
+            "STAFF",
+            "MANAGER",
+            "EXECUTIVE"
+          ],
+          "description": "Organizational level of the employee."
+        },
+        "personalInfo": {
+          "type": "object",
+          "properties": {
+            "firstName": {
+              "type": "string"
+            },
+            "lastName": {
+              "type": "string"
+            },
+            "dateOfBirth": {
+              "type": "string",
+              "format": "date"
+            },
+            "nationalId": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string"
+            },
+            "emergencyContact": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "relationship": {
+                  "type": "string"
+                },
+                "phone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "contactInfo": {
+          "type": "object",
+          "properties": {
+            "phone": {
+              "type": "string"
+            },
+            "email": {
+              "type": "string",
+              "format": "email"
+            }
+          }
+        },
+        "financeInfo": {
+          "type": "object",
+          "properties": {
+            "bankName": {
+              "type": "string"
+            },
+            "accountNumber": {
+              "type": "string"
+            },
+            "socialSecurity": {
+              "type": "object",
+              "properties": {
+                "has": {
+                  "type": "boolean"
+                },
+                "hospitalId": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "employmentTerms": {
+          "type": "object",
+          "description": "Terms of employment, including salary information.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["SALARY"]
+            },
+            "baseSalary": {
+              "type": "number"
+            },
+            "allowance": {
+              "type": "number"
+            },
+            "socialSecurityEligible": {
+              "type": "boolean"
+            },
+            "taxEligible": {
+              "type": "boolean"
+            },
+            "payFrequency": {
+              "type": "string",
+              "enum": ["MONTHLY"]
+            },
+            "effectiveFrom": {
+              "type": "string",
+              "description": "YYYY-MM format"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["ACTIVE"]
+            },
+            "history": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "baseSalary": { "type": "number" },
+                  "allowance": { "type": "number" },
+                  "effectiveFrom": { "type": "string" },
+                  "effectiveTo": { "type": "string" },
+                  "changedBy": { "type": "string" },
+                  "changedAt": { "type": "string", "format": "date-time"},
+                  "reason": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "taxProfile": {
+          "type": "object",
+          "properties": {
+            "ly01": {
+              "$ref": "#/backend/entities/Ly01Profile"
+            }
+          }
+        },
+        "positionIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "skillTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "employmentStatus": {
+          "type": "string",
+          "enum": [
+            "Active",
+            "Inactive",
+            "Terminated"
+          ]
+        },
+        "assignmentStatus": {
+          "type": "string",
+          "enum": [
+            "Available",
+            "Assigned",
+            "On Cooldown"
+          ]
+        },
+        "workHistory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "waveId": {
+                "type": "string"
+              },
+              "projectId": {
+                "type": "string"
+              },
+              "contractId": {
+                "type": "string"
+              },
+              "clientId": {
+                "type": "string"
+              },
+              "path": {
+                "type": "string"
+              },
+              "workMode": {
+                "type": "string",
+                "enum": [
+                  "Onshore",
+                  "Offshore"
+                ]
+              },
+              "actualStartDate": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "actualEndDate": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "Passport",
+                  "Seaman Book",
+                  "Certificate"
+                ]
+              },
+              "name": {
+                "type": "string"
+              },
+              "certificateTypeId": {
+                "type": "string",
+                "description": "Reference to a certificate type for 'Certificate' type docs."
+              },
+              "issueDate": {
+                "type": "string",
+                "format": "date"
+              },
+              "expiryDate": {
+                "type": "string",
+                "format": "date"
+              },
+              "fileUrl": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "officeProfile": {
+          "type": "object",
+          "properties": {
+            "attendanceOverride": {
+              "$ref": "#/backend/entities/OfficeAttendancePolicy"
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "personalInfo",
+        "positionIds",
+        "employmentStatus",
+        "assignmentStatus"
+      ]
+    },
+    "Ly01Profile": {
+      "title": "LY.01 Tax Profile",
+      "description": "Represents an employee's tax deduction profile (LY.01).",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "MISSING",
+            "DRAFT",
+            "SUBMITTED",
+            "VERIFIED"
+          ]
+        },
+        "effectiveMonth": {
+          "type": "string",
+          "description": "The YYYY-MM this profile is effective for."
+        },
+        "version": {
+          "type": "number",
+          "description": "Version number of the profile."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedBy": {
+          "type": "string"
+        },
+        "verifiedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "verifiedBy": {
+          "type": "string"
+        },
+        "data": {
+          "type": "object",
+          "properties": {
+            "maritalStatus": {
+              "type": "string",
+              "enum": [
+                "single",
+                "married",
+                "divorced",
+                "widowed"
+              ]
+            },
+            "spouseHasIncome": {
+              "type": "boolean"
+            },
+            "childrenCountTotal": {
+              "type": "number"
+            },
+            "childrenEligible30k": {
+              "type": "number"
+            },
+            "childrenEligible60k": {
+              "type": "number"
+            },
+            "parentsSupport": {
+              "type": "object",
+              "properties": {
+                "selfFather": {
+                  "type": "boolean"
+                },
+                "selfMother": {
+                  "type": "boolean"
+                },
+                "spouseFather": {
+                  "type": "boolean"
+                },
+                "spouseMother": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "disabledDependentsCount": {
+              "type": "number"
+            },
+            "lifeInsuranceAmount": {
+              "type": "number"
+            },
+            "healthInsuranceAmount": {
+              "type": "number"
+            },
+            "healthInsuranceParentsAmount": {
+              "type": "number"
+            },
+            "providentFundAmount": {
+              "type": "number"
+            },
+            "rmfAmount": {
+              "type": "number"
+            },
+            "otherRetirementFundAmount": {
+              "type": "number"
+            },
+            "homeLoanInterestAmount": {
+              "type": "number"
+            },
+            "socialSecurityAmount": {
+              "type": "number"
+            },
+            "donationGeneralAmount": {
+              "type": "number"
+            },
+            "donationEducationAmount": {
+              "type": "number"
+            },
+            "otherDeductionNote": {
+              "type": "string"
+            }
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "LY01_PDF",
+                  "ID",
+                  "MARRIAGE",
+                  "CHILD",
+                  "INSURANCE",
+                  "FUND",
+                  "HOMELOAN",
+                  "OTHER"
+                ]
+              },
+              "fileName": {
+                "type": "string"
+              },
+              "storagePath": {
+                "type": "string"
+              },
+              "uploadedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "uploadedBy": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "audit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "INIT",
+                  "SAVE_DRAFT",
+                  "SUBMIT",
+                  "VERIFY",
+                  "UPLOAD"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "by": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Represents a client company.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The full name of the client."
+        },
+        "shortName": {
+          "type": "string",
+          "description": "A shorter or abbreviated name for the client."
+        },
+        "address": {
+          "type": "string",
+          "description": "The billing address for the client."
+        },
+        "taxId": {
+          "type": "string",
+          "description": "The client's taxpayer identification number."
+        },
+        "contacts": {
+          "type": "array",
+          "description": "A list of contact persons at the client company.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "department": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "phone": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "department"
+            ]
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of when the client was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last update to the client."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The display name of the user who created the client."
+        }
+      },
+      "required": [
+        "name",
+        "createdAt",
+        "updatedAt",
+        "createdBy"
+      ]
+    },
+    "Contract": {
+      "title": "Contract",
+      "description": "Represents a contract with a client.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name or identifier for the contract."
+        },
+        "sellRateCard": {
+          "type": "string",
+          "description": "Defines the selling price for various positions, stored as a JSON string."
+        },
+        "sellOtPolicy": {
+          "type": "string",
+          "description": "Describes the overtime policy for billing."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "createdAt",
+        "updatedAt",
+        "createdBy"
+      ]
+    },
+    "Project": {
+      "title": "Project",
+      "description": "Represents a project under a specific contract.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the project."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "createdAt",
+        "updatedAt",
+        "createdBy"
+      ]
+    },
+    "Wave": {
+      "title": "Wave",
+      "description": "A specific work round or phase within a project.",
+      "type": "object",
+      "properties": {
+        "waveCode": {
+          "type": "string",
+          "description": "Unique code for the wave (e.g., 'CHEV-2024-01')."
+        },
+        "planningWorkPeriod": {
+          "type": "object",
+          "properties": {
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "required": [
+            "startDate",
+            "endDate"
+          ]
+        },
+        "actualWorkPeriod": {
+          "type": "object",
+          "properties": {
+            "startDate": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "endDate": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "manpowerRequirement": {
+          "type": "array",
+          "description": "List of manpower requirements for the wave.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "positionId": {
+                "type": "string",
+                "description": "Reference to the master position."
+              },
+              "count": {
+                "type": "number",
+                "description": "Number of people required for this position."
+              },
+              "requiredCertificateIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of certificate type IDs required for this role."
+              },
+              "requiredSkillTags": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of skill tags required for this role."
+              }
+            },
+            "required": [
+              "positionId",
+              "count"
+            ]
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "waveCode",
+        "planningWorkPeriod",
+        "manpowerRequirement",
+        "createdAt",
+        "updatedAt",
+        "createdBy"
+      ]
+    },
+    "Position": {
+      "title": "Position",
+      "description": "Represents a master job position in the organization.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the position (e.g., Welder, Foreman)."
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "OFFICE",
+            "FIELD"
+          ],
+          "description": "Categorizes the position for office staff or field manpower."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the position's role and responsibilities."
+        },
+        "costRateOnshore": {
+          "type": "number",
+          "description": "The standard cost rate for this position for Onshore work."
+        },
+        "costRateOffshore": {
+          "type": "number",
+          "description": "The standard cost rate for this position for Offshore work."
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ]
+    },
+    "CertificateType": {
+      "title": "Certificate Type",
+      "description": "A master definition for a type of certificate an employee can have.",
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "OFFICE",
+            "FIELD",
+            "GENERAL"
+          ],
+          "description": "Categorizes the certificate for office, field, or general use."
+        },
+        "requiresExpiry": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "name",
+        "type",
+        "requiresExpiry"
+      ]
+    },
+    "CooldownPolicy": {
+      "title": "Cooldown Policy",
+      "description": "Defines the mandatory cooldown/rest periods for work modes.",
+      "type": "object",
+      "properties": {
+        "onshoreDays": {
+          "type": "number",
+          "description": "Number of mandatory rest days after an Onshore work period."
+        },
+        "offshoreDays": {
+          "type": "number",
+          "description": "Number of mandatory rest days after an Offshore work period."
+        }
+      },
+      "required": [
+        "onshoreDays",
+        "offshoreDays"
+      ]
+    },
+    "Pnd1Run": {
+      "title": "P.N.D.1 Monthly Run",
+      "description": "Represents a monthly P.N.D.1 tax form run.",
+      "type": "object",
+      "properties": {
+        "month": {
+          "type": "string",
+          "format": "YYYY-MM"
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "PAYROLL_RUN",
+            "TIMESHEET_BATCH"
+          ]
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "LOCKED",
+            "SUBMITTED"
+          ]
+        },
+        "payer": {
+          "type": "object",
+          "properties": {
+            "taxpayerId": {
+              "type": "string"
+            },
+            "branchNo": {
+              "type": "string"
+            },
+            "legalName": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string"
+            },
+            "signerName": {
+              "type": "string"
+            },
+            "signerPosition": {
+              "type": "string"
+            }
+          }
+        },
+        "totals": {
+          "type": "object",
+          "properties": {
+            "employeeCount": {
+              "type": "number"
+            },
+            "totalIncome": {
+              "type": "number"
+            },
+            "totalTax": {
+              "type": "number"
+            }
+          }
+        },
+        "exports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "csv",
+                  "xlsx"
+                ]
+              },
+              "storagePath": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "createdBy": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "type": "string"
+        },
+        "lockedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lockedBy": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "submittedBy": {
+          "type": "string"
+        }
+      }
+    },
+    "Pnd1Line": {
+      "title": "P.N.D.1 Line Item",
+      "description": "A single line item within a P.N.D.1 run for an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string"
+        },
+        "employeeCode": {
+          "type": "string"
+        },
+        "fullName": {
+          "type": "string"
+        },
+        "taxpayerId": {
+          "type": "string"
+        },
+        "payDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "incomeAmount": {
+          "type": "number"
+        },
+        "taxAmount": {
+          "type": "number"
+        },
+        "incomeType": {
+          "type": "string",
+          "enum": [
+            "40_1",
+            "40_1_2",
+            "40_2_RESIDENT",
+            "40_2_NONRESIDENT"
+          ]
+        },
+        "withholdingCondition": {
+          "type": "string",
+          "enum": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "details": {
+          "type": "string"
+        },
+        "references": {
+          "type": "object",
+          "properties": {
+            "waveId": {
+              "type": "string"
+            },
+            "projectId": {
+              "type": "string"
+            },
+            "contractId": {
+              "type": "string"
+            }
+          }
+        },
+        "taxSnapshot": {
+          "type": "object",
+          "properties": {
+            "ly01Version": {
+              "type": "number"
+            },
+            "ly01Status": {
+              "type": "string"
+            },
+            "effectiveMonth": {
+              "type": "string"
+            }
+          }
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "Hospital": {
+      "title": "Hospital",
+      "description": "Represents a hospital for social security.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "address": {
+          "type": "string"
+        },
+        "emergencyPhone": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Assignment": {
+      "title": "Assignment",
+      "description": "Represents the assignment of an employee to a specific wave.",
+      "type": "object",
+      "properties": {
+        "employeeId": {
+          "type": "string"
+        },
+        "employeeName": {
+          "type": "string"
+        },
+        "positionId": {
+          "type": "string"
+        },
+        "positionName": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "ASSIGNED",
+            "CONFIRMED",
+            "COMPLETED",
+            "CANCELLED"
+          ]
+        },
+        "costRateAtSnapshot": {
+          "type": "number"
+        },
+        "sellRateAtSnapshot": {
+          "type": "number"
+        },
+        "assignedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "assignedBy": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "employeeId",
+        "positionId",
+        "status",
+        "assignedAt",
+        "assignedBy"
+      ]
+    },
+    "Timesheet": {
+      "title": "Timesheet",
+      "description": "A collection of work events for a single employee within a single wave.",
+      "type": "object",
+      "properties": {
+        "assignmentId": {
+          "type": "string"
+        },
+        "employeeId": {
+          "type": "string"
+        },
+        "waveId": {
+          "type": "string"
+        },
+        "periodStartDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "periodEndDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "CLIENT_APPROVED_RECEIVED",
+            "HR_APPROVED"
+          ]
+        },
+        "workEvents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/backend/entities/WorkEvent"
+          }
+        },
+        "lastUpdatedBy": {
+          "type": "string"
+        },
+        "lastUpdatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "hrApprovedBy": {
+          "type": "string"
+        },
+        "hrApprovedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "assignmentId",
+        "employeeId",
+        "waveId",
+        "status",
+        "workEvents"
+      ]
+    },
+    "WorkEvent": {
+      "title": "Work Event",
+      "description": "A single day's work event for an employee.",
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "Full Day",
+            "Half Day",
+            "Standby",
+            "Travel",
+            "Leave",
+            ""
+          ]
+        },
+        "otHours": {
+          "type": "number"
+        },
+        "anomalyFlag": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "type"
+      ]
+    },
+    "Payroll": {
+      "title": "Payroll",
+      "description": "Represents a payroll run for a specific cycle.",
+      "type": "object",
+      "properties": {
+        "cycleStartDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "cycleEndDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "PROCESSED",
+            "PAID"
+          ]
+        },
+        "lineItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "employeeId": {
+                "type": "string"
+              },
+              "normalPay": {
+                "type": "number"
+              },
+              "otPay": {
+                "type": "number"
+              },
+              "totalPay": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "processedBy": {
+          "type": "string"
+        },
+        "processedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "paidAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "cycleStartDate",
+        "cycleEndDate",
+        "status"
+      ]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Represents a client invoice.",
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string"
+        },
+        "invoiceNumber": {
+          "type": "string"
+        },
+        "issueDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "DRAFT",
+            "SENT",
+            "PAID",
+            "VOID"
+          ]
+        },
+        "manpowerItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "assignmentId": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "normalAmount": {
+                "type": "number"
+              },
+              "otAmount": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "commercialItems": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "totalAmount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "clientId",
+        "issueDate",
+        "status",
+        "totalAmount"
+      ]
+    },
+    "AuditLog": {
+      "title": "Audit Log",
+      "description": "Records significant actions performed in the system for auditing.",
+      "type": "object",
+      "properties": {
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "targetEntity": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "beforeState": {
+          "type": "object"
+        },
+        "afterState": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "timestamp",
+        "userId",
+        "action",
+        "targetEntity",
+        "targetId"
+      ]
+    },
+    "HolidayCalendar": {
+      "title": "Holiday Calendar",
+      "description": "Defines a yearly calendar of public and company holidays.",
+      "type": "object",
+      "properties": {
+        "calendarId": { "type": "string" },
+        "year": { "type": "number" },
+        "locale": { "type": "string" },
+        "name": { "type": "string" },
+        "holidays": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": { "type": "string", "format": "date-time" },
+              "name": { "type": "string" },
+              "type": { "type": "string", "enum": ["PUBLIC", "COMPANY"] },
+              "isSubstitution": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "OfficeAttendancePolicy": {
+      "title": "Office Attendance Policy",
+      "description": "Rules for office employee attendance, late penalties, and absences.",
+      "type": "object",
+      "properties": {
+        "workingDays": {
+          "type": "object",
+          "properties": {
+            "mon": { "type": "boolean" }, "tue": { "type": "boolean" }, "wed": { "type": "boolean" }, "thu": { "type": "boolean" }, "fri": { "type": "boolean" }, "sat": { "type": "boolean" }, "sun": { "type": "boolean" }
+          }
+        },
+        "workHours": {
+          "type": "object",
+          "properties": {
+            "startTime": { "type": "string" },
+            "endTime": { "type": "string" },
+            "breakMinutes": { "type": "number" }
+          }
+        },
+        "gracePeriodMinutes": { "type": "number" },
+        "payrollProration": {
+          "type": "object",
+          "properties": {
+            "method": { "type": "string", "enum": ["WORKDAYS", "CALENDAR_DAYS"] },
+            "dailyRateBase": { "type": "string", "enum": ["BASE_ONLY", "BASE_PLUS_ALLOWANCE"] }
+          }
+        },
+        "lateDeductionRule": {
+          "type": "object",
+          "properties": {
+            "mode": { "type": "string", "enum": ["PER_MINUTE", "PER_BLOCK", "PER_DAY"] },
+            "perMinuteRate": { "type": "number" },
+            "blocks": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "uptoMinutes": { "type": "number" },
+                  "deductionMinutes": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "absenceRule": {
+          "type": "object",
+          "properties": {
+            "countNoShowAsAbsent": { "type": "boolean" },
+            "deductionMode": { "type": "string", "enum": ["DAILY_RATE", "FIXED"] },
+            "fixedAmount": { "type": "number" }
+          }
+        },
+        "paidLeaveTypes": { "type": "array", "items": { "type": "string" } },
+        "unpaidLeaveTypes": { "type": "array", "items": { "type": "string" } },
+        "requireManagerApproval": { "type": "boolean" }
+      }
+    },
+    "AttendanceDaily": {
+      "title": "Daily Office Attendance",
+      "description": "A daily attendance record for an office employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["PRESENT", "LATE", "LEAVE", "ABSENT", "HOLIDAY", "WEEKEND"] },
+        "checkInAt": { "type": "string", "format": "date-time" },
+        "checkOutAt": { "type": "string", "format": "date-time" },
+        "lateMinutes": { "type": "number" },
+        "leaveType": { "type": "string", "enum": ["ANNUAL", "SICK", "UNPAID", "OTHER"] },
+        "note": { "type": "string" },
+        "source": { "type": "string", "enum": ["MANUAL", "IMPORT", "DEVICE"] }
+      }
+    },
+    "AttendanceBatch": {
+      "title": "Monthly Attendance Batch",
+      "description": "A monthly summary and approval batch for office attendance.",
+      "type": "object",
+      "properties": {
+        "month": { "type": "string", "format": "YYYY-MM" },
+        "status": { "type": "string", "enum": ["DRAFT", "HR_APPROVED", "LOCKED"] },
+        "calendarId": { "type": "string" },
+        "totals": {
+          "type": "object",
+          "properties": {
+            "employeeCount": { "type": "number" },
+            "workdaysInMonth": { "type": "number" }
+          }
+        }
+      }
+    },
+    "AttendanceBatchLine": {
+      "title": "Attendance Batch Line",
+      "description": "A summary line for one employee within a monthly attendance batch.",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "presentDays": { "type": "number" },
+        "lateDays": { "type": "number" },
+        "absentDays": { "type": "number" },
+        "paidLeaveDays": { "type": "number" },
+        "unpaidLeaveDays": { "type": "number" },
+        "lateMinutesTotal": { "type": "number" },
+        "flags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/backend/entities/User"
+      },
+      "description": "Stores user profile data, including their roles for authorization."
+    },
+    "/roles/{roleId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Role"
+      },
+      "description": "Master data for all functional roles in the system."
+    },
+    "/clients/{clientId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Client"
+      },
+      "description": "Top-level collection for storing information about client companies."
+    },
+    "/clients/{clientId}/contracts/{contractId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Contract"
+      },
+      "description": "Sub-collection for contracts associated with a client."
+    },
+    "/clients/{clientId}/contracts/{contractId}/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Project"
+      },
+      "description": "Sub-collection for projects under a specific contract."
+    },
+    "/clients/{clientId}/contracts/{contractId}/projects/{projectId}/waves/{waveId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Wave"
+      },
+      "description": "Work waves or batches within a project."
+    },
+    "/clients/{clientId}/contracts/{contractId}/projects/{projectId}/waves/{waveId}/assignments/{assignmentId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Assignment"
+      },
+      "description": "Employee assignments within a wave."
+    },
+    "/timesheets/{timesheetId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Timesheet"
+      },
+      "description": "Timesheet for an employee in a specific wave. A single document contains all work events."
+    },
+    "/payrolls/{payrollId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Payroll"
+      },
+      "description": "Collection for payroll runs."
+    },
+    "/pnd1Runs/{runId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Pnd1Run"
+      },
+      "description": "Collection for P.N.D.1 monthly runs."
+    },
+    "/pnd1Runs/{runId}/lines/{lineId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Pnd1Line"
+      },
+      "description": "Line items for a specific P.N.D.1 run."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Invoice"
+      },
+      "description": "Collection for client invoices."
+    },
+    "/audit-logs/{logId}": {
+      "schema": {
+        "$ref": "#/backend/entities/AuditLog"
+      },
+      "description": "Collection for system audit logs."
+    },
+    "/positions/{positionId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Position"
+      },
+      "description": "Master data for all job positions available in the system."
+    },
+    "/certificateTypes/{typeId}": {
+      "schema": {
+        "$ref": "#/backend/entities/CertificateType"
+      },
+      "description": "Master list of all certificate types."
+    },
+    "/hospitals/{hospitalId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Hospital"
+      },
+      "description": "Master data for social security hospitals."
+    },
+    "/settings/cooldown": {
+      "schema": {
+        "$ref": "#/backend/entities/CooldownPolicy"
+      },
+      "description": "A single document to store the global cooldown policy settings."
+    },
+    "/employees/{employeeId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Employee"
+      },
+      "description": "Master data for all employees and manpower resources."
+    },
+    "/holidayCalendars/{calendarId}": {
+      "schema": {
+        "$ref": "#/backend/entities/HolidayCalendar"
+      },
+      "description": "Stores yearly holiday calendars."
+    },
+    "/settings/hrPolicies/officeAttendancePolicy": {
+        "schema": {
+            "$ref": "#/backend/entities/OfficeAttendancePolicy"
+        },
+        "description": "A single document to store the office attendance policy."
+    },
+    "/attendanceDaily/{dailyId}": {
+      "schema": {
+        "$ref": "#/backend/entities/AttendanceDaily"
+      },
+      "description": "Daily attendance records for office employees."
+    },
+    "/attendanceBatches/{batchId}": {
+      "schema": {
+        "$ref": "#/backend/entities/AttendanceBatch"
+      },
+      "description": "Monthly approval batches for office employee attendance."
+    },
+    "/attendanceBatches/{batchId}/lines/{employeeId}": {
+      "schema": {
+        "$ref": "#/backend/entities/AttendanceBatchLine"
+      },
+      "description": "Summary lines for the monthly attendance batch."
+    }
+  }
+}

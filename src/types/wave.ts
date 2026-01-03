@@ -1,0 +1,37 @@
+
+import { type Timestamp } from 'firebase/firestore';
+
+export interface ManpowerRequirement {
+  positionId: string;
+  count: number;
+  requiredCertificateIds?: string[];
+  requiredSkillTags?: string[];
+}
+
+export interface Wave {
+  id: string;
+  waveCode: string;
+  projectId: string;
+  status: 'planned' | 'active' | 'closed';
+  manpowerRequirement: ManpowerRequirement[]; 
+  planningWorkPeriod: {
+    startDate: Timestamp;
+    endDate: Timestamp;
+  };
+   actualWorkPeriod?: {
+    startDate: Timestamp;
+    endDate: Timestamp;
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy: string;
+}
+
+export interface WaveWithProject extends Wave {
+    projectName: string;
+    contractId: string;
+    clientId: string;
+    workMode: 'Onshore' | 'Offshore';
+}
+
+    
