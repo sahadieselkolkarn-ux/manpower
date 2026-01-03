@@ -122,11 +122,11 @@ service cloud.firestore {
 
     // New rules for separated position collections
     match /officePositions/{positionId} {
-        allow read: if isAdmin();
+        allow read: if isSignedIn();
         allow write: if isHrManager() || isAdmin();
     }
     match /manpowerPositions/{positionId} {
-        allow read: if isAdmin();
+        allow read: if isSignedIn();
         allow write: if isHrManager() || isAdmin();
     }
     
