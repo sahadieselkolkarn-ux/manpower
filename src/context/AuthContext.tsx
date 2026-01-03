@@ -34,7 +34,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const unsubscribeFromAuth = auth.onAuthStateChanged(async (firebaseUser) => {
       if (firebaseUser) {
+        // Force a token refresh to get latest custom claims
+        await firebaseUser.getIdToken(true);
         setUser(firebaseUser);
+        
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         const userDoc = await getDoc(userDocRef);
@@ -47,22 +50,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const isDesignatedAdmin = firebaseUser.email ? adminEmails.includes(firebaseUser.email.toLowerCase()) : false;
         
         if (userDoc.exists()) {
-            // User exists, check if they need to be promoted to admin
             const userData = userDoc.data();
             if (isDesignatedAdmin && !userData.isAdmin) {
                 console.log(`Promoting user ${firebaseUser.email} to admin.`);
                 await updateDoc(userDocRef, { isAdmin: true });
-                // The snapshot listener below will pick up the change automatically.
             }
         } else {
-          // User document does not exist, create it.
           console.log(`Creating new user profile for ${firebaseUser.email}`);
           try {
             await setDoc(userDocRef, {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-              isAdmin: isDesignatedAdmin, // Set admin status on creation
+              isAdmin: isDesignatedAdmin, 
               roleIds: [],
               status: "ACTIVE",
               createdAt: serverTimestamp(),
@@ -92,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return () => unsubscribeFromProfile();
 
       } else {
-        // User is signed out.
         setUser(null);
         setUserProfile(null);
         setLoading(false);

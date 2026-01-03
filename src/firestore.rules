@@ -20,7 +20,9 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      // Use custom claims for robust and immediate admin verification.
+      // This avoids race conditions with Firestore document reads on login and is required for list operations.
+      return isSignedIn() && request.auth.token.admin == true;
     }
 
     function isHrManager() {
@@ -36,9 +38,9 @@ service cloud.firestore {
     }
     
     function hasRole(roleCode) {
-        // In a real scenario, you'd check against a /roles collection
-        // For now, this is a placeholder. A robust implementation would query the user's roleIds and check against the roles collection.
-        return isSignedIn();
+        // This logic will be fully implemented later by checking a 'roles' array in custom claims.
+        // For now, it defaults to checking if the user is an admin.
+        return isAdmin();
     }
 
     match /users/{userId} {
@@ -120,14 +122,12 @@ service cloud.firestore {
         }
     }
 
-    // New rules for separated position collections
+    // Rules for separated position collections
     match /officePositions/{positionId} {
-        allow read: if isSignedIn();
-        allow write: if isHrManager() || isAdmin();
+        allow read, write: if isHrManager() || isAdmin();
     }
     match /manpowerPositions/{positionId} {
-        allow read: if isSignedIn();
-        allow write: if isHrManager() || isAdmin();
+        allow read, write: if isHrManager() || isAdmin();
     }
     
     // Legacy rule for safety, can be removed later
@@ -165,7 +165,23 @@ service cloud.firestore {
         allow write: if isAdmin();
     }
 
-    match /{path=**}/contracts/{contractId} {
+    match /holidayCalendars/{calendarId} {
+        allow read: if isSignedIn();
+        allow write: if isHrManager() || isAdmin();
+    }
+
+    match /attendanceDaily/{dailyId} {
+        allow read, write: if isHrManager() || isAdmin();
+    }
+
+    match /attendanceBatches/{batchId} {
+        allow read, write: if isHrManager() || isAdmin();
+        match /lines/{lineId} {
+          allow read, write: if isHrManager() || isAdmin();
+        }
+    }
+    
+     match /{path=**}/contracts/{contractId} {
       allow list: if isOperationManager() || isAdmin();
     }
      match /{path=**}/projects/{projectId} {
@@ -180,5 +196,6 @@ service cloud.firestore {
     match /{path=**}/assignments/{assignmentId} {
       allow list: if isSignedIn() && (isHrManager() || isOperationManager() || isAdmin());
     }
+
   }
 }
