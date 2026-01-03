@@ -210,7 +210,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 </SidebarMenuItem>
                  <Collapsible>
                     <CollapsibleTrigger asChild className="w-full">
-                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/hr/holidays") || pathname.startsWith("/dashboard/hr/policies") || pathname.startsWith("/dashboard/admin/master")}>
+                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/hr/holidays") || pathname.startsWith("/dashboard/hr/policies") || pathname.startsWith("/dashboard/hr/master")}>
                             <Settings />
                             <span>HR Settings</span>
                        </SidebarMenuButton>
@@ -227,8 +227,13 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                             </SidebarMenuButton>
                          </SidebarMenuItem>
                          <SidebarMenuItem>
-                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/master/positions")}>
-                                <Link href="/dashboard/admin/master/positions"><Database /><span>Positions</span></Link>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/master/office-positions")}>
+                                <Link href="/dashboard/hr/master/office-positions"><BookUser /><span>ตำแหน่งพนักงานออฟฟิศ</span></Link>
+                            </SidebarMenuButton>
+                         </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/master/manpower-positions")}>
+                                <Link href="/dashboard/hr/master/manpower-positions"><Users /><span>ตำแหน่งลูกจ้างแมนพาวเวอร์</span></Link>
                             </SidebarMenuButton>
                          </SidebarMenuItem>
                          <SidebarMenuItem>
