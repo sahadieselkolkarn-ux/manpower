@@ -1,8 +1,8 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp } from 'firebase/firestore';
+import React, { useState, useMemo, useEffect } from 'react';
+import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { TimesheetBatch, TimesheetLine } from '@/types/timesheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,31 +10,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { PlusCircle, Trash2, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-  } from '@/components/ui/form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format, parse, isValid } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Assignment } from '@/types/assignment';
 
 interface TimesheetLinesTabProps {
     batch: TimesheetBatch;
@@ -53,7 +40,7 @@ const dateSchema = z.preprocess((arg) => {
 }, z.date({ required_error: 'Date is required.' }));
 
 const lineFormSchema = z.object({
-  employeeId: z.string().min(1, 'Employee ID is required'),
+  assignmentId: z.string().min(1, 'Please select an assigned employee.'),
   workDate: dateSchema,
   workType: z.enum(['NORMAL', 'STANDBY', 'LEAVE']),
   normalHours: z.coerce.number().min(0, 'Cannot be negative'),
@@ -73,7 +60,7 @@ const lineFormSchema = z.object({
 });
 
 
-function LineForm({ batch, open, onOpenChange, onSuccess, line }: { batch: TimesheetBatch, open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void, line?: TimesheetLine | null }) {
+function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: { batch: TimesheetBatch, open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void, line?: TimesheetLine | null, assignments: Assignment[] }) {
     const [loading, setLoading] = useState(false);
     const db = useFirestore();
     const { toast } = useToast();
@@ -81,7 +68,7 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line }: { batch: Times
     const form = useForm<z.infer<typeof lineFormSchema>>({
         resolver: zodResolver(lineFormSchema),
         defaultValues: {
-            employeeId: '',
+            assignmentId: '',
             workDate: new Date(),
             workType: 'NORMAL',
             normalHours: 8,
@@ -99,7 +86,7 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line }: { batch: Times
             });
           } else {
             form.reset({
-              employeeId: '',
+              assignmentId: '',
               workDate: batch.periodStart.toDate(),
               workType: 'NORMAL',
               normalHours: 8,
@@ -113,11 +100,19 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line }: { batch: Times
         if (!db) return;
         setLoading(true);
 
+        const selectedAssignment = assignments.find(a => a.id === values.assignmentId);
+        if (!selectedAssignment) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Selected assignment not found.' });
+            setLoading(false);
+            return;
+        }
+
         const batchRef = doc(db, 'timesheetBatches', batch.id);
         const lineRef = line ? doc(db, 'timesheetLines', line.id) : doc(collection(db, 'timesheetLines'));
 
         const data = {
             ...values,
+            employeeId: selectedAssignment.employeeId, // Denormalize employeeId for easier querying
             batchId: batch.id,
             workDate: Timestamp.fromDate(values.workDate),
             updatedAt: serverTimestamp(),
@@ -129,15 +124,15 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line }: { batch: Times
         };
 
         try {
-            const batch = writeBatch(db);
+            const firestoreBatch = writeBatch(db);
             if (line) {
-                batch.update(lineRef, data);
+                firestoreBatch.update(lineRef, data);
             } else {
-                batch.set(lineRef, { ...data, createdAt: serverTimestamp() });
+                firestoreBatch.set(lineRef, { ...data, createdAt: serverTimestamp() });
             }
-            batch.update(batchRef, batchUpdateData);
+            firestoreBatch.update(batchRef, batchUpdateData);
 
-            await batch.commit();
+            await firestoreBatch.commit();
 
             toast({ title: 'Success', description: `Timesheet line ${line ? 'updated' : 'created'}.` });
             onSuccess();
@@ -160,8 +155,19 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line }: { batch: Times
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="employeeId" render={({ field }) => (
-                            <FormItem><FormLabel>Employee ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                        <FormField control={form.control} name="assignmentId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Assigned Employee</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!line}>
+                                    <FormControl><SelectTrigger><SelectValue placeholder="Select an assigned employee..."/></SelectTrigger></FormControl>
+                                    <SelectContent>
+                                        {assignments.map(a => (
+                                            <SelectItem key={a.id} value={a.id}>{a.employeeName} ({a.positionName})</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
                         )}/>
                          <FormField control={form.control} name="workDate" render={({ field }) => (
                             <FormItem><FormLabel>Work Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''}/></FormControl><FormMessage /></FormItem>
@@ -211,10 +217,19 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
     );
     const { data: lines, isLoading, refetch } = useCollection<TimesheetLine>(linesQuery);
     
+    const assignmentsQuery = useMemoFirebase(() => {
+        if (!db || !batch.waveId) return null;
+        const assignmentPath = `clients/${batch.clientId}/contracts/${batch.contractId}/projects/${batch.projectId}/waves/${batch.waveId}/assignments`;
+        return query(collection(db, assignmentPath));
+    }, [db, batch.clientId, batch.contractId, batch.projectId, batch.waveId]);
+    const { data: assignments, isLoading: isLoadingAssignments } = useCollection<Assignment>(assignmentsQuery);
+    const assignmentMap = useMemo(() => new Map(assignments?.map(a => [a.id, a])), [assignments]);
+
+
     const sortedLines = useMemo(() => {
         if (!lines) return [];
-        return [...lines].sort((a, b) => a.workDate.toMillis() - b.workDate.toMillis() || a.employeeId.localeCompare(b.employeeId));
-    }, [lines]);
+        return [...lines].sort((a, b) => a.workDate.toMillis() - b.workDate.toMillis() || (assignmentMap.get(a.assignmentId)?.employeeName || '').localeCompare(assignmentMap.get(b.assignmentId)?.employeeName || ''));
+    }, [lines, assignmentMap]);
 
     const isLocked = batch.status === 'HR_APPROVED';
 
@@ -235,10 +250,10 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
         try {
             const batchRef = doc(db, 'timesheetBatches', batch.id);
             const lineRef = doc(db, 'timesheetLines', lineId);
-            const batchOp = writeBatch(db);
-            batchOp.delete(lineRef);
-            batchOp.update(batchRef, { status: 'CLIENT_APPROVED_RECEIVED', updatedAt: serverTimestamp() });
-            await batchOp.commit();
+            const firestoreBatch = writeBatch(db);
+            firestoreBatch.delete(lineRef);
+            firestoreBatch.update(batchRef, { status: 'CLIENT_APPROVED_RECEIVED', updatedAt: serverTimestamp() });
+            await firestoreBatch.commit();
 
             toast({ title: 'Success', description: 'Line deleted.' });
             refetch();
@@ -255,73 +270,83 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
                 <div className="flex justify-between items-center">
                     <div>
                         <CardTitle>Timesheet Lines</CardTitle>
-                        <CardDescription>Enter or edit the work hours for this batch.</CardDescription>
+                        <CardDescription>Enter or edit the work hours for this batch. Workers are populated from Wave assignments.</CardDescription>
                     </div>
                     {!isLocked && (
-                        <Button onClick={handleAdd}><PlusCircle className="mr-2 h-4 w-4"/>Add Line</Button>
+                        <Button onClick={handleAdd} disabled={!assignments || assignments.length === 0}><PlusCircle className="mr-2 h-4 w-4"/>Add Line</Button>
                     )}
                 </div>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Work Date</TableHead>
-                            <TableHead>Employee ID</TableHead>
-                            <TableHead>Work Type</TableHead>
-                            <TableHead>Normal</TableHead>
-                            <TableHead>OT</TableHead>
-                            <TableHead>Anomalies</TableHead>
-                            {!isLocked && <TableHead className="text-right">Actions</TableHead>}
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {isLoading ? (
-                            Array.from({ length: 3 }).map((_, i) => (
-                                <TableRow key={i}>
-                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
-                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                                    {!isLocked && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
-                                </TableRow>
-                            ))
-                        ) : sortedLines && sortedLines.length > 0 ? (
-                            sortedLines.map(line => (
-                                <TableRow key={line.id} className={line.anomalies && line.anomalies.length > 0 ? 'bg-red-50 dark:bg-red-900/20' : ''}>
-                                    <TableCell>{line.workDate.toDate().toLocaleDateString()}</TableCell>
-                                    <TableCell className="font-mono">{line.employeeId}</TableCell>
-                                    <TableCell><Badge variant="outline">{line.workType}</Badge></TableCell>
-                                    <TableCell>{line.normalHours}</TableCell>
-                                    <TableCell>{line.otHours}</TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
-                                            {line.anomalies?.map(anomaly => (
-                                                <Badge key={anomaly} variant="destructive">{anomaly}</Badge>
-                                            ))}
-                                        </div>
-                                    </TableCell>
-                                    {!isLocked && (
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm" onClick={() => handleEdit(line)}>Edit</Button>
-                                            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => handleDelete(line.id)}><Trash2 className="h-4 w-4"/></Button>
-                                        </TableCell>
-                                    )}
-                                </TableRow>
-                            ))
-                        ) : (
+                {isLoadingAssignments && <p>Loading wave assignments...</p>}
+                {!isLoadingAssignments && (!assignments || assignments.length === 0) && (
+                     <div className="text-center py-10 border-2 border-dashed rounded-lg">
+                        <UserX className="mx-auto h-12 w-12 text-gray-400" />
+                        <h3 className="mt-2 text-sm font-semibold text-gray-900">No Workers Assigned to this Wave</h3>
+                        <p className="mt-1 text-sm text-gray-500">You must assign workers to the wave before adding timesheet lines.</p>
+                    </div>
+                )}
+                
+                {assignments && assignments.length > 0 && (
+                    <Table>
+                        <TableHeader>
                             <TableRow>
-                                <TableCell colSpan={isLocked ? 6 : 7} className="h-24 text-center">
-                                    No lines have been added to this batch yet.
-                                </TableCell>
+                                <TableHead>Work Date</TableHead>
+                                <TableHead>Employee</TableHead>
+                                <TableHead>Position</TableHead>
+                                <TableHead>Work Type</TableHead>
+                                <TableHead>Normal</TableHead>
+                                <TableHead>OT</TableHead>
+                                <TableHead>Anomalies</TableHead>
+                                {!isLocked && <TableHead className="text-right">Actions</TableHead>}
                             </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                            {isLoading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <TableRow key={i}>
+                                        <TableCell colSpan={isLocked ? 7 : 8}><Skeleton className="h-5 w-full" /></TableCell>
+                                    </TableRow>
+                                ))
+                            ) : sortedLines && sortedLines.length > 0 ? (
+                                sortedLines.map(line => {
+                                    const assignment = assignmentMap.get(line.assignmentId);
+                                    return (
+                                    <TableRow key={line.id} className={line.anomalies && line.anomalies.length > 0 ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                                        <TableCell>{line.workDate.toDate().toLocaleDateString()}</TableCell>
+                                        <TableCell className="font-medium">{assignment?.employeeName || `(Unknown: ${line.employeeId})`}</TableCell>
+                                        <TableCell>{assignment?.positionName || '(Unknown)'}</TableCell>
+                                        <TableCell><Badge variant="outline">{line.workType}</Badge></TableCell>
+                                        <TableCell>{line.normalHours}</TableCell>
+                                        <TableCell>{line.otHours}</TableCell>
+                                        <TableCell>
+                                            <div className="flex flex-col gap-1">
+                                                {line.anomalies?.map(anomaly => (
+                                                    <Badge key={anomaly} variant="destructive">{anomaly}</Badge>
+                                                ))}
+                                            </div>
+                                        </TableCell>
+                                        {!isLocked && (
+                                            <TableCell className="text-right">
+                                                <Button variant="ghost" size="sm" onClick={() => handleEdit(line)}>Edit</Button>
+                                                <Button variant="ghost" size="icon" className="text-destructive" onClick={() => handleDelete(line.id)}><Trash2 className="h-4 w-4"/></Button>
+                                            </TableCell>
+                                        )}
+                                    </TableRow>
+                                    )
+                                })
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={isLocked ? 7 : 8} className="h-24 text-center">
+                                        No lines have been added to this batch yet.
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                )}
             </CardContent>
-             <LineForm batch={batch} open={isFormOpen} onOpenChange={setIsFormOpen} onSuccess={refetch} line={selectedLine} />
+             <LineForm batch={batch} open={isFormOpen} onOpenChange={setIsFormOpen} onSuccess={refetch} line={selectedLine} assignments={assignments || []} />
         </Card>
     );
 }

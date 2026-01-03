@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -62,7 +63,7 @@ export default function TimesheetIntakePage() {
     },
   });
   
-  const handleWaveSelected = (wave: Wave, data: WaveSelectorData) => {
+  const handleWaveSelected = (wave: Wave & { id: string }, data: WaveSelectorData) => {
       setSelectedWaveData(data);
       form.setValue('periodStart', data.wave.planningWorkPeriod.startDate.toDate());
       form.setValue('periodEnd', data.wave.planningWorkPeriod.endDate.toDate());
@@ -75,7 +76,7 @@ export default function TimesheetIntakePage() {
     }
     setLoading(true);
     try {
-      await addDoc(collection(db, 'timesheetBatches'), {
+      const newBatchRef = await addDoc(collection(db, 'timesheetBatches'), {
         clientId: selectedWaveData.routeParams.clientId,
         contractId: selectedWaveData.routeParams.contractId,
         projectId: selectedWaveData.routeParams.projectId,
@@ -88,8 +89,8 @@ export default function TimesheetIntakePage() {
         updatedAt: serverTimestamp(),
         createdBy: userProfile.displayName || 'DEV',
       });
-      toast({ title: 'Success', description: 'New timesheet batch created.' });
-      router.push('/dashboard/hr/timesheets');
+      toast({ title: 'Success', description: 'New timesheet batch created. Redirecting...' });
+      router.push(`/dashboard/hr/timesheets/${newBatchRef.id}`);
     } catch (error) {
       console.error('Error creating timesheet batch:', error);
       toast({ variant: 'destructive', title: 'Error', description: 'Could not create batch.' });

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -42,32 +43,37 @@ async function validateTimesheetLines(db: any, batchData: TimesheetBatch): Promi
     
     // Batch fetch employees and assignments
     const employees: Record<string, Employee> = {};
-    const assignments: Record<string, Assignment[]> = {};
+    const assignmentPath = `clients/${batchData.clientId}/contracts/${batchData.contractId}/projects/${batchData.projectId}/waves/${batchData.waveId}/assignments`;
+    const assignments: Record<string, Assignment> = {};
+
+    const assignmentIds = [...new Set(lines.map(l => l.assignmentId))];
     
     // Firestore 'in' query has a limit of 30 items in array
     for (let i = 0; i < employeeIds.length; i += 30) {
         const chunk = employeeIds.slice(i, i + 30);
-        
-        const empQuery = query(collection(db, 'employees'), where('employeeCode', 'in', chunk));
+        const empQuery = query(collection(db, 'employees'), where('__name__', 'in', chunk));
         const empSnaps = await getDocs(empQuery);
         empSnaps.forEach(snap => {
-            employees[snap.data().employeeCode] = { id: snap.id, ...snap.data() } as Employee;
-        });
-        
-        const asgnQuery = query(collectionGroup(db, 'assignments'), where('employeeId', 'in', chunk));
-        const asgnSnaps = await getDocs(asgnQuery);
-        asgnSnaps.forEach(snap => {
-            const asgn = { id: snap.id, ...snap.data() } as Assignment;
-            if (!assignments[asgn.employeeId]) assignments[asgn.employeeId] = [];
-            assignments[asgn.employeeId].push(asgn);
+            employees[snap.id] = { id: snap.id, ...snap.data() } as Employee;
         });
     }
+
+    for (let i = 0; i < assignmentIds.length; i += 30) {
+        const chunk = assignmentIds.slice(i, i+30);
+        const asgnQuery = query(collection(db, assignmentPath), where('__name__', 'in', chunk));
+        const asgnSnaps = await getDocs(asgnQuery);
+        asgnSnaps.forEach(snap => {
+             assignments[snap.id] = { id: snap.id, ...snap.data() } as Assignment;
+        })
+    }
+
 
     const updates: { lineId: string, anomalies: string[] }[] = [];
 
     for (const line of lines) {
         const anomalies: string[] = [];
-        const employee = employees[line.employeeId];
+        const assignment = assignments[line.assignmentId];
+        const employee = assignment ? employees[assignment.employeeId] : undefined;
 
         // Validation for workType
         if (line.workType === 'LEAVE') {
@@ -86,9 +92,12 @@ async function validateTimesheetLines(db: any, batchData: TimesheetBatch): Promi
         }
         
         // Existing validations
+        if (!assignment) {
+            anomalies.push('ASSIGNMENT_NOT_FOUND');
+        } 
         if (!employee) {
             anomalies.push('EMPLOYEE_NOT_FOUND');
-        } 
+        }
         
         updates.push({ lineId: line.id, anomalies });
     }
