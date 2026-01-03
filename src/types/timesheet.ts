@@ -1,11 +1,9 @@
-
 import { type Timestamp } from 'firebase/firestore';
 
 export type TimesheetBatchStatus =
-  | 'CLIENT_APPROVED_RECEIVED'
-  | 'VALIDATED'
+  | 'DRAFT'
   | 'HR_APPROVED'
-  | 'REVOKED';
+  | 'FINANCE_PAID';
 
 export interface TimesheetBatch {
   id: string;
@@ -20,6 +18,8 @@ export interface TimesheetBatch {
   status: TimesheetBatchStatus;
   approvedBy?: string;
   approvedAt?: Timestamp;
+  paidBy?: string;
+  paidAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;

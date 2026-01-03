@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { TimesheetBatch, TimesheetLine } from '@/types/timesheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,9 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Trash2, UserX } from 'lucide-react';
+import { PlusCircle, Trash2, UserX, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/context/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -25,6 +24,7 @@ import { Assignment } from '@/types/assignment';
 
 interface TimesheetLinesTabProps {
     batch: TimesheetBatch;
+    isLocked: boolean;
 }
 
 const DATE_FORMAT = 'dd/MM/yyyy';
@@ -60,7 +60,7 @@ const lineFormSchema = z.object({
 });
 
 
-function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: { batch: TimesheetBatch, open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void, line?: TimesheetLine | null, assignments: Assignment[] }) {
+function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments, isLocked }: { batch: TimesheetBatch, open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void, line?: TimesheetLine | null, assignments: Assignment[], isLocked: boolean }) {
     const [loading, setLoading] = useState(false);
     const db = useFirestore();
     const { toast } = useToast();
@@ -97,7 +97,7 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
       }, [open, line, batch, form]);
 
     const onSubmit = async (values: z.infer<typeof lineFormSchema>) => {
-        if (!db) return;
+        if (!db || isLocked) return;
         setLoading(true);
 
         const selectedAssignment = assignments.find(a => a.id === values.assignmentId);
@@ -107,7 +107,6 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
             return;
         }
 
-        const batchRef = doc(db, 'timesheetBatches', batch.id);
         const lineRef = line ? doc(db, 'timesheetLines', line.id) : doc(collection(db, 'timesheetLines'));
 
         const data = {
@@ -118,21 +117,13 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
             updatedAt: serverTimestamp(),
         };
 
-        const batchUpdateData = {
-            status: 'CLIENT_APPROVED_RECEIVED' as const, // Revert status if validated
-            updatedAt: serverTimestamp(),
-        };
 
         try {
-            const firestoreBatch = writeBatch(db);
             if (line) {
-                firestoreBatch.update(lineRef, data);
+                await updateDoc(lineRef, data);
             } else {
-                firestoreBatch.set(lineRef, { ...data, createdAt: serverTimestamp() });
+                await setDoc(lineRef, { ...data, createdAt: serverTimestamp() });
             }
-            firestoreBatch.update(batchRef, batchUpdateData);
-
-            await firestoreBatch.commit();
 
             toast({ title: 'Success', description: `Timesheet line ${line ? 'updated' : 'created'}.` });
             onSuccess();
@@ -158,7 +149,7 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
                         <FormField control={form.control} name="assignmentId" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Assigned Employee</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!line}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!line || isLocked}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select an assigned employee..."/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         {assignments.map(a => (
@@ -170,12 +161,12 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
                             </FormItem>
                         )}/>
                          <FormField control={form.control} name="workDate" render={({ field }) => (
-                            <FormItem><FormLabel>Work Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''}/></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Work Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} disabled={isLocked} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         <FormField control={form.control} name="workType" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Work Type</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
                                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="NORMAL">NORMAL</SelectItem>
@@ -188,15 +179,15 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
                         )}/>
                         <div className="grid grid-cols-2 gap-4">
                             <FormField control={form.control} name="normalHours" render={({ field }) => (
-                                <FormItem><FormLabel>Normal Hours</FormLabel><FormControl><Input type="number" {...field} disabled={workType === 'LEAVE'} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Normal Hours</FormLabel><FormControl><Input type="number" {...field} disabled={workType === 'LEAVE' || isLocked} /></FormControl><FormMessage /></FormItem>
                             )}/>
                              <FormField control={form.control} name="otHours" render={({ field }) => (
-                                <FormItem><FormLabel>OT Hours</FormLabel><FormControl><Input type="number" {...field} disabled={workType !== 'NORMAL'} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>OT Hours</FormLabel><FormControl><Input type="number" {...field} disabled={workType !== 'NORMAL' || isLocked} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                            <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Line'}</Button>
+                            {!isLocked && <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Line'}</Button>}
                         </DialogFooter>
                     </form>
                 </Form>
@@ -205,7 +196,7 @@ function LineForm({ batch, open, onOpenChange, onSuccess, line, assignments }: {
     )
 }
 
-export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
+export default function TimesheetLinesTab({ batch, isLocked }: TimesheetLinesTabProps) {
     const db = useFirestore();
     const { toast } = useToast();
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -231,7 +222,6 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
         return [...lines].sort((a, b) => a.workDate.toMillis() - b.workDate.toMillis() || (assignmentMap.get(a.assignmentId)?.employeeName || '').localeCompare(assignmentMap.get(b.assignmentId)?.employeeName || ''));
     }, [lines, assignmentMap]);
 
-    const isLocked = batch.status === 'HR_APPROVED';
 
     const handleAdd = () => {
         setSelectedLine(null);
@@ -244,17 +234,11 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
     };
     
     const handleDelete = async (lineId: string) => {
-        if (!db) return;
+        if (!db || isLocked) return;
         if (!confirm('Are you sure you want to delete this line?')) return;
 
         try {
-            const batchRef = doc(db, 'timesheetBatches', batch.id);
-            const lineRef = doc(db, 'timesheetLines', lineId);
-            const firestoreBatch = writeBatch(db);
-            firestoreBatch.delete(lineRef);
-            firestoreBatch.update(batchRef, { status: 'CLIENT_APPROVED_RECEIVED', updatedAt: serverTimestamp() });
-            await firestoreBatch.commit();
-
+            await deleteDoc(doc(db, 'timesheetLines', lineId));
             toast({ title: 'Success', description: 'Line deleted.' });
             refetch();
         } catch (error) {
@@ -276,6 +260,12 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
                         <Button onClick={handleAdd} disabled={!assignments || assignments.length === 0}><PlusCircle className="mr-2 h-4 w-4"/>Add Line</Button>
                     )}
                 </div>
+                {isLocked && (
+                    <div className='flex items-center text-sm text-destructive border border-destructive/50 bg-destructive/10 p-3 rounded-md mt-4'>
+                        <AlertCircle className="h-4 w-4 mr-2" />
+                        This batch is locked. Editing is disabled.
+                    </div>
+                )}
             </CardHeader>
             <CardContent>
                 {isLoadingAssignments && <p>Loading wave assignments...</p>}
@@ -346,7 +336,7 @@ export default function TimesheetLinesTab({ batch }: TimesheetLinesTabProps) {
                     </Table>
                 )}
             </CardContent>
-             <LineForm batch={batch} open={isFormOpen} onOpenChange={setIsFormOpen} onSuccess={refetch} line={selectedLine} assignments={assignments || []} />
+             <LineForm batch={batch} open={isFormOpen} onOpenChange={setIsFormOpen} onSuccess={refetch} line={selectedLine} assignments={assignments || []} isLocked={isLocked}/>
         </Card>
     );
 }

@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -10,19 +9,17 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
     
-    function getUserRoles() {
-        return getUserData().roleIds;
-    }
-
     function isAdmin() {
       // Use custom claims for robust and immediate admin verification.
       // This avoids race conditions with Firestore document reads on login and is required for list operations.
       return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function hasRole(roleCode) {
+        // This logic will be fully implemented later by checking a 'roles' array in custom claims.
+        // For now, it defaults to checking if the user is an admin.
+        return isAdmin();
     }
 
     function isHrManager() {
@@ -36,16 +33,10 @@ service cloud.firestore {
     function isOperationManager() {
         return hasRole('OPERATION_MANAGER') || isAdmin();
     }
-    
-    function hasRole(roleCode) {
-        // This logic will be fully implemented later by checking a 'roles' array in custom claims.
-        // For now, it defaults to checking if the user is an admin.
-        return isAdmin();
-    }
 
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
       allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
       allow update: if (isOwner(userId) || isAdmin());
       allow delete: if isAdmin();
@@ -76,19 +67,13 @@ service cloud.firestore {
       }
     }
     
-    match /timesheets/{timesheetId} {
-        allow read, create: if isHrManager() || isOperationManager();
-        allow update: if (isHrManager() || isOperationManager()) && resource.data.status != 'HR_APPROVED';
-        allow update: if isHrManager() && request.resource.data.status == 'HR_APPROVED';
-        allow delete: if isAdmin();
-    }
-    
     match /timesheetBatches/{batchId} {
-        allow read, write: if isHrManager() || isAdmin();
+        allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
     }
 
     match /timesheetLines/{lineId} {
-      allow read, write, delete: if isHrManager() || isAdmin();
+      allow read, delete: if isHrManager() || isAdmin();
+      allow create, update: if (isHrManager() || isAdmin()) && get(/databases/$(database)/documents/timesheetBatches/$(request.resource.data.batchId)).data.status == 'DRAFT';
     }
 
     match /payrolls/{payrollId} {

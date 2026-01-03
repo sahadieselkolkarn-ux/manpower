@@ -1167,61 +1167,34 @@
       ]
     },
     "Timesheet": {
-      "title": "Timesheet",
+      "title": "Timesheet Batch",
       "description": "A collection of work events for a single employee within a single wave.",
       "type": "object",
       "properties": {
-        "assignmentId": {
-          "type": "string"
-        },
-        "employeeId": {
-          "type": "string"
-        },
-        "waveId": {
-          "type": "string"
-        },
-        "periodStartDate": {
-          "type": "string",
-          "format": "date"
-        },
-        "periodEndDate": {
-          "type": "string",
-          "format": "date"
-        },
+        "clientId": { "type": "string" },
+        "contractId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "waveId": { "type": "string" },
+        "periodStartDate": { "type": "string", "format": "date" },
+        "periodEndDate": { "type": "string", "format": "date" },
         "status": {
           "type": "string",
           "enum": [
-            "CLIENT_APPROVED_RECEIVED",
-            "HR_APPROVED"
+            "DRAFT",
+            "HR_APPROVED",
+            "FINANCE_PAID"
           ]
         },
-        "workEvents": {
-          "type": "array",
-          "items": {
-            "$ref": "#/backend/entities/WorkEvent"
-          }
-        },
-        "lastUpdatedBy": {
-          "type": "string"
-        },
-        "lastUpdatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "hrApprovedBy": {
-          "type": "string"
-        },
-        "hrApprovedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
+        "approvedBy": { "type": "string" },
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "paidBy": { "type": "string" },
+        "paidAt": { "type": "string", "format": "date-time" },
+        "lastUpdatedBy": { "type": "string" },
+        "lastUpdatedAt": { "type": "string", "format": "date-time" }
       },
       "required": [
-        "assignmentId",
-        "employeeId",
         "waveId",
-        "status",
-        "workEvents"
+        "status"
       ]
     },
     "WorkEvent": {
@@ -1611,11 +1584,11 @@
       },
       "description": "Employee assignments within a wave."
     },
-    "/timesheets/{timesheetId}": {
+    "/timesheetBatches/{batchId}": {
       "schema": {
         "$ref": "#/backend/entities/Timesheet"
       },
-      "description": "Timesheet for an employee in a specific wave. A single document contains all work events."
+      "description": "A batch of timesheet data for a specific wave and period."
     },
     "/payrolls/{payrollId}": {
       "schema": {

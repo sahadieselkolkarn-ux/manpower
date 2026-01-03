@@ -85,7 +85,7 @@ export default function TimesheetIntakePage() {
         periodStart: Timestamp.fromDate(values.periodStart),
         periodEnd: Timestamp.fromDate(values.periodEnd),
         templateVersion: values.templateVersion,
-        status: 'CLIENT_APPROVED_RECEIVED',
+        status: 'DRAFT',
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         createdBy: userProfile.displayName || 'DEV',
