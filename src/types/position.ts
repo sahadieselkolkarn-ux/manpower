@@ -22,6 +22,7 @@ export interface ManpowerPosition {
   description?: string;
   costRateOnshore: number;
   costRateOffshore: number;
+  active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -30,6 +31,7 @@ export interface OfficePosition {
   id: string;
   name: string;
   description?: string;
+  active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
