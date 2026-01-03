@@ -322,7 +322,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                         </CollapsibleContent>
                      </Collapsible>
                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/payroll")} isDisabled>
+                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/payroll")} disabled>
                             <Link href="#">
                                 <DollarSign />
                                 <span>Payroll</span>
