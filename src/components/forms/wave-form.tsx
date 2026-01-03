@@ -389,8 +389,8 @@ export default function WaveForm({
                                 <FormControl>
                                 <Input
                                   placeholder={DATE_FORMAT}
-                                  value={field.value instanceof Date ? format(field.value, DATE_FORMAT) : ''}
-                                  onChange={(e) => field.onChange(e.target.value)}
+                                  value={field.value instanceof Date ? format(field.value, DATE_FORMAT) : (typeof field.value === 'string' ? field.value : '')}
+                                  onChange={e => field.onChange(e.target.value)}
                                 />
                                 </FormControl>
                                 <FormMessage />
@@ -406,8 +406,8 @@ export default function WaveForm({
                                 <FormControl>
                                 <Input
                                   placeholder={DATE_FORMAT}
-                                  value={field.value instanceof Date ? format(field.value, DATE_FORMAT) : ''}
-                                   onChange={(e) => field.onChange(e.target.value)}
+                                  value={field.value instanceof Date ? format(field.value, DATE_FORMAT) : (typeof field.value === 'string' ? field.value : '')}
+                                  onChange={e => field.onChange(e.target.value)}
                                 />
                                 </FormControl>
                                 <FormMessage />
