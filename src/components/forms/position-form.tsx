@@ -12,22 +12,23 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { Position, PositionType } from '@/types/position';
+import { type OfficePosition, type ManpowerPosition } from '@/types/position';
 import { Textarea } from '@/components/ui/textarea';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name is required.'),
-  type: z.custom<PositionType>(),
+  description: z.string().optional(),
   costRateOnshore: z.coerce.number().min(0, "Cost must be non-negative.").optional(),
   costRateOffshore: z.coerce.number().min(0, "Cost must be non-negative.").optional(),
-  description: z.string().optional(),
 });
+
+type PositionVariant = OfficePosition | ManpowerPosition;
 
 interface PositionFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  position?: Position | null;
-  positionType: PositionType;
+  position?: PositionVariant | null;
+  positionType: 'MANPOWER' | 'OFFICE';
   onSuccess: () => void;
 }
 
@@ -40,10 +41,9 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
-      type: positionType,
+      description: '',
       costRateOnshore: 0,
       costRateOffshore: 0,
-      description: '',
     },
   });
 
@@ -52,44 +52,46 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
       if (position) {
         form.reset({
           name: position.name || '',
-          type: position.type || positionType,
-          costRateOnshore: position.costRateOnshore || 0,
-          costRateOffshore: position.costRateOffshore || 0,
           description: position.description || '',
+          costRateOnshore: (position as ManpowerPosition).costRateOnshore || 0,
+          costRateOffshore: (position as ManpowerPosition).costRateOffshore || 0,
         });
       } else {
         form.reset({
           name: '',
-          type: positionType,
+          description: '',
           costRateOnshore: 0,
           costRateOffshore: 0,
-          description: '',
         });
       }
     }
-  }, [open, position, form, positionType]);
+  }, [open, position, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!db) return;
     setLoading(true);
 
-    const dataToSave = {
-        ...values,
-        // Ensure cost rates are 0 if it's an office position
-        costRateOnshore: positionType === 'FIELD' ? values.costRateOnshore : 0,
-        costRateOffshore: positionType === 'FIELD' ? values.costRateOffshore : 0,
+    const collectionName = positionType === 'MANPOWER' ? 'manpowerPositions' : 'officePositions';
+    const dataToSave: any = {
+        name: values.name,
+        description: values.description,
+        updatedAt: serverTimestamp(),
     };
+    
+    if (positionType === 'MANPOWER') {
+        dataToSave.costRateOnshore = values.costRateOnshore;
+        dataToSave.costRateOffshore = values.costRateOffshore;
+    }
 
     try {
       if (position) {
-        const posRef = doc(db, 'positions', position.id);
-        await updateDoc(posRef, { ...dataToSave, updatedAt: serverTimestamp() });
+        const posRef = doc(db, collectionName, position.id);
+        await updateDoc(posRef, dataToSave);
         toast({ title: 'Success', description: 'Position updated.' });
       } else {
-        await addDoc(collection(db, 'positions'), {
+        await addDoc(collection(db, collectionName), {
           ...dataToSave,
           createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
         });
         toast({ title: 'Success', description: 'Position created.' });
       }
@@ -107,18 +109,18 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{position ? 'Edit' : 'Create'} {positionType === 'FIELD' ? 'Field' : 'Office'} Position</DialogTitle>
+          <DialogTitle>{position ? 'Edit' : 'Create'} {positionType === 'MANPOWER' ? 'Manpower Position' : 'Office Position'}</DialogTitle>
            <DialogDescription>
-            {positionType === 'FIELD' ? 'Define the position and its associated daily labor costs.' : 'Define the office position name.'}
+            {positionType === 'MANPOWER' ? 'Define the position and its associated daily labor costs.' : 'Define the office position name.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
              <FormField control={form.control} name="name" render={({ field }) => (
-              <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Position Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
-            {positionType === 'FIELD' && (
+            {positionType === 'MANPOWER' && (
                 <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="costRateOnshore" render={({ field }) => (
                     <FormItem><FormLabel>Onshore Cost / Day</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
@@ -130,7 +132,7 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
             )}
 
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <DialogFooter>

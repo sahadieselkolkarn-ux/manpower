@@ -53,7 +53,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { type Employee } from '@/types/employee';
-import { type Position } from '@/types/position';
+import { type OfficePosition, type ManpowerPosition } from '@/types/position';
 import { Checkbox } from '../ui/checkbox';
 import { Separator } from '../ui/separator';
 import { Textarea } from '../ui/textarea';
@@ -77,7 +77,6 @@ const documentSchema = z.object({
 });
 
 const formSchema = z.object({
-  // employeeType is determined by props, not form
   orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
   personalInfo: z.object({
     firstName: z.string().min(1, 'First name is required.'),
@@ -107,11 +106,9 @@ const formSchema = z.object({
   skillTags: z.string().optional(),
   employmentStatus: z.enum(['Active', 'Inactive', 'Terminated']),
   documents: z.array(documentSchema).optional(),
-  // New fields for user creation
   createUser: z.boolean(),
   userEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
 }).refine(data => {
-    // If createUser is true, userEmail must be provided.
     if (data.createUser && !data.userEmail) {
         return false;
     }
@@ -129,8 +126,6 @@ interface EmployeeFormProps {
   onOpenChange: (open: boolean) => void;
   employeeType: 'OFFICE' | 'FIELD';
   employee?: Employee | null;
-  positions: Position[];
-  certificateTypes: CertificateType[];
   onSuccess?: (employeeId?: string) => void;
 }
 
@@ -156,8 +151,6 @@ export default function EmployeeForm({
   onOpenChange,
   employeeType,
   employee,
-  positions,
-  certificateTypes,
   onSuccess,
 }: EmployeeFormProps) {
   const [loading, setLoading] = React.useState(false);
@@ -168,6 +161,15 @@ export default function EmployeeForm({
 
   const hospitalsQuery = useMemoFirebase(() => (db ? collection(db, 'hospitals') : null), [db]);
   const { data: hospitals, isLoading: isLoadingHospitals } = useCollection<Hospital>(hospitalsQuery);
+
+  const officePositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'officePositions')) : null), [db]);
+  const { data: officePositions, isLoading: isLoadingOfficePos } = useCollection<OfficePosition>(officePositionsQuery);
+  
+  const manpowerPositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'manpowerPositions')) : null), [db]);
+  const { data: manpowerPositions, isLoading: isLoadingManpowerPos } = useCollection<ManpowerPosition>(manpowerPositionsQuery);
+
+  const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
+  const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(formSchema),
@@ -193,15 +195,21 @@ export default function EmployeeForm({
   const hasSocialSecurity = form.watch('financeInfo.socialSecurity.has');
   const shouldCreateUser = form.watch('createUser');
 
-  const availablePositions = useMemo(() => positions.filter(p => p.type === employeeType), [positions, employeeType]);
-  const availableCertTypes = useMemo(() => certificateTypes.filter(c => c.type === employeeType || c.type === 'GENERAL'), [certificateTypes, employeeType]);
+  const availablePositions = useMemo(() => {
+    if (employeeType === 'OFFICE') return officePositions;
+    return manpowerPositions;
+  }, [employeeType, officePositions, manpowerPositions]);
+
+  const availableCertTypes = useMemo(() => {
+    if (!certificateTypes) return [];
+    return certificateTypes.filter(c => c.type === (employeeType === 'OFFICE' ? 'OFFICE' : 'FIELD') || c.type === 'GENERAL');
+  }, [certificateTypes, employeeType]);
 
   useEffect(() => {
     if (open) {
       if (employee) {
         const dob = toDate(employee.personalInfo.dateOfBirth);
         form.reset({
-          // employeeType is a prop, not a form value
           orgLevel: employee.orgLevel || 'STAFF',
           personalInfo: {
             firstName: employee.personalInfo.firstName || '',
@@ -311,7 +319,6 @@ export default function EmployeeForm({
         },
         contactInfo: {
             ...values.contactInfo,
-            // If user is being created, their email MUST match the employee email
             email: employeeType === 'OFFICE' && values.createUser ? values.userEmail : values.contactInfo.email,
         },
         financeInfo: {
@@ -328,7 +335,7 @@ export default function EmployeeForm({
         updatedAt: serverTimestamp(),
       };
 
-      if (employee) { // UPDATE EXISTING EMPLOYEE
+      if (employee) {
         const employeeRef = doc(db, 'employees', employee.id);
         await updateDoc(employeeRef, dataToSave);
         toast({
@@ -336,7 +343,7 @@ export default function EmployeeForm({
           description: 'Employee updated successfully.',
         });
         onSuccess?.(employee.id);
-      } else { // CREATE NEW EMPLOYEE
+      } else {
         const batch = writeBatch(db);
 
         const employeeCode = await getNextEmployeeCode();
@@ -363,17 +370,16 @@ export default function EmployeeForm({
             createdBy: userProfile.displayName || userProfile.email,
         });
 
-        // AUTO-CREATE USER IF OFFICE EMPLOYEE
         if (employeeType === 'OFFICE' && values.createUser && values.userEmail) {
-            const userRef = doc(collection(db, 'users')); // Let firestore generate ID
+            const userRef = doc(collection(db, 'users'));
             batch.set(userRef, {
-                uid: userRef.id, // Using generated doc ID as UID for simplicity without Auth
+                uid: userRef.id,
                 email: values.userEmail,
                 displayName: `${values.personalInfo.firstName} ${values.personalInfo.lastName}`,
                 isAdmin: false,
                 roleIds: [],
                 status: 'ACTIVE',
-                employeeId: employeeRef.id, // Link to the new employee
+                employeeId: employeeRef.id,
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp(),
             });
@@ -402,7 +408,7 @@ export default function EmployeeForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{employee ? 'Edit' : 'Add New'} {employeeType === 'FIELD' ? 'Field' : 'Office'} Employee</DialogTitle>
+          <DialogTitle>{employee ? 'Edit' : 'Add New'} {employeeType === 'FIELD' ? 'Manpower' : 'Office'} Employee</DialogTitle>
           <DialogDescription>
             Fill in the details below. Click save when you're done.
           </DialogDescription>
@@ -410,7 +416,6 @@ export default function EmployeeForm({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
             
-             {/* Employment Details */}
             <h3 className="text-lg font-medium">Employment Details</h3>
             <FormField control={form.control} name="orgLevel" render={({ field }) => (
                 <FormItem>
@@ -427,7 +432,6 @@ export default function EmployeeForm({
                 </FormItem>
             )}/>
             
-            {/* Personal Info */}
             <h3 className="text-lg font-medium pt-4">Personal Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="personalInfo.firstName" render={({ field }) => (
@@ -447,7 +451,6 @@ export default function EmployeeForm({
               <FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="Full address" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
-            {/* Contact Info */}
             <h3 className="text-lg font-medium pt-4">Contact Information</h3>
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="contactInfo.phone" render={({ field }) => (
@@ -469,7 +472,6 @@ export default function EmployeeForm({
                 )} />
             </div>
             
-            {/* User Account Creation */}
             {!employee && employeeType === 'OFFICE' && (
                 <>
                 <Separator />
@@ -497,8 +499,6 @@ export default function EmployeeForm({
                 </>
             )}
 
-
-            {/* Finance Info */}
             <h3 className="text-lg font-medium pt-4">Finance & Social Security</h3>
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="financeInfo.bankName" render={({ field }) => (
@@ -533,13 +533,12 @@ export default function EmployeeForm({
                 )}
             </div>
             
-            {/* Employment Details Cont. */}
             <h3 className="text-lg font-medium pt-4">Positions & Skills</h3>
             <FormField name="positionIds" render={() => (
                 <FormItem>
                     <FormLabel>Positions</FormLabel>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 rounded-md border p-4">
-                    {availablePositions.map((pos) => (
+                    {(availablePositions || []).map((pos) => (
                         <FormField key={pos.id} control={form.control} name="positionIds" render={({ field }) => (
                             <FormItem key={pos.id} className="flex flex-row items-start space-x-3 space-y-0">
                                 <FormControl>
@@ -580,7 +579,6 @@ export default function EmployeeForm({
             
             <Separator />
             
-            {/* Documents */}
             <h3 className="text-lg font-medium">Certificates & Documents</h3>
             <div className="space-y-4">
                 {fields.map((field, index) => {
@@ -648,4 +646,3 @@ export default function EmployeeForm({
     </Dialog>
   );
 }
-

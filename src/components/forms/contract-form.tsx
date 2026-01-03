@@ -16,7 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { type Client } from '@/types/client';
 import { type ContractWithClient } from '@/types/contract';
-import { Position } from '@/types/position';
+import { ManpowerPosition } from '@/types/position';
 import { Trash2 } from 'lucide-react';
 import { Separator } from '../ui/separator';
 
@@ -52,8 +52,8 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const positionsQuery = useMemoFirebase(() => (db ? collection(db, 'positions') : null), [db]);
-  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  const manpowerPositionsQuery = useMemoFirebase(() => (db ? collection(db, 'manpowerPositions') : null), [db]);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(manpowerPositionsQuery);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -86,7 +86,6 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
       const { clientId, ...contractData } = values;
       
       if (contract) {
-        // Update existing contract
         if (contract.isLocked) {
           throw new Error("Cannot update a locked contract.");
         }
@@ -100,7 +99,6 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
           description: 'Contract updated successfully.',
         });
       } else {
-        // Create new contract
         const collectionRef = collection(db, 'clients', clientId, 'contracts');
         await addDoc(collectionRef, {
           ...contractData,
@@ -208,7 +206,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
                            <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select position..."/>
+                              <SelectValue placeholder="Select manpower position..."/>
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>{isLoadingPositions ? <SelectItem value="loading" disabled>Loading...</SelectItem> : positions?.map(pos => <SelectItem key={pos.id} value={pos.id}>{pos.name}</SelectItem>)}</SelectContent>

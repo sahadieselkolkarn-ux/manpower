@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, MoreHorizontal, PlusCircle, Lock, Unlock, CalendarDays, Percent } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, PlusCircle, Lock, Unlock, CalendarDays, Percent, DollarSign } from "lucide-react";
 import FullPageLoader from "@/components/full-page-loader";
 import Link from "next/link";
 import { type Client } from "@/types/client";
@@ -39,7 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useCollection } from "@/firebase";
-import { Position } from "@/types/position";
+import { ManpowerPosition } from "@/types/position";
 
 export default function ContractDetailsPage({
   params,
@@ -78,12 +78,12 @@ export default function ContractDetailsPage({
     refetch: refetchContract,
   } = useDoc<Contract>(contractRef);
 
-  const positionsQuery = useMemoFirebase(() => (db ? collection(db, 'positions') : null), [db]);
-  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  const manpowerPositionsQuery = useMemoFirebase(() => (db ? collection(db, 'manpowerPositions') : null), [db]);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(manpowerPositionsQuery);
   const positionMap = new Map(positions?.map(p => [p.id, p.name]));
   
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const canManage = userProfile?.role === "admin" || userProfile?.role === 'operationManager';
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
 
   const fetchData = async () => {
     if (!db || !clientId || !contractId) return;

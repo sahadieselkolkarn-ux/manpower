@@ -2,13 +2,34 @@ import { Timestamp } from 'firebase/firestore';
 
 export type PositionType = 'OFFICE' | 'FIELD';
 
-export interface Position {
+/**
+ * @deprecated Use ManpowerPosition or OfficePosition instead.
+ */
+export interface LegacyPosition {
   id: string;
   name: string;
   type: PositionType;
-  onshoreCostPerDay: number;
-  offshoreCostPerDay: number;
+  costRateOnshore?: number;
+  costRateOffshore?: number;
   note?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ManpowerPosition {
+  id: string;
+  name: string;
+  description?: string;
+  costRateOnshore: number;
+  costRateOffshore: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface OfficePosition {
+  id: string;
+  name: string;
+  description?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

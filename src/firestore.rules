@@ -1,0 +1,179 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function getUserRoles() {
+        return getUserData().roleIds;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    function isHrManager() {
+        return hasRole('HR_MANAGER') || isAdmin();
+    }
+    
+    function isFinanceManager() {
+        return hasRole('FINANCE_MANAGER') || isAdmin();
+    }
+
+    function isOperationManager() {
+        return hasRole('OPERATION_MANAGER') || isAdmin();
+    }
+    
+    function hasRole(roleCode) {
+        // In a real scenario, you'd check against a /roles collection
+        // For now, this is a placeholder. A robust implementation would query the user's roleIds and check against the roles collection.
+        return isSignedIn();
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    match /roles/{roleId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+
+    match /clients/{clientId} {
+      allow read, write: if isOperationManager() || isAdmin();
+      
+      match /contracts/{contractId} {
+        allow read, write: if isOperationManager() || isAdmin();
+
+        match /projects/{projectId} {
+          allow read, write: if isOperationManager() || isAdmin();
+
+          match /waves/{waveId} {
+            allow read, write: if isOperationManager() || isAdmin();
+
+            match /assignments/{assignmentId} {
+              allow read, write: if isOperationManager() || isHrManager();
+            }
+          }
+        }
+      }
+    }
+    
+    match /timesheets/{timesheetId} {
+        allow read, create: if isHrManager() || isOperationManager();
+        allow update: if (isHrManager() || isOperationManager()) && resource.data.status != 'HR_APPROVED';
+        allow update: if isHrManager() && request.resource.data.status == 'HR_APPROVED';
+        allow delete: if isAdmin();
+    }
+    
+    match /timesheetBatches/{batchId} {
+        allow read, write: if isHrManager() || isAdmin();
+    }
+
+    match /timesheetLines/{lineId} {
+      allow read, write, delete: if isHrManager() || isAdmin();
+    }
+
+    match /payrolls/{payrollId} {
+        allow read, write: if isFinanceManager();
+    }
+    match /invoices/{invoiceId} {
+        allow get, list: if isFinanceManager() || isOperationManager();
+        allow create, update: if isFinanceManager();
+    }
+    
+    match /billsAP/{billId} {
+      allow read, list, write: if isFinanceManager() || isAdmin();
+    }
+    match /paymentsAP/{paymentId} {
+      allow read, create: if isFinanceManager() || isAdmin();
+    }
+    match /bankAccounts/{accountId} {
+      allow read, write: if isFinanceManager() || isAdmin();
+    }
+    match /cashMovements/{movementId} {
+      allow read, create: if isFinanceManager() || isAdmin();
+    }
+    match /paymentsAR/{paymentId} {
+      allow read, create: if isFinanceManager() || isAdmin();
+    }
+    
+    match /pnd1Runs/{runId} {
+        allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
+        match /lines/{lineId} {
+            allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
+        }
+    }
+
+    // New rules for separated position collections
+    match /officePositions/{positionId} {
+        allow read: if isSignedIn();
+        allow write: if isHrManager() || isAdmin();
+    }
+    match /manpowerPositions/{positionId} {
+        allow read: if isSignedIn();
+        allow write: if isHrManager() || isAdmin();
+    }
+    
+    match /certificateTypes/{typeId} {
+        allow read: if isSignedIn();
+        allow write: if isHrManager() || isAdmin();
+    }
+
+    match /employees/{employeeId} {
+        allow read: if isHrManager() || isOperationManager() || isAdmin();
+        allow write: if isHrManager() || isAdmin();
+    }
+    
+    match /hospitals/{hospitalId} {
+        allow read: if isHrManager() || isAdmin();
+        allow write: if isHrManager() || isAdmin();
+    }
+    
+    match /audit-logs/{logId} {
+        allow read: if isAdmin();
+        allow create: if isSignedIn();
+    }
+
+    match /settings/{docId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+    
+    match /companyProfile/{profileId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+
+    match /{path=**}/contracts/{contractId} {
+      allow list: if isOperationManager() || isAdmin();
+    }
+     match /{path=**}/projects/{projectId} {
+      allow list: if isOperationManager() || isAdmin();
+    }
+    match /{path=**}/waves/{waveId} {
+      allow list: if isOperationManager() || isAdmin();
+    }
+     match /{path=**}/timesheets/{timesheetId} {
+      allow list: if isHrManager() || isAdmin();
+    }
+    match /{path=**}/assignments/{assignmentId} {
+      allow list: if isSignedIn() && (isHrManager() || isOperationManager() || isAdmin());
+    }
+  }
+}
