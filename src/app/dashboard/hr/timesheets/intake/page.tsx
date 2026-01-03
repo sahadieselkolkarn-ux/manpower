@@ -23,9 +23,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import WaveSelector, { WaveSelectorData } from '@/components/selectors/wave-selector';
 import { type Wave } from '@/types/wave';
+import FullPageLoader from '@/components/full-page-loader';
 
 const DATE_FORMAT = 'dd/MM/yyyy';
 
@@ -52,7 +53,7 @@ export default function TimesheetIntakePage() {
   const [loading, setLoading] = React.useState(false);
   const [selectedWaveData, setSelectedWaveData] = useState<WaveSelectorData | null>(null);
   const db = useFirestore();
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -98,6 +99,23 @@ export default function TimesheetIntakePage() {
       setLoading(false);
     }
   };
+
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+
+  if (authLoading) {
+    return <FullPageLoader />;
+  }
+
+  if (!canManage) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <Card className="m-4 text-center">
+          <CardHeader><CardTitle className="flex items-center justify-center gap-2"><ShieldAlert className="text-destructive" />Access Denied</CardTitle></CardHeader>
+          <CardContent><p>You do not have permission to access this page.</p></CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

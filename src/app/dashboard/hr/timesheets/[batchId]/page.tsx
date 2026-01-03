@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TimesheetBatch } from '@/types/timesheet';
@@ -26,15 +26,24 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
     const batchRef = useMemoFirebase(() => db ? (doc(db, 'timesheetBatches', batchId) as DocumentReference<TimesheetBatch>) : null, [db, batchId]);
     const { data: batch, isLoading: isLoadingBatch, error, refetch } = useDoc<TimesheetBatch>(batchRef);
 
-    const canManage = userProfile?.role === 'admin' || userProfile?.role === 'hrManager';
     const isLoading = authLoading || isLoadingBatch;
     
+    // Corrected permission check
+    const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+
     if (isLoading) {
         return <FullPageLoader />;
     }
 
     if (!canManage) {
-        return <div className="p-8 text-center text-muted-foreground">You do not have permission to access this page.</div>;
+        return (
+            <div className="flex flex-1 items-center justify-center">
+                <Card className="m-4 text-center">
+                <CardHeader><CardTitle className="flex items-center justify-center gap-2"><ShieldAlert className="text-destructive" />Access Denied</CardTitle></CardHeader>
+                <CardContent><p>You do not have permission to access this page.</p></CardContent>
+                </Card>
+            </div>
+        );
     }
     
     if (error) {
@@ -84,4 +93,3 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
         </div>
     );
 }
-

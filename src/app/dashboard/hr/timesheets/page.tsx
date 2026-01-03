@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, ShieldAlert } from 'lucide-react';
 import { collection, query, orderBy } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -26,24 +26,35 @@ import { Badge } from '@/components/ui/badge';
 import { TimesheetBatch } from '@/types/timesheet';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import FullPageLoader from '@/components/full-page-loader';
 
 export default function TimesheetsListPage() {
   const db = useFirestore();
-  const { userProfile } = useAuth();
+  const { userProfile, loading: authLoading } = useAuth();
   const router = useRouter();
 
   const batchesQuery = useMemoFirebase(
     () => (db ? query(collection(db, 'timesheetBatches'), orderBy('periodStart', 'desc')) : null),
     [db]
   );
-  const { data: batches, isLoading } = useCollection<TimesheetBatch>(batchesQuery);
+  const { data: batches, isLoading: isLoadingBatches } = useCollection<TimesheetBatch>(batchesQuery);
 
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'hrManager';
+  const isLoading = authLoading || isLoadingBatches;
+
+  // Corrected permission check
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+
+  if (isLoading) {
+    return <FullPageLoader />;
+  }
 
   if (!canManage) {
     return (
-      <div className="p-8 text-center text-muted-foreground">
-        You do not have permission to access this page.
+      <div className="flex flex-1 items-center justify-center">
+        <Card className="m-4 text-center">
+          <CardHeader><CardTitle className="flex items-center justify-center gap-2"><ShieldAlert className="text-destructive" />Access Denied</CardTitle></CardHeader>
+          <CardContent><p>You do not have permission to access this page.</p></CardContent>
+        </Card>
       </div>
     );
   }
@@ -80,7 +91,7 @@ export default function TimesheetsListPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoadingBatches ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell>
