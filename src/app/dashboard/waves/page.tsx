@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -18,6 +19,7 @@ import Link from "next/link";
 import { useEffectOnce } from "react-use";
 import { Badge } from "@/components/ui/badge";
 import WaveForm from "@/components/forms/wave-form";
+import { useRouter } from "next/navigation";
 
 
 export default function WavesPage() {
@@ -26,11 +28,12 @@ export default function WavesPage() {
   const [waves, setWaves] = useState<WaveWithProject[]>([]);
   const [projects, setProjects] = useState<ProjectWithContract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'operationManager';
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
 
   const fetchData = async () => {
     if (!db) {
@@ -75,17 +78,25 @@ export default function WavesPage() {
       const waveList = waveSnapshot.docs.map(doc => {
           const data = doc.data() as Wave;
           const projectRef = doc.ref.parent.parent;
-          const parentProject = projectList.find(p => p.id === projectRef?.id) as Project;
+          if (!projectRef) {
+              console.warn(`Wave ${doc.id} is missing a parent project reference.`);
+              return null;
+          }
+          const parentProject = projectList.find(p => p.id === projectRef?.id);
+          if (!parentProject) {
+               console.warn(`Could not find parent project for wave ${doc.id}`);
+               return null;
+          }
           return {
               id: doc.id,
               ...data,
-              projectId: parentProject?.id || '',
-              projectName: parentProject?.name || 'Unknown',
-              contractId: (parentProject as any)?.contractId || '',
-              clientId: (parentProject as any)?.clientId || '',
-              workMode: parentProject?.workMode,
+              projectId: parentProject.id,
+              projectName: parentProject.name,
+              contractId: parentProject.contractId,
+              clientId: parentProject.clientId,
+              workMode: parentProject.workMode,
           } as WaveWithProject;
-      });
+      }).filter((w): w is WaveWithProject => w !== null);
 
       setWaves(waveList);
 
@@ -163,14 +174,14 @@ export default function WavesPage() {
                 ))
               ) : waves.length > 0 ? (
                 waves.map((wave) => (
-                  <TableRow key={wave.id}>
+                  <TableRow key={wave.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`)}>
                     <TableCell className="font-medium">
-                       <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`} className="hover:underline text-primary">
+                       <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
                         {wave.waveCode}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}`} className="hover:underline">
+                      <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                         {wave.projectName}
                       </Link>
                     </TableCell>
@@ -187,21 +198,19 @@ export default function WavesPage() {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem>
-                             <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`} className="w-full h-full">
+                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`)}}>
                                 View Details
-                              </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditWave(wave)}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditWave(wave); }}>
                             Edit
                           </DropdownMenuItem>
-                           <DropdownMenuItem className="text-red-600">
+                           <DropdownMenuItem className="text-red-600" disabled>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -16,6 +17,7 @@ import ContractForm from "@/components/forms/contract-form";
 import { Client } from "@/types/client";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 export default function ContractPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -23,11 +25,12 @@ export default function ContractPage() {
   const [contracts, setContracts] = useState<ContractWithClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'operationManager';
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
   
   const fetchData = async () => {
     if (!db) {
@@ -126,15 +129,15 @@ export default function ContractPage() {
                 ))
               ) : contracts.length > 0 ? (
                 contracts.map((contract) => (
-                  <TableRow key={contract.id}>
+                  <TableRow key={contract.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`)}>
                     <TableCell className="font-medium">
-                       <Link href={`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`} className="hover:underline text-primary flex items-center gap-2">
+                       <Link href={`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`} className="hover:underline text-primary flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         {contract.isLocked && <Lock className="h-3 w-3 text-muted-foreground" />}
                         {contract.name}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/dashboard/clients/${contract.clientId}`} className="hover:underline">
+                      <Link href={`/dashboard/clients/${contract.clientId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                         {contract.clientName}
                       </Link>
                     </TableCell>
@@ -148,21 +151,19 @@ export default function ContractPage() {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem>
-                             <Link href={`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`} className="w-full h-full">
+                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`); }}>
                                 View Details
-                              </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditContract(contract)}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditContract(contract); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem className="text-red-600" disabled>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

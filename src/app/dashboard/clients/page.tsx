@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -13,16 +14,18 @@ import { useAuth } from "@/context/AuthContext";
 import ClientForm from "@/components/forms/client-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function ClientPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const router = useRouter();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
   
   const clientsQuery = useMemoFirebase(() => db ? collection(db, 'clients') : null, [db]);
-  const { data: clients, isLoading } = useCollection<Omit<Client, 'id'>>(clientsQuery);
+  const { data: clients, isLoading, refetch } = useCollection<Client>(clientsQuery);
   
   const handleAddClient = () => {
     setSelectedClient(null);
@@ -34,7 +37,7 @@ export default function ClientPage() {
     setIsFormOpen(true);
   };
   
-  const isAdmin = userProfile?.role === 'admin';
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
 
 
   return (
@@ -43,7 +46,7 @@ export default function ClientPage() {
         <h1 className="text-3xl font-bold tracking-tight font-headline">
           Clients
         </h1>
-        {isAdmin && (
+        {canManage && (
           <Button onClick={handleAddClient}>
             <PlusCircle className="mr-2 h-4 w-4" /> Add Client
           </Button>
@@ -68,7 +71,7 @@ export default function ClientPage() {
                 <TableHead>Short Name</TableHead>
                 <TableHead>Created By</TableHead>
                 <TableHead>Created At</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -79,14 +82,14 @@ export default function ClientPage() {
                     <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    {isAdmin && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
+                    {canManage && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
               ) : clients && clients.length > 0 ? (
                 clients.map((client) => (
-                  <TableRow key={client.id}>
+                  <TableRow key={client.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
                     <TableCell className="font-medium">
-                       <Link href={`/dashboard/clients/${client.id}`} className="hover:underline text-primary">
+                       <Link href={`/dashboard/clients/${client.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
                         {client.name}
                       </Link>
                     </TableCell>
@@ -95,25 +98,23 @@ export default function ClientPage() {
                     <TableCell>
                       {client.createdAt?.toDate().toLocaleDateString()}
                     </TableCell>
-                    {isAdmin && (
+                    {canManage && (
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem>
-                             <Link href={`/dashboard/clients/${client.id}`} className="w-full h-full">
+                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${client.id}`); }}>
                                 View Details
-                              </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClient(client); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem className="text-red-600" disabled>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -124,7 +125,7 @@ export default function ClientPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 5: 4} className="h-24 text-center">
+                  <TableCell colSpan={canManage ? 5: 4} className="h-24 text-center">
                     No clients found.
                   </TableCell>
                 </TableRow>
@@ -133,11 +134,12 @@ export default function ClientPage() {
           </Table>
         </CardContent>
       </Card>
-      {isAdmin && (
+      {canManage && (
         <ClientForm 
           open={isFormOpen}
           onOpenChange={setIsFormOpen}
           client={selectedClient}
+          onSuccess={refetch}
         />
       )}
     </div>

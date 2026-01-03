@@ -1,3 +1,4 @@
+
 import { type Timestamp } from 'firebase/firestore';
 
 export interface Contact {
@@ -9,13 +10,11 @@ export interface Contact {
 
 export interface Client {
   id: string;
-  clientCode: string;
   name: string;
+  shortName?: string;
   address?: string;
-  contactPerson?: string;
-  contactPhone?: string;
-  status: 'active' | 'inactive';
-  note?: string;
+  taxId?: string;
+  contacts?: Contact[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;

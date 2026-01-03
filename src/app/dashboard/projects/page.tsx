@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -17,6 +18,7 @@ import ProjectForm from "@/components/forms/project-form";
 import Link from "next/link";
 import { useEffectOnce } from "react-use";
 import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 
 export default function ProjectPage() {
@@ -25,6 +27,7 @@ export default function ProjectPage() {
   const [projects, setProjects] = useState<ProjectWithContract[]>([]);
   const [contracts, setContracts] = useState<ContractWithClient[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
@@ -149,19 +152,19 @@ export default function ProjectPage() {
                 ))
               ) : projects.length > 0 ? (
                 projects.map((project) => (
-                  <TableRow key={project.id}>
+                  <TableRow key={project.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`)}>
                     <TableCell className="font-medium">
-                       <Link href={`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`} className="hover:underline text-primary">
+                       <Link href={`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
                         {project.name}
                       </Link>
                     </TableCell>
                     <TableCell>
-                      <Link href={`/dashboard/clients/${project.clientId}/contracts/${project.contractId}`} className="hover:underline">
+                      <Link href={`/dashboard/clients/${project.clientId}/contracts/${project.contractId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                         {project.contractName}
                       </Link>
                     </TableCell>
                     <TableCell>
-                       <Link href={`/dashboard/clients/${project.clientId}`} className="hover:underline">
+                       <Link href={`/dashboard/clients/${project.clientId}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
                         {project.clientName}
                       </Link>
                     </TableCell>
@@ -176,22 +179,19 @@ export default function ProjectPage() {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
                             <span className="sr-only">Open menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                           <DropdownMenuItem>
-                             <Link href={`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`} className="w-full h-full">
+                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`); }}>
                                 View Details
-                              </Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditProject(project)}>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditProject(project); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem>View Waves</DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem className="text-red-600" disabled>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

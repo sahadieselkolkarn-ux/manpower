@@ -1,3 +1,4 @@
+
 "use client";
 
 import { use, useEffect, useState } from "react";
@@ -63,7 +64,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
     error: clientError,
   } = useDoc<Client>(clientRef);
 
-  const isAdmin = userProfile?.role === "admin";
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const fetchData = async () => {
@@ -164,6 +165,16 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                 {client.shortName || "Client Overview"}
               </p>
             </div>
+            {canManage && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsContractFormOpen(true)}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Contract
+                </Button>
+                 <Button onClick={() => setIsProjectFormOpen(true)} disabled={contracts.length === 0}>
+                  <PlusCircle className="mr-2 h-4 w-4" /> Add Project
+                </Button>
+              </div>
+            )}
           </div>
       </header>
 
@@ -179,11 +190,6 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                     List of all contracts for this client.
                   </CardDescription>
                 </div>
-                {isAdmin && (
-                  <Button onClick={() => setIsContractFormOpen(true)}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Contract
-                  </Button>
-                )}
               </CardHeader>
               <CardContent>
                 <Table>
@@ -192,13 +198,13 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                       <TableHead>Contract Name</TableHead>
                       <TableHead>Created At</TableHead>
                       <TableHead>Projects</TableHead>
-                      {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                      {canManage && <TableHead className="text-right">Actions</TableHead>}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isDataLoading ? (
                       <TableRow>
-                        <TableCell colSpan={isAdmin ? 4 : 3}>Loading contracts...</TableCell>
+                        <TableCell colSpan={canManage ? 4 : 3}>Loading contracts...</TableCell>
                       </TableRow>
                     ) : contracts.length > 0 ? (
                       contracts.map((contract) => (
@@ -215,7 +221,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                               {projects.filter(p => p.contractId === contract.id).length}
                           </TableCell>
                            <TableCell className="text-right">
-                            {isAdmin ? (
+                            {canManage ? (
                               <Button variant="ghost" size="icon">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
@@ -225,7 +231,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={isAdmin ? 4 : 3} className="h-24 text-center">
+                        <TableCell colSpan={canManage ? 4 : 3} className="h-24 text-center">
                           No contracts found for this client.
                         </TableCell>
                       </TableRow>
@@ -244,11 +250,6 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                     List of all projects for this client across all contracts.
                   </CardDescription>
                 </div>
-                {isAdmin && (
-                  <Button onClick={() => setIsProjectFormOpen(true)} disabled={contracts.length === 0}>
-                    <PlusCircle className="mr-2 h-4 w-4" /> Add Project
-                  </Button>
-                )}
               </CardHeader>
               <CardContent>
                 <Table>
@@ -280,7 +281,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
                           </TableCell>
                           <TableCell>0</TableCell>
                           <TableCell className="text-right">
-                            {isAdmin ? (
+                            {canManage ? (
                               <Button variant="ghost" size="icon">
                                 <MoreHorizontal className="h-4 w-4" />
                               </Button>
@@ -355,7 +356,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
         </div>
       </div>
       
-      {isAdmin && (
+      {canManage && (
           <>
             <ContractForm
                 open={isContractFormOpen}
