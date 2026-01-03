@@ -39,27 +39,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         const userDoc = await getDoc(userDocRef);
 
-        // This is the migration logic block.
-        if (userDoc.exists() && userDoc.data().role === 'admin' && userDoc.data().isAdmin === undefined) {
-          // Legacy admin user found. Upgrade their document.
-          console.log("Legacy admin user detected. Upgrading profile...");
-          await updateDoc(userDocRef, {
-            isAdmin: true,
-            role: null // Or delete the field entirely if preferred
-          });
-          // The onSnapshot listener below will automatically pick up this change.
-        } else if (!userDoc.exists()) {
+        const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || '')
+            .split(',')
+            .map(email => email.trim().toLowerCase())
+            .filter(email => email);
+
+        const isDesignatedAdmin = firebaseUser.email ? adminEmails.includes(firebaseUser.email.toLowerCase()) : false;
+        
+        if (userDoc.exists()) {
+            // User exists, check if they need to be promoted to admin
+            const userData = userDoc.data();
+            if (isDesignatedAdmin && !userData.isAdmin) {
+                console.log(`Promoting user ${firebaseUser.email} to admin.`);
+                await updateDoc(userDocRef, { isAdmin: true });
+                // The snapshot listener below will pick up the change automatically.
+            }
+        } else {
           // User document does not exist, create it.
+          console.log(`Creating new user profile for ${firebaseUser.email}`);
           try {
-            const isAdmin = firebaseUser.email?.toLowerCase() === 'sahadiesel@gmail.com';
-            
             await setDoc(userDocRef, {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               displayName: firebaseUser.displayName || firebaseUser.email?.split('@')[0],
-              isAdmin: isAdmin,
+              isAdmin: isDesignatedAdmin, // Set admin status on creation
               roleIds: [],
+              status: "ACTIVE",
               createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp()
             });
           } catch (error) {
             console.error("Failed to create user document:", error);
