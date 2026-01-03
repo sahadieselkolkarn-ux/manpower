@@ -27,17 +27,16 @@ export interface ContractOtRules {
     contractHolidayMultiplier: number;
 }
 
-export interface ContractHolidayCalendar {
-    timezone: 'Asia/Bangkok';
-    dates: string[]; // YYYY-MM-DD format
-    updatedAt?: Timestamp;
-    updatedBy?: string;
+export interface ContractHoliday {
+    date: string; // YYYY-MM-DD format
+    label?: string;
 }
 
 export interface ContractFile {
     fileName: string;
-    fileRef: string;
+    fileRef: string; // Path in Firebase Storage
     uploadedAt: Timestamp;
+    uploadedBy: string;
 }
 
 export interface Contract {
@@ -49,7 +48,10 @@ export interface Contract {
   lockedAt?: Timestamp;
   saleRates?: ContractSaleRate[];
   otRules?: ContractOtRules;
-  holidayCalendar?: ContractHolidayCalendar;
+  holidayCalendar?: {
+      timezone: 'Asia/Bangkok';
+      dates: string[]; // YYYY-MM-DD format
+  };
   contractFiles?: ContractFile[];
   createdAt: Timestamp;
   updatedAt: Timestamp;

@@ -636,35 +636,54 @@
       "description": "Represents a contract with a client.",
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name or identifier for the contract."
+        "name": { "type": "string" },
+        "clientId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "isLocked": { "type": "boolean" },
+        "lockedAt": { "type": "string", "format": "date-time" },
+        "saleRates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "positionId": { "type": "string" },
+              "dailyRateExVat": { "type": "number" }
+            }
+          }
         },
-        "sellRateCard": {
-          "type": "string",
-          "description": "Defines the selling price for various positions, stored as a JSON string."
+        "otRules": {
+          "type": "object",
+          "properties": {
+            "workdayMultiplier": { "type": "number" },
+            "weeklyHolidayMultiplier": { "type": "number" },
+            "contractHolidayMultiplier": { "type": "number" }
+          }
         },
-        "sellOtPolicy": {
-          "type": "string",
-          "description": "Describes the overtime policy for billing."
+        "holidayCalendar": {
+            "type": "object",
+            "properties": {
+                "timezone": { "type": "string", "enum": ["Asia/Bangkok"] },
+                "dates": { "type": "array", "items": { "type": "string", "format": "date" }}
+            }
         },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
+        "contractFiles": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "fileName": { "type": "string" },
+                    "fileRef": { "type": "string" },
+                    "uploadedAt": { "type": "string", "format": "date-time" },
+                    "uploadedBy": { "type": "string" }
+                }
+            }
         },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "createdBy": {
-          "type": "string"
-        }
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
       },
       "required": [
-        "name",
-        "createdAt",
-        "updatedAt",
-        "createdBy"
+        "name", "clientId", "status", "isLocked", "createdAt", "updatedAt", "createdBy"
       ]
     },
     "Project": {

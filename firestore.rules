@@ -10,19 +10,17 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
     
-    function getUserRoles() {
-        return getUserData().roleIds;
-    }
-
     function isAdmin() {
       // Use custom claims for robust and immediate admin verification.
       // This avoids race conditions with Firestore document reads on login and is required for list operations.
       return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    function hasRole(roleCode) {
+        // This logic will be fully implemented later by checking a 'roles' array in custom claims.
+        // For now, it defaults to checking if the user is an admin.
+        return isAdmin();
     }
 
     function isHrManager() {
@@ -35,12 +33,6 @@ service cloud.firestore {
 
     function isOperationManager() {
         return hasRole('OPERATION_MANAGER') || isAdmin();
-    }
-    
-    function hasRole(roleCode) {
-        // This logic will be fully implemented later by checking a 'roles' array in custom claims.
-        // For now, it defaults to checking if the user is an admin.
-        return isAdmin();
     }
 
     match /users/{userId} {
@@ -57,16 +49,20 @@ service cloud.firestore {
     }
 
     match /clients/{clientId} {
-      allow read, write: if isOperationManager() || isAdmin();
+      allow read: if isOperationManager() || isFinanceManager() || isAdmin();
+      allow write: if isOperationManager() || isAdmin();
       
       match /contracts/{contractId} {
-        allow read, write: if isOperationManager() || isAdmin();
+        allow read: if isOperationManager() || isFinanceManager() || isAdmin();
+        allow write: if isOperationManager() || isAdmin();
 
         match /projects/{projectId} {
-          allow read, write: if isOperationManager() || isAdmin();
+          allow read: if isOperationManager() || isFinanceManager() || isAdmin();
+          allow write: if isOperationManager() || isAdmin();
 
           match /waves/{waveId} {
-            allow read, write: if isOperationManager() || isAdmin();
+            allow read: if isOperationManager() || isHrManager() || isAdmin();
+            allow write: if isOperationManager() || isAdmin();
 
             match /assignments/{assignmentId} {
               allow read, write: if isOperationManager() || isHrManager();
@@ -124,10 +120,12 @@ service cloud.firestore {
 
     // Rules for separated position collections
     match /officePositions/{positionId} {
-        allow read, write: if isAdmin();
+        allow read: if isSignedIn();
+        allow write: if isHrManager() || isAdmin();
     }
     match /manpowerPositions/{positionId} {
-        allow read, write: if isAdmin();
+        allow read: if isSignedIn();
+        allow write: if isHrManager() || isAdmin();
     }
     
     // Legacy rule for safety, can be removed later
