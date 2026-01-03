@@ -21,7 +21,7 @@ service cloud.firestore {
 
     function isAdmin() {
       // Use custom claims for robust and immediate admin verification.
-      // This avoids race conditions with Firestore document reads on login.
+      // This avoids race conditions with Firestore document reads on login and is required for list operations.
       return isSignedIn() && request.auth.token.admin == true;
     }
 
@@ -44,9 +44,11 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if isAdmin();
-      allow update(diff): if isOwner(userId) && diff.size() == 1 && diff.affectedKeys().hasOnly(['roleIds']); // Placeholder for future self-role selection
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
     }
     
     match /roles/{roleId} {
@@ -177,6 +179,22 @@ service cloud.firestore {
         match /lines/{lineId} {
           allow read, write: if isHrManager() || isAdmin();
         }
+    }
+    
+     match /{path=**}/contracts/{contractId} {
+      allow list: if isOperationManager() || isAdmin();
+    }
+     match /{path=**}/projects/{projectId} {
+      allow list: if isOperationManager() || isAdmin();
+    }
+    match /{path=**}/waves/{waveId} {
+      allow list: if isOperationManager() || isAdmin();
+    }
+     match /{path=**}/timesheets/{timesheetId} {
+      allow list: if isHrManager() || isAdmin();
+    }
+    match /{path=**}/assignments/{assignmentId} {
+      allow list: if isSignedIn() && (isHrManager() || isOperationManager() || isAdmin());
     }
 
   }
