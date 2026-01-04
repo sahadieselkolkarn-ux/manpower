@@ -1,6 +1,7 @@
 
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -63,7 +64,7 @@ import { CertificateType } from '@/types/certificate-type';
 import { Hospital } from '@/types/hospital';
 import { useRouter } from 'next/navigation';
 import { DATE_FORMAT, toDate } from '@/lib/utils';
-import { formSchema, officeEmployeeSchema, fieldEmployeeSchema, type EmployeeFormData } from '@/types/employee.schema';
+import { officeEmployeeFormSchema, fieldEmployeeFormSchema, type EmployeeFormData } from '@/types/employee.schema';
 
 
 interface EmployeeFormProps {
@@ -100,7 +101,7 @@ export default function EmployeeForm({
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
-  const currentFormSchema = employeeType === 'OFFICE' ? officeEmployeeSchema : fieldEmployeeSchema;
+  const currentFormSchema = employeeType === 'OFFICE' ? officeEmployeeFormSchema : fieldEmployeeFormSchema;
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(currentFormSchema),
@@ -137,7 +138,7 @@ export default function EmployeeForm({
   });
 
   const hasSocialSecurity = form.watch('financeInfo.socialSecurity.has');
-  const shouldCreateUser = employeeType === 'OFFICE' ? form.watch('createUser') : false;
+  const shouldCreateUser = employeeType === 'OFFICE' ? form.watch('createUser' as 'createUser') : false;
 
   const availablePositions = useMemo(() => {
     if (employeeType === 'OFFICE') return officePositions;
@@ -252,7 +253,7 @@ export default function EmployeeForm({
             const q = query(usersRef, where('email', '==', values.userEmail));
             const existingUserSnap = await getDocs(q);
             if (!existingUserSnap.empty) {
-                form.setError('userEmail', { message: 'This email is already registered as a system user.' });
+                form.setError('userEmail' as 'userEmail', { message: 'This email is already registered as a system user.' });
                 setLoading(false);
                 return;
             }
@@ -274,7 +275,7 @@ export default function EmployeeForm({
           name: doc.type === 'Certificate' ? availableCertTypes.find(ct => ct.id === doc.certificateTypeId)?.name || doc.name : doc.name,
           issueDate: parseAndGetTimestamp(doc.issueDate),
           expiryDate: parseAndGetTimestamp(doc.expiryDate),
-      })).filter(d => d.name);
+      })).filter(d => d.name || d.certificateTypeId);
       
       const dataToSave: any = {
         ...values,
@@ -337,7 +338,7 @@ export default function EmployeeForm({
         if (values.employeeType === 'OFFICE' && values.createUser && values.userEmail) {
             const userRef = doc(collection(db, 'users'));
             batch.set(userRef, {
-                uid: userRef.id,
+                uid: userRef.id, // This is not the auth UID, but will link them later if needed
                 email: values.userEmail,
                 displayName: `${values.personalInfo.firstName} ${values.personalInfo.lastName}`,
                 isAdmin: false,
@@ -383,7 +384,7 @@ export default function EmployeeForm({
             {employeeType === 'OFFICE' && (
              <>
                 <h3 className="text-lg font-medium">Employment Details</h3>
-                <FormField control={form.control} name="orgLevel" render={({ field }) => (
+                <FormField control={form.control} name={"orgLevel" as "orgLevel"} render={({ field }) => (
                     <FormItem>
                         <FormLabel>Organizational Level</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -436,7 +437,7 @@ export default function EmployeeForm({
                     <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g. Spouse" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="personalInfo.emergencyContact.phone" render={({ field }) => (
-                    <FormItem><FormLabel>Contact's Phone</FormLabel><FormControl><Input placeholder="+66 98 765 4321" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Contact's Phone</FormLabel><FormControl><Input placeholder="+66 98 765 4321" {...field} /></FormControl><FormMessage /></FormMessage>
                 )} />
             </div>
             
@@ -445,7 +446,7 @@ export default function EmployeeForm({
                 <Separator />
                 <h3 className="text-lg font-medium">System User Account</h3>
                  <div className="space-y-4 rounded-lg border p-4">
-                    <FormField control={form.control} name="createUser" render={({ field }) => (
+                    <FormField control={form.control} name={"createUser" as "createUser"} render={({ field }) => (
                         <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                              <div className="space-y-1 leading-none">
@@ -455,7 +456,7 @@ export default function EmployeeForm({
                         </FormItem>
                     )} />
                     {shouldCreateUser && (
-                        <FormField control={form.control} name="userEmail" render={({ field }) => (
+                        <FormField control={form.control} name={"userEmail" as "userEmail"} render={({ field }) => (
                             <FormItem>
                                 <FormLabel>User Email (for login)</FormLabel>
                                 <FormControl><Input placeholder="login.email@company.com" {...field} /></FormControl>

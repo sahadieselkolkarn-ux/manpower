@@ -1,19 +1,26 @@
 
-
 import * as z from 'zod';
 import { DATE_FORMAT } from '@/lib/utils';
 import { isValid, parse } from 'date-fns';
 
 const dateStringSchema = z.string().refine(val => val === '' || isValid(parse(val, DATE_FORMAT, new Date())), {
-    message: `Invalid date. Please use the format ${DATE_FORMAT} or leave it empty.`,
+    message: `Invalid date format. Please use ${DATE_FORMAT} or leave it empty.`,
 });
 
 const documentSchema = z.object({
   type: z.enum(['Passport', 'Seaman Book', 'Certificate']),
-  name: z.string().min(1, 'Document name/number is required.'),
+  name: z.string().optional(),
   certificateTypeId: z.string().optional(),
   issueDate: dateStringSchema.optional(),
   expiryDate: dateStringSchema.optional(),
+}).refine(data => {
+    if (data.type === 'Certificate') {
+        return !!data.certificateTypeId;
+    }
+    return !!data.name;
+}, {
+    message: 'Name or Certificate Type is required.',
+    path: ['name'],
 });
 
 // Base schema for fields common to both types
@@ -41,7 +48,6 @@ export const baseEmployeeSchema = z.object({
     documents: z.array(documentSchema).optional(),
 });
 
-
 // Schema specific to Office employees
 export const officeEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('OFFICE'),
@@ -63,9 +69,9 @@ export const fieldEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('FIELD'),
 });
 
-export const formSchema = z.discriminatedUnion('employeeType', [
-    officeEmployeeSchema,
-    fieldEmployeeSchema,
-]);
+// Export the specific form schemas. Using a discriminated union at the top level was causing module evaluation errors.
+// By exporting separated schemas, the form component can decide which one to use based on context props.
+export const officeEmployeeFormSchema = officeEmployeeSchema;
+export const fieldEmployeeFormSchema = fieldEmployeeSchema;
 
-export type EmployeeFormData = z.infer<typeof formSchema>;
+export type EmployeeFormData = z.infer<typeof officeEmployeeSchema> | z.infer<typeof fieldEmployeeSchema>;
