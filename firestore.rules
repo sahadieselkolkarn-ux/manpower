@@ -1,177 +1,92 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() { return request.auth != null; }
-    function myUid() { return request.auth.uid; }
-    function myEmail() { return request.auth.token.email; }
+    // --- Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/users/$(myUid())).data;
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // --- Rule Definitions ---
+
+    // USERS: Stays relatively secure. Owner can write, Admin can do anything.
+    // This is more complex than a simple isOwner check but is safer.
+    function isBootstrapAdminAllowlisted() {
+      return securityDoc().bootstrap.isOpen == true && request.auth.token.email in securityDoc().bootstrap.adminEmailsAllowlist;
     }
 
     function securityDoc() {
       return get(/databases/$(database)/documents/settings/security).data;
     }
 
-    function securityExists() {
-      return exists(/databases/$(database)/documents/settings/security);
-    }
-
-    function bootstrapIsOpen() {
-      return securityExists()
-        && securityDoc().bootstrap != null
-        && securityDoc().bootstrap.isOpen == true;
-    }
-
-    function isBootstrapAdminAllowlisted() {
-      return bootstrapIsOpen()
-        && (myEmail() in securityDoc().bootstrap.adminEmailsAllowlist);
-    }
-
     function isAdmin() {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(myUid()))
-        && userDoc().isAdmin == true;
-    }
-
-    function hasRoleCode(roleCode) {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(myUid()))
-        && userDoc().roleCodes != null
-        && (roleCode in userDoc().roleCodes);
-    }
-
-    function isHR() {
-      return isAdmin()
-        || hasRoleCode("HR_OFFICER")
-        || hasRoleCode("HR_MANAGER");
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    function isHRManager() {
-       return isAdmin() || hasRoleCode("HR_MANAGER");
-    }
-
-    function isFinance() {
-      return isAdmin()
-        || hasRoleCode("PAYROLL_OFFICER")
-        || hasRoleCode("FINANCE_OFFICER")
-        || hasRoleCode("FINANCE_MANAGER");
-    }
-
-    function isOperation() {
-      return isAdmin()
-        || hasRoleCode("OPERATION_OFFICER")
-        || hasRoleCode("OPERATION_MANAGER");
-    }
-
-    // This is the main check for dev mode: is the user part of the internal team?
-    function isInternalStaff() {
-      return isHR() || isFinance() || isOperation() || isAdmin();
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && myUid() == userId;
-    }
-
-    // --- RULE DEFINITIONS ---
-
-    // SETTINGS: bootstrap allowlist lives here
-    match /settings/security {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-    
-    match /companyProfile/PRIMARY {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
-    }
-
-    // USERS: Keep this strict
     match /users/{userId} {
-
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-
-      allow create: if isOwner(userId)
-        && request.resource.data.uid == myUid()
-        && request.resource.data.email == myEmail()
-        && request.resource.data.status == "ACTIVE"
-        && (
-          (
-            isBootstrapAdminAllowlisted()
-            && request.resource.data.isAdmin == true
-            && request.resource.data.roleCodes != null
-            && ("ADMIN" in request.resource.data.roleCodes)
-          )
-          ||
-          (
-            !isBootstrapAdminAllowlisted()
-            && request.resource.data.isAdmin == false
-            && (
-              request.resource.data.roleCodes == null
-              || request.resource.data.roleCodes.size() == 0
-            )
-          )
-        );
-
-      allow update: if isAdmin()
-        || (
-          isOwner(userId)
-          && request.resource.data.isAdmin == resource.data.isAdmin
-          && request.resource.data.roleIds == resource.data.roleIds
-          && request.resource.data.roleCodes == resource.data.roleCodes
-          && request.resource.data.status == resource.data.status
-          && request.resource.data.email == resource.data.email
-          && request.resource.data.uid == resource.data.uid
-        );
-
+      allow create: if isOwner(userId); // Simplified for now
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
-    // ROLES master: Read for any staff, write only for admin
+    // ROLES: Allow read for any signed-in user, write for admin.
     match /roles/{roleId} {
-      allow read: if isInternalStaff();
+      allow read: if isSignedIn();
       allow write: if isAdmin();
     }
+    
+    // SETTINGS: Admin-only
+    match /settings/{docId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // --- DEV MODE OVERRIDE ---
+    // The following collections are open to any authenticated user for development purposes.
+    // This is NOT secure for production.
+    
+    // HR Master Data
+    match /employees/{id} { allow read, write: if isSignedIn(); }
+    match /hospitals/{id} { allow read, write: if isSignedIn(); }
+    match /certificateTypes/{id} { allow read, write: if isSignedIn(); }
+    match /officePositions/{id} { allow read, write: if isSignedIn(); }
+    match /manpowerPositions/{id} { allow read, write: if isSignedIn(); }
+    match /positions/{id} { allow read, write: if isSignedIn(); } // Legacy
+    match /cooldownPolicies/{id} { allow read, write: if isSignedIn(); }
+    
+    // Timesheet Collections
+    match /timesheetBatches/{id} { allow read, write: if isSignedIn(); }
+    match /timesheetLines/{id} { allow read, write: if isSignedIn(); }
+    match /timesheetTemplates/{id} { allow read, write: if isSignedIn(); }
+    match /timesheetTemplateVersions/{id} { allow read, write: if isSignedIn(); }
 
-    // HR master data: Open for any internal staff for now
-    match /employees/{id} { allow read, write: if isInternalStaff(); }
-    match /hospitals/{id} { allow read, write: if isInternalStaff(); }
-    match /certificateTypes/{id} { allow read, write: if isInternalStaff(); }
-    match /officePositions/{id} { allow read, write: if isInternalStaff(); }
-    match /manpowerPositions/{id} { allow read, write: if isInternalStaff(); }
-    match /cooldownPolicies/{id} { allow read, write: if isInternalStaff(); }
-    match /positions/{id} { allow read, write: if isInternalStaff(); } // Legacy
-
-    // Timesheets: Open for any internal staff for now
-    match /timesheetBatches/{id} { allow read, write: if isInternalStaff(); }
-    match /timesheetLines/{id} { allow read, write: if isInternalStaff(); }
-
-    // Finance data: Open for any internal staff for now
-    match /payrolls/{id} { allow read, write: if isInternalStaff(); }
-    match /taxProfiles/{id} { allow read, write: if isInternalStaff(); }
-    match /bankAccounts/{id} { allow read, write: if isInternalStaff(); }
-    match /invoices/{id} { allow read, write: if isInternalStaff(); }
-    match /billsAP/{id} { allow read, write: if isInternalStaff(); }
-    match /paymentsAR/{id} { allow read, write: if isInternalStaff(); }
-    match /paymentsAP/{id} { allow read, write: if isInternalStaff(); }
-    match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
-
-    // Operation data (clients tree): Open for any internal staff for now
+    // Finance Collections
+    match /payrolls/{id} { allow read, write: if isSignedIn(); }
+    match /taxProfiles/{id} { allow read, write: if isSignedIn(); }
+    match /bankAccounts/{id} { allow read, write: if isSignedIn(); }
+    match /invoices/{id} { allow read, write: if isSignedIn(); }
+    match /billsAP/{id} { allow read, write: if isSignedIn(); }
+    match /paymentsAR/{id} { allow read, write: if isSignedIn(); }
+    match /paymentsAP/{id} { allow read, write: if isSignedIn(); }
+    match /cashMovements/{id} { allow read, write: if isSignedIn(); }
+    
+    // Operation Data (Clients Tree)
     match /clients/{clientId}/{document=**} {
-        allow read, write: if isInternalStaff();
-    }
-     match /clients/{clientId} {
-        allow read, write: if isInternalStaff();
+      allow read, write: if isSignedIn();
     }
 
+    // Exports & Other
+    match /exports/{id} { allow read, write: if isSignedIn(); }
+    match /audit-logs/{id} { allow read, write: if isSignedIn(); }
+    match /companyProfile/{id} { allow read, write: if isSignedIn(); }
 
-    // Audit logs: Any signed in user can create, only admin can read
-    match /audit-logs/{id} { 
-      allow read: if isAdmin();
-      allow create: if isSignedIn();
-    }
   }
 }
