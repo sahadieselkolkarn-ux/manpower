@@ -15,43 +15,31 @@ const documentSchema = z.object({
   expiryDate: dateStringSchema.optional(),
 });
 
-// Base schema for properties common to all employees
-const baseEmployeeSchema = z.object({
-  employeeType: z.enum(['OFFICE', 'FIELD']),
-  personalInfo: z.object({
-    firstName: z.string().min(1, 'First name is required.'),
-    lastName: z.string().min(1, 'Last name is required.'),
-    dateOfBirth: dateStringSchema.optional(),
-    nationalId: z.string().optional(),
-    address: z.string().optional(),
-    emergencyContact: z.object({
-        name: z.string().optional(),
-        relationship: z.string().optional(),
-        phone: z.string().optional(),
-    }).optional(),
-  }),
-  contactInfo: z.object({
-    phone: z.string().optional(),
-    email: z.string().email('Invalid email address.').optional().or(z.literal('')),
-  }),
-  financeInfo: z.object({
-    bankName: z.string().optional(),
-    accountNumber: z.string().optional(),
-    socialSecurity: z.object({
-        has: z.boolean(),
-        hospitalId: z.string().optional(),
-    }).optional(),
-  }),
-  positionIds: z.array(z.string()).min(1, 'At least one position must be selected.'),
-  skillTags: z.string().optional(),
-  employmentStatus: z.enum(['Active', 'Inactive', 'Terminated']),
-  documents: z.array(documentSchema).optional(),
-});
-
 // Schema specific to Office employees, includes orgLevel and user creation fields
-const officeEmployeeSchema = baseEmployeeSchema.extend({
+const officeEmployeeSchema = z.object({
     employeeType: z.literal('OFFICE'),
     orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
+    personalInfo: z.object({
+        firstName: z.string().min(1, 'First name is required.'),
+        lastName: z.string().min(1, 'Last name is required.'),
+        dateOfBirth: dateStringSchema.optional(),
+        nationalId: z.string().optional(),
+        address: z.string().optional(),
+        emergencyContact: z.object({ name: z.string().optional(), relationship: z.string().optional(), phone: z.string().optional() }).optional(),
+    }),
+    contactInfo: z.object({
+        phone: z.string().optional(),
+        email: z.string().email('Invalid email address.').optional().or(z.literal('')),
+    }),
+    financeInfo: z.object({
+        bankName: z.string().optional(),
+        accountNumber: z.string().optional(),
+        socialSecurity: z.object({ has: z.boolean(), hospitalId: z.string().optional() }).optional(),
+    }),
+    positionIds: z.array(z.string()).min(1, 'At least one position must be selected.'),
+    skillTags: z.string().optional(),
+    employmentStatus: z.enum(['Active', 'Inactive', 'Terminated']),
+    documents: z.array(documentSchema).optional(),
     createUser: z.boolean(),
     userEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
 }).refine(data => {
@@ -65,8 +53,29 @@ const officeEmployeeSchema = baseEmployeeSchema.extend({
 });
 
 // Schema for Field employees, does not have orgLevel or user creation
-const fieldEmployeeSchema = baseEmployeeSchema.extend({
+const fieldEmployeeSchema = z.object({
     employeeType: z.literal('FIELD'),
+    personalInfo: z.object({
+        firstName: z.string().min(1, 'First name is required.'),
+        lastName: z.string().min(1, 'Last name is required.'),
+        dateOfBirth: dateStringSchema.optional(),
+        nationalId: z.string().optional(),
+        address: z.string().optional(),
+        emergencyContact: z.object({ name: z.string().optional(), relationship: z.string().optional(), phone: z.string().optional() }).optional(),
+    }),
+    contactInfo: z.object({
+        phone: z.string().optional(),
+        email: z.string().email('Invalid email address.').optional().or(z.literal('')),
+    }),
+    financeInfo: z.object({
+        bankName: z.string().optional(),
+        accountNumber: z.string().optional(),
+        socialSecurity: z.object({ has: z.boolean(), hospitalId: z.string().optional() }).optional(),
+    }),
+    positionIds: z.array(z.string()).min(1, 'At least one position must be selected.'),
+    skillTags: z.string().optional(),
+    employmentStatus: z.enum(['Active', 'Inactive', 'Terminated']),
+    documents: z.array(documentSchema).optional(),
 });
 
 
