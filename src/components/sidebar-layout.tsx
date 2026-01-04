@@ -41,7 +41,9 @@ import {
   CalendarCheck,
   FileCog,
   Settings,
-  AlertCircle
+  AlertCircle,
+  Banknote,
+  Send
 } from "lucide-react";
 
 import {
@@ -87,8 +89,9 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   
   const userRoleCodes = React.useMemo(() => {
     if (!userProfile || !userProfile.roleIds) return new Set<string>();
-    return new Set(userProfile.roleIds);
-  }, [userProfile]);
+    return new Set(userProfile.roleIds.map(id => rolesById.get(id)?.code).filter(Boolean));
+  }, [userProfile, rolesById]);
+
 
   const canViewOperation = isAdmin || userRoleCodes.has("OPERATION_MANAGER") || userRoleCodes.has("OPERATION_OFFICER");
   const canViewHR = isAdmin || userRoleCodes.has("HR_MANAGER") || userRoleCodes.has("HR_OFFICER");
@@ -96,10 +99,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   
   const roleDisplayNames = React.useMemo(() => {
       if (isLoadingRoles || !userProfile?.roleIds) return 'Loading Roles...';
+      if (isAdmin) return 'Administrator';
       return userProfile.roleIds
         .map(id => rolesById.get(id)?.code || id)
         .join(', ');
-  }, [userProfile, rolesById, isLoadingRoles]);
+  }, [userProfile, rolesById, isLoadingRoles, isAdmin]);
 
 
   return (
@@ -209,15 +213,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/tax-profiles")}>
                     <Link href="/dashboard/hr/tax-profiles">
                       <FileText />
-                      <span>Tax Profiles (ล.ย.01)</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/pnd1")}>
-                    <Link href="/dashboard/hr/pnd1">
-                      <FileText />
-                      <span>P.N.D.1 Form</span>
+                      <span>L.Y.01 Forms</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -274,95 +270,56 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
             {canViewFinance && (
                  <SidebarGroup>
-                    <SidebarGroupLabel>Finance</SidebarGroupLabel>
+                    <SidebarGroupLabel>Business &amp; Finance</SidebarGroupLabel>
                      <Collapsible>
                         <CollapsibleTrigger asChild className="w-full">
-                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance/cash")}>
-                                <Landmark /><span>Cash Management</span>
+                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/billing")}>
+                                <Send /><span>Billing</span>
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pl-4">
                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname === "/dashboard/finance/cash/dashboard"}>
-                                    <Link href="/dashboard/finance/cash/dashboard"><LayoutDashboard /><span>Cash Dashboard</span></Link>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/billing/runs")}>
+                                    <Link href="/dashboard/billing/runs"><FileUp /><span>Billing Runs</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                              <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/bank-accounts")}>
-                                    <Link href="/dashboard/finance/cash/bank-accounts"><Landmark /><span>Bank Accounts</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash/movements")}>
-                                    <Link href="/dashboard/finance/cash/movements"><ArrowRightLeft /><span>Cash Movements</span></Link>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/billing/invoices")}>
+                                    <Link href="/dashboard/billing/invoices"><Receipt /><span>Invoices</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         </CollapsibleContent>
                      </Collapsible>
-                     <Collapsible>
-                        <CollapsibleTrigger asChild className="w-full">
-                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance/ar")}>
-                                <Receipt /><span>Accounts Receivable</span>
-                            </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="pl-4">
-                           <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/invoices")}>
-                                    <Link href="/dashboard/finance/ar/invoices"><Receipt /><span>A/R Invoices</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/payments")}>
-                                    <Link href="/dashboard/finance/ar/payments"><DollarSign /><span>A/R Payments</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar/aging")}>
-                                    <Link href="/dashboard/finance/ar/aging"><WalletCards /><span>A/R Aging</span></Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </CollapsibleContent>
-                     </Collapsible>
+
                       <Collapsible>
                         <CollapsibleTrigger asChild className="w-full">
-                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance/ap")}>
-                                <FileBox /><span>Accounts Payable</span>
+                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance")}>
+                                <Banknote /><span>Accounting</span>
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pl-4">
                             <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/bills")}>
-                                    <Link href="/dashboard/finance/ap/bills"><FileBox /><span>A/P Bills</span></Link>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ar")}>
+                                    <Link href="/dashboard/finance/ar/invoices"><Receipt /><span>A/R</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/payments")}>
-                                    <Link href="/dashboard/finance/ap/payments"><Coins /><span>A/P Payments</span></Link>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap")}>
+                                    <Link href="/dashboard/finance/ap/bills"><FileBox /><span>A/P</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
-                            <SidebarMenuItem>
-                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/ap/aging")}>
-                                    <Link href="/dashboard/finance/ap/aging"><WalletCards /><span>A/P Aging</span></Link>
+                              <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/cash")}>
+                                    <Link href="/dashboard/finance/cash/dashboard"><Landmark /><span>Cash</span></Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                             <SidebarMenuItem>
+                                <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/payroll")}>
+                                    <Link href="/dashboard/finance/payroll"><Users /><span>Payroll</span></Link>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         </CollapsibleContent>
                      </Collapsible>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/payroll")} disabled>
-                            <Link href="#">
-                                <DollarSign />
-                                <span>Payroll</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/pending-billing")}>
-                            <Link href="/dashboard/finance/pending-billing">
-                                <FileUp />
-                                <span>Pending Payment/Billing</span>
-                            </Link>
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
                 </SidebarGroup>
             )}
 
@@ -449,7 +406,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             </Avatar>
             <div className="overflow-hidden flex-1">
               <p className="text-sm font-semibold truncate">{userProfile?.displayName || userProfile?.email}</p>
-              <p className="text-xs text-muted-foreground capitalize truncate">{isAdmin ? "Admin" : (roleDisplayNames || 'No Roles')}</p>
+              <p className="text-xs text-muted-foreground capitalize truncate">{roleDisplayNames || 'No Roles'}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="shrink-0">
               <LogOut className="w-4 h-4" />
