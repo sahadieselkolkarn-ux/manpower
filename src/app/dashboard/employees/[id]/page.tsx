@@ -1,3 +1,4 @@
+
 "use client";
 import { use, useState } from "react";
 import { doc, DocumentReference } from "firebase/firestore";
@@ -5,7 +6,7 @@ import { useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
 import FullPageLoader from "@/components/full-page-loader";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Employee } from "@/types/employee";
 import {
@@ -93,7 +94,10 @@ export default function EmployeeDetailsPage({
                <Badge variant="outline" className="text-lg">
                 {employee.employmentStatus}
               </Badge>
-              <Button onClick={handleOpenTaxProfile} variant="secondary">แบบฟอร์ม ล.ย.01</Button>
+              <Button onClick={handleOpenTaxProfile} variant="secondary">
+                <FileText className="mr-2 h-4 w-4" />
+                แบบฟอร์ม ล.ย.01
+              </Button>
              </div>
           </div>
         </CardHeader>
@@ -104,3 +108,5 @@ export default function EmployeeDetailsPage({
     </div>
   );
 }
+
+    

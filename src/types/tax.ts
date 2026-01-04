@@ -1,3 +1,4 @@
+
 import { type Timestamp } from 'firebase/firestore';
 
 export type PersonType = 'OFFICE' | 'MP';
@@ -28,3 +29,5 @@ export interface TaxProfile {
         notes?: string;
     };
 }
+
+    

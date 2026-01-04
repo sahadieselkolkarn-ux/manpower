@@ -43,7 +43,6 @@ export default function TaxProfilesListPage() {
         return employees.filter(emp => {
             const typeMatch = filterType === 'ALL' || emp.employeeType === filterType;
             
-            const personKey = getPersonKey(emp.employeeType, emp.id);
             const profile = taxProfileMap.get(emp.id);
             const statusMatch = filterStatus === 'ALL' || (profile?.status || 'NOT_STARTED') === filterStatus;
 
@@ -152,3 +151,5 @@ export default function TaxProfilesListPage() {
         </div>
     );
 }
+
+    

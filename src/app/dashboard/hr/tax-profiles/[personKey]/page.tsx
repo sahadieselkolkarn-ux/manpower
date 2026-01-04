@@ -1,3 +1,4 @@
+
 'use client';
 
 import { use, useState, useEffect } from 'react';
@@ -28,7 +29,7 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
     const db = useFirestore();
     
     const { personType, personRefId } = parsePersonKey(personKey);
-    const collectionName = personType === 'OFFICE' ? 'employees' : 'employees'; // Both are in employees now
+    const collectionName = 'employees';
 
     const employeeRef = useMemoFirebase(
         () => (db && personRefId ? (doc(db, collectionName, personRefId) as DocumentReference<Employee>) : null),
@@ -76,3 +77,5 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
         </div>
     )
 }
+
+    

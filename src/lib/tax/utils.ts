@@ -1,3 +1,4 @@
+
 import { Employee } from "@/types/employee";
 import { PersonType } from "@/types/tax";
 
@@ -12,7 +13,9 @@ export function parsePersonKey(personKey: string): { personType: PersonType, per
         throw new Error('Invalid personKey format');
     }
     return {
-        personType: prefix,
+        personType: prefix as PersonType,
         personRefId
     };
 }
+
+    

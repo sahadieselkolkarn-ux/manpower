@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -9,7 +10,7 @@ import { useFirestore } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Employee } from '@/types/employee';
-import { TaxProfile } from '@/types/tax';
+import { TaxProfile, TaxProfileStatus, PersonType } from '@/types/tax';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -65,12 +66,12 @@ export function TaxProfileForm({ employee, taxProfile, personKey, onSuccess }: T
     resolver: zodResolver(formSchema),
     defaultValues: {
       personal: {
-        taxId: taxProfile?.personal.taxId || '',
-        address: taxProfile?.personal.address || employee.personalInfo.address,
-        phone: taxProfile?.personal.phone || employee.contactInfo.phone,
+        taxId: taxProfile?.personal?.taxId || '',
+        address: taxProfile?.personal?.address || employee.personalInfo.address,
+        phone: taxProfile?.personal?.phone || employee.contactInfo.phone,
       },
       tax: {
-        taxpayerStatus: taxProfile?.tax.taxpayerStatus || '',
+        taxpayerStatus: taxProfile?.tax?.taxpayerStatus || '',
       },
       verifiedBySelf: taxProfile?.verifiedBySelf || false,
     },
@@ -88,14 +89,15 @@ export function TaxProfileForm({ employee, taxProfile, personKey, onSuccess }: T
       newStatus = 'NEEDS_UPDATE';
     }
 
-    const dataToSave: Omit<TaxProfile, 'id'> = {
+    const dataToSave = {
       personKey,
-      personType: employee.employeeType,
+      personType: employee.employeeType as PersonType,
       personRefId: employee.id,
       status: newStatus,
-      updatedAt: serverTimestamp() as Timestamp,
+      updatedAt: serverTimestamp(),
       updatedBy: userProfile?.displayName || 'System',
       verifiedBySelf: values.verifiedBySelf,
+      verifiedAt: (values.verifiedBySelf && !taxProfile?.verifiedBySelf) ? serverTimestamp() : taxProfile?.verifiedAt || undefined,
       personal: {
         fullName: `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`,
         ...values.personal,
@@ -197,3 +199,5 @@ export function TaxProfileForm({ employee, taxProfile, personKey, onSuccess }: T
     </Form>
   );
 }
+
+    
