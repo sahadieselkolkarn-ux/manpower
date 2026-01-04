@@ -54,14 +54,12 @@ import { useToast } from "@/hooks/use-toast";
 import { type Wave, WaveWithProject, ManpowerRequirement } from "@/types/wave";
 import { type ManpowerPosition } from "@/types/position";
 import { ProjectWithContract, Project } from "@/types/project";
-import { toDate } from "@/lib/utils";
+import { toDate, DATE_FORMAT } from "@/lib/utils";
 import { Contract } from "@/types/contract";
 import { Client } from "@/types/client";
 import { CertificateType } from "@/types/certificate-type";
 import { Checkbox } from "../ui/checkbox";
 import { MultiSelect } from "../ui/multi-select";
-
-const DATE_FORMAT = 'dd/MM/yyyy';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {
@@ -389,8 +387,8 @@ export default function WaveForm({
                                 <FormControl>
                                 <Input
                                   placeholder={DATE_FORMAT}
-                                  value={field.value instanceof Date ? format(field.value, DATE_FORMAT) : (typeof field.value === 'string' ? field.value : '')}
-                                  onChange={e => field.onChange(e.target.value)}
+                                  {...field}
+                                  value={field.value ? format(field.value, DATE_FORMAT) : ''}
                                 />
                                 </FormControl>
                                 <FormMessage />
@@ -406,8 +404,8 @@ export default function WaveForm({
                                 <FormControl>
                                 <Input
                                   placeholder={DATE_FORMAT}
-                                  value={field.value instanceof Date ? format(field.value, DATE_FORMAT) : (typeof field.value === 'string' ? field.value : '')}
-                                  onChange={e => field.onChange(e.target.value)}
+                                  {...field}
+                                  value={field.value ? format(field.value, DATE_FORMAT) : ''}
                                 />
                                 </FormControl>
                                 <FormMessage />
