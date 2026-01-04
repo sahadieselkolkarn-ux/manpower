@@ -1,4 +1,6 @@
 
+'use client';
+
 import * as z from 'zod';
 import { DATE_FORMAT } from '@/lib/utils';
 import { isValid, parse } from 'date-fns';
@@ -13,6 +15,7 @@ const documentSchema = z.object({
   certificateTypeId: z.string().optional(),
   issueDate: dateStringSchema.optional(),
   expiryDate: dateStringSchema.optional(),
+  fileUrl: z.string().optional(),
 }).refine(data => {
     if (data.type === 'Certificate') {
         return !!data.certificateTypeId;
@@ -23,8 +26,8 @@ const documentSchema = z.object({
     path: ['name'],
 });
 
-// Base schema for fields common to both types
-export const baseEmployeeSchema = z.object({
+// Base schema for fields common to both types, but without employeeType
+const baseEmployeeSchema = z.object({
     personalInfo: z.object({
         firstName: z.string().min(1, 'First name is required.'),
         lastName: z.string().min(1, 'Last name is required.'),
@@ -41,7 +44,7 @@ export const baseEmployeeSchema = z.object({
         bankName: z.string().optional(),
         accountNumber: z.string().optional(),
         socialSecurity: z.object({ has: z.boolean(), hospitalId: z.string().optional() }).optional(),
-    }),
+    }).optional(),
     positionIds: z.array(z.string()).min(1, 'At least one position must be selected.'),
     skillTags: z.string().optional(),
     employmentStatus: z.enum(['Active', 'Inactive', 'Terminated']),
@@ -52,7 +55,13 @@ export const baseEmployeeSchema = z.object({
 export const officeEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('OFFICE'),
     orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
-    createUser: z.boolean(),
+    employmentTerms: z.object({
+        baseSalary: z.coerce.number().positive('Base salary is required.'),
+        allowance: z.coerce.number().min(0, 'Allowance cannot be negative.').optional(),
+        socialSecurityEligible: z.boolean().optional(),
+        taxEligible: z.boolean().optional(),
+    }),
+    createUser: z.boolean().optional(),
     userEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
 }).refine(data => {
     if (data.createUser && !data.userEmail) {
@@ -64,13 +73,13 @@ export const officeEmployeeSchema = baseEmployeeSchema.extend({
     path: ['userEmail'],
 });
 
+
 // Schema for Field employees
 export const fieldEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('FIELD'),
 });
 
-// Export the specific form schemas. Using a discriminated union at the top level was causing module evaluation errors.
-// By exporting separated schemas, the form component can decide which one to use based on context props.
+// We are not using discriminatedUnion for the form itself, as the form type is determined by the page context.
 export const officeEmployeeFormSchema = officeEmployeeSchema;
 export const fieldEmployeeFormSchema = fieldEmployeeSchema;
 

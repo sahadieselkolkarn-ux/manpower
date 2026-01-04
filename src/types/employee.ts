@@ -1,5 +1,6 @@
 
 
+
 'use client';
 import { type Timestamp } from 'firebase/firestore';
 import { OfficeAttendancePolicy } from './attendance';
@@ -96,7 +97,7 @@ export interface Employee {
   id: string;
   employeeCode: string;
   employeeType: "OFFICE" | "FIELD";
-  orgLevel: "STAFF" | "MANAGER" | "EXECUTIVE";
+  orgLevel?: "STAFF" | "MANAGER" | "EXECUTIVE";
   personalInfo: {
     firstName: string;
     lastName: string;
@@ -128,7 +129,7 @@ export interface Employee {
   positionIds: string[]; // Refers to IDs in /positions
   skillTags?: string[];
   employmentStatus: 'Active' | 'Inactive' | 'Terminated';
-  assignmentStatus: 'Available' | 'Assigned' | 'On Cooldown';
+  assignmentStatus?: 'Available' | 'Assigned' | 'On Cooldown';
   workHistory?: WorkHistoryItem[];
   documents?: DocumentInfo[];
   officeProfile?: {

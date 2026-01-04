@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -60,7 +61,7 @@ import { Separator } from '../ui/separator';
 import { Textarea } from '../ui/textarea';
 import { CertificateType } from '@/types/certificate-type';
 import { Hospital } from '@/types/hospital';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { DATE_FORMAT, toDate } from '@/lib/utils';
 import { officeEmployeeFormSchema, fieldEmployeeFormSchema, type EmployeeFormData } from '@/types/employee.schema';
 import { removeUndefineds } from '@/lib/firestore/utils';
@@ -140,10 +141,10 @@ export default function EmployeeForm({
           personalInfo: {
             firstName: employee.personalInfo.firstName || '',
             lastName: employee.personalInfo.lastName || '',
-            dateOfBirth: dob ? format(dob, DATE_FORMAT) : '',
+            dateOfBirth: dob ? format(dob, DATE_FORMAT) : undefined,
             nationalId: employee.personalInfo.nationalId || '',
             address: employee.personalInfo.address || '',
-            emergencyContact: employee.personalInfo.emergencyContact || { name: '', relationship: '', phone: '' },
+            emergencyContact: employee.personalInfo.emergencyContact || undefined,
           },
           contactInfo: {
             phone: employee.contactInfo?.phone || '',
@@ -170,6 +171,12 @@ export default function EmployeeForm({
 
         if (employeeType === 'OFFICE') {
           defaultData.orgLevel = employee.orgLevel || 'STAFF';
+           defaultData.employmentTerms = employee.employmentTerms || {
+            baseSalary: 0,
+            allowance: 0,
+            socialSecurityEligible: true,
+            taxEligible: true,
+          };
           defaultData.createUser = false; // Don't show for existing employees
           defaultData.userEmail = employee.contactInfo?.email || '';
         }
@@ -183,9 +190,10 @@ export default function EmployeeForm({
           ...(employeeType === 'OFFICE'
             ? {
                 orgLevel: 'STAFF',
-                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '', emergencyContact: { name: '', relationship: '', phone: '' } },
+                employmentTerms: { baseSalary: 0, allowance: 0, socialSecurityEligible: true, taxEligible: true },
+                personalInfo: { firstName: '', lastName: '' },
                 contactInfo: { phone: '', email: ''},
-                financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+                financeInfo: { socialSecurity: { has: false } },
                 positionIds: [],
                 skillTags: '',
                 employmentStatus: 'Active',
@@ -194,9 +202,9 @@ export default function EmployeeForm({
                 userEmail: '',
             }
             : {
-                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '', emergencyContact: { name: '', relationship: '', phone: '' } },
+                personalInfo: { firstName: '', lastName: '' },
                 contactInfo: { phone: '', email: ''},
-                financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+                financeInfo: { socialSecurity: { has: false } },
                 positionIds: [],
                 skillTags: '',
                 employmentStatus: 'Active',
@@ -264,18 +272,22 @@ export default function EmployeeForm({
             ...values.contactInfo,
             email: (values.employeeType === 'OFFICE' && values.createUser) ? values.userEmail : values.contactInfo.email,
         },
-        financeInfo: {
-            ...values.financeInfo,
-            socialSecurity: {
-                ...values.financeInfo?.socialSecurity,
-                hospitalId: values.financeInfo?.socialSecurity?.has ? values.financeInfo.socialSecurity.hospitalId : '',
-            }
-        },
         positionIds: values.positionIds,
         skillTags: skillTagsArray,
         documents: documentsWithTimestamps,
         updatedAt: serverTimestamp(),
       };
+      
+      if (values.employeeType === 'OFFICE') {
+          const now = new Date();
+          dataToSave.employmentTerms = {
+              ...values.employmentTerms,
+              type: 'SALARY',
+              payFrequency: 'MONTHLY',
+              status: 'ACTIVE',
+              effectiveFrom: `${getYear(now)}-${String(getMonth(now) + 1).padStart(2, '0')}`,
+          }
+      }
 
       const cleanPayload = removeUndefineds(dataToSave);
 
@@ -376,7 +388,7 @@ export default function EmployeeForm({
                 <FormField control={form.control} name={"orgLevel"} render={({ field }) => (
                     <FormItem>
                         <FormLabel>Organizational Level</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value as string ?? 'STAFF'}>
                             <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                             <SelectContent>
                                 <SelectItem value="STAFF">STAFF</SelectItem>
@@ -387,6 +399,25 @@ export default function EmployeeForm({
                         <FormMessage />
                     </FormItem>
                 )}/>
+                <div className="space-y-4 rounded-lg border p-4">
+                  <h4 className="font-medium text-sm">Salary Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="employmentTerms.baseSalary" render={({ field }) => (
+                      <FormItem><FormLabel>Base Salary / month</FormLabel><FormControl><Input type="number" placeholder="50000" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="employmentTerms.allowance" render={({ field }) => (
+                      <FormItem><FormLabel>Allowance / month</FormLabel><FormControl><Input type="number" placeholder="5000" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                  </div>
+                   <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="employmentTerms.socialSecurityEligible" render={({ field }) => (
+                          <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>SSO Eligible?</FormLabel><FormMessage /></FormItem>
+                      )}/>
+                       <FormField control={form.control} name="employmentTerms.taxEligible" render={({ field }) => (
+                          <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Taxable?</FormLabel><FormMessage /></FormItem>
+                      )}/>
+                   </div>
+                </div>
             </>
             )}
             
@@ -477,7 +508,7 @@ export default function EmployeeForm({
                     <FormField control={form.control} name="financeInfo.socialSecurity.hospitalId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Registered Hospital</FormLabel>
-                             <Select onValueChange={field.onChange} value={field.value}>
+                             <Select onValueChange={field.onChange} value={field.value ?? ''}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select a hospital..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {isLoadingHospitals ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (
@@ -543,7 +574,7 @@ export default function EmployeeForm({
                     const docType = form.watch(`documents.${index}.type`);
                     const certTypeId = form.watch(`documents.${index}.certificateTypeId`);
                     const selectedCertType = certTypeMap.get(certTypeId || '');
-                    const showExpiry = selectedCertType?.requiresExpiry ?? (docType !== 'Certificate');
+                    const showExpiry = docType === 'Certificate' ? selectedCertType?.requiresExpiry : (docType !== 'Seaman Book');
 
                     return (
                     <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end border p-4 rounded-md relative">
@@ -566,7 +597,7 @@ export default function EmployeeForm({
                         {docType === 'Certificate' ? (
                             <FormField control={form.control} name={`documents.${index}.certificateTypeId`} render={({ field }) => (
                                 <FormItem><FormLabel>Certificate Name</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value ?? ''}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select from list..."/></SelectTrigger></FormControl>
                                         <SelectContent>
                                             {availableCertTypes.map(ct => <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>)}
@@ -599,7 +630,7 @@ export default function EmployeeForm({
                 <div className='flex gap-2'>
                     {employee && <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/employees/${employee.id}/ly01`)}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
                 </div>
-              <div>
+              <div className='space-x-2'>
                 <Button type="button" variant="secondary" onClick={handleBack}>Cancel</Button>
                 <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Employee'}</Button>
               </div>
