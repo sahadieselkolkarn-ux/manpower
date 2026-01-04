@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, PlusCircle, ShieldAlert } from 'lucide-react';
@@ -196,7 +196,7 @@ export default function CertificateTypesPage() {
   const certTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
   const { data: certTypes, isLoading, refetch } = useCollection<CertificateType>(certTypesQuery);
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = userProfile?.isAdmin;
 
   const handleCreate = () => {
     setSelectedCertType(null);
