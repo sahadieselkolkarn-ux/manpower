@@ -115,6 +115,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
 
   const form = useForm<Ly01FormData>({
     resolver: zodResolver(ly01FormSchema),
+    // Initialize with defaults to prevent uncontrolled -> controlled warning
     defaultValues: defaultLy01Data,
   });
 
@@ -127,10 +128,12 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
           declaredDate: declared ? formatDate(declared) : undefined,
           verifiedBySelf: ly01Profile.verifiedBySelf || false,
         };
-
+        
+        // Deep merge defaults with existing data to ensure all fields are defined
         const mergedData = merge({}, defaultLy01Data, existingData);
         form.reset(mergedData);
     } else {
+        // This case should be rare now, but good to have as a fallback
         form.reset(defaultLy01Data);
     }
   }, [ly01Profile, form]);
@@ -161,7 +164,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
             data: values.data,
             declaredDate: values.declaredDate ? Timestamp.fromDate(new Date(values.declaredDate)) : serverTimestamp(),
             verifiedBySelf: values.verifiedBySelf,
-            verifiedAt: (values.verifiedBySelf && !ly0İle.verifiedBySelf) ? serverTimestamp() : ly01Profile.verifiedAt,
+            verifiedAt: (values.verifiedBySelf && !ly01Profile.verifiedBySelf) ? serverTimestamp() : ly01Profile.verifiedAt,
             updatedAt: serverTimestamp(),
             updatedBy: userProfile?.displayName || 'System',
           }

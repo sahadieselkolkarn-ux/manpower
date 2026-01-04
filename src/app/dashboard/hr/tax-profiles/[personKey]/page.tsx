@@ -36,15 +36,20 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
     const [parsedKey, setParsedKey] = useState<{ personType: PersonType, personRefId: string, canonicalPersonKey: string } | null>(null);
     
     useEffect(() => {
+        // This effect runs once to parse the key from the URL.
         const pKey = parsePersonKey(resolvedParams.personKey);
         setParsedKey(pKey);
     }, [resolvedParams.personKey]);
 
     useEffect(() => {
-        if (!db || !parsedKey) {
+        // This effect reacts to the parsedKey and fetches the employee.
+        if (!db) return; // Wait for Firestore to be initialized
+
+        if (!parsedKey) {
+            // This case is handled by the main render block, but good to have a guard here.
             setIsLoadingEmployee(false);
             return;
-        };
+        }
         
         setIsLoadingEmployee(true);
         const employeeRef = doc(db, "employees", parsedKey.personRefId);
@@ -54,9 +59,9 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
                 const empData = { id: docSnap.id, ...docSnap.data() } as Employee;
                 
                 if (!empData.taxProfile?.ly01) {
-                    console.log(`LY.01 profile for ${empData.employeeCode} not found. Creating draft.`);
+                    console.log(`LY.01 profile for ${empData.employeeCode} not found. Creating draft in-memory.`);
                     const now = new Date();
-                    const newLy01: Ly01Profile = {
+                    const draftLy01: Ly01Profile = {
                         status: 'MISSING',
                         version: 1,
                         effectiveMonth: `${getYear(now)}-${String(getMonth(now) + 1).padStart(2, '0')}`,
@@ -64,22 +69,28 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
                         updatedBy: 'SYSTEM_INIT',
                         data: {}
                     };
-                    try {
-                        await updateDoc(employeeRef, { 'taxProfile.ly01': newLy01 });
-                    } catch (e) {
-                         console.error("Failed to create draft LY.01 profile:", e);
-                         toast({ variant: 'destructive', title: 'Error', description: 'Could not initialize tax profile.' });
-                         setEmployee(empData);
-                    }
+                    
+                    // Add the draft profile to the employee data in state without writing to DB yet
+                    // The form will handle the first write.
+                    const employeeWithDraftProfile = {
+                        ...empData,
+                        taxProfile: {
+                            ...(empData.taxProfile || {}),
+                            ly01: draftLy01,
+                        },
+                    };
+                    setEmployee(employeeWithDraftProfile);
+
                 } else {
                    setEmployee(empData);
                 }
             } else {
-                setEmployee(null);
+                setEmployee(null); // Employee not found
             }
              setIsLoadingEmployee(false);
         }, (error) => {
              console.error("Error listening to employee document:", error);
+             setEmployee(null);
              setIsLoadingEmployee(false);
         });
        
@@ -88,11 +99,8 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
     }, [db, parsedKey, toast]);
 
 
-    if (isLoadingEmployee) {
-        return <FullPageLoader />
-    }
-
     if (!parsedKey) {
+        // This renders if the personKey from the URL is invalid.
         return (
             <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
                 <Button variant="ghost" onClick={() => router.push('/dashboard/hr/tax-profiles')} className="mb-4">
@@ -114,7 +122,12 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
         )
     }
 
+    if (isLoadingEmployee) {
+        return <FullPageLoader />
+    }
+
     if (!employee) {
+        // This renders if the key was valid, but no employee doc was found in Firestore.
         return (
              <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
                 <Button variant="ghost" onClick={() => router.push('/dashboard/hr/tax-profiles')} className="mb-4">
@@ -129,9 +142,9 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
                         <p>The employee profile could not be found for this tax record.</p>
                         <p className="text-sm text-muted-foreground mt-2">
                            Debug Info: <br/>
-                           - Person Key: {parsedKey?.canonicalPersonKey} <br/>
+                           - Person Key: {parsedKey.canonicalPersonKey} <br/>
                            - Queried Collection: /employees <br/>
-                           - Queried Document ID: {parsedKey?.personRefId}
+                           - Queried Document ID: {parsedKey.personRefId}
                         </p>
                     </CardContent>
                 </Card>
