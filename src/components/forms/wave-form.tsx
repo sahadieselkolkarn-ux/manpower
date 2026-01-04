@@ -185,8 +185,8 @@ export default function WaveForm({
           waveCode: wave.waveCode,
           projectId: wave.projectId,
           planningWorkPeriod: {
-            startDate: startDate,
-            endDate: endDate,
+            startDate: startDate || new Date(),
+            endDate: endDate || new Date(),
           },
           manpowerRequirement: requirements.length > 0 ? requirements : [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
         });
