@@ -170,14 +170,6 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/assignments")}>
-                    <Link href="/dashboard/hr/assignments">
-                      <UserCheck />
-                      <span>Assignments</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarGroup>
             )}
 
@@ -197,6 +189,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     <Link href="/dashboard/hr/employees/field">
                       <Users />
                       <span>Manpower Employees</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/assignments")}>
+                    <Link href="/dashboard/hr/assignments">
+                      <UserCheck />
+                      <span>Assignments</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -441,3 +441,5 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     </SidebarProvider>
   );
 }
+
+    

@@ -1,191 +1,204 @@
 
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { collection, collectionGroup, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
+import React, { useState, useMemo } from 'react';
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { Skeleton } from '@/components/ui/skeleton';
-import { type Assignment, EligibilityStatus } from '@/types/assignment';
+import { useRouter, useSearchParams } from 'next/navigation';
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
-import { ShieldAlert, ShieldCheck, Shield } from 'lucide-react';
-import { useEffectOnce } from 'react-use';
-import { Wave } from '@/types/wave';
-import { Project } from '@/types/project';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, PlusCircle, UserCheck } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface AssignmentWithDetails extends Assignment {
-    waveCode?: string;
-    projectName?: string;
-    path?: string;
-}
+import FullPageLoader from '@/components/full-page-loader';
+import { Assignment } from '@/types/assignment';
+import { WaveWithProject } from '@/types/wave';
+import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
+import { useCollectionGroup } from '@/hooks/use-collection-group';
 
-export default function AssignmentsPage() {
+
+export default function AssignmentsMasterListPage() {
   const db = useFirestore();
-  const { userProfile } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { userProfile, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+
+  const { data: assignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<Assignment>(
+    useMemoFirebase(() => db ? query(collection(db, 'assignments'), orderBy('createdAt', 'desc')) : null, [db])
+  );
+  const { data: waves, isLoading: isLoadingWaves } = useCollectionGroup<WaveWithProject>('waves');
+
+  const [filterWave, setFilterWave] = useState(searchParams.get('waveId') || 'all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [assignmentToEnd, setAssignmentToEnd] = useState<Assignment | null>(null);
+
+  const waveMap = useMemo(() => new Map(waves?.map(w => [w.id, w])), [waves]);
+
+  const filteredAssignments = useMemo(() => {
+    if (!assignments) return [];
+    return assignments.filter(a => {
+      const waveMatch = filterWave === 'all' || a.waveId === filterWave;
+      const statusMatch = filterStatus === 'all' || a.status === filterStatus;
+      const searchMatch = searchTerm === '' || 
+        a.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        a.employeeCode.toLowerCase().includes(searchTerm.toLowerCase());
+      return waveMatch && statusMatch && searchMatch;
+    });
+  }, [assignments, filterWave, filterStatus, searchTerm]);
+
+  const handleEndAssignment = async () => {
+    if (!db || !assignmentToEnd || !userProfile) return;
+
+    const assignmentRef = doc(db, 'assignments', assignmentToEnd.id);
+    try {
+      await updateDoc(assignmentRef, {
+        status: 'ENDED',
+        endedAt: serverTimestamp(),
+        endedBy: userProfile.uid,
+      });
+      toast({ title: "Success", description: "Assignment has been ended." });
+      refetchAssignments();
+    } catch (error) {
+      console.error("Error ending assignment:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not end assignment." });
+    } finally {
+      setAssignmentToEnd(null);
+    }
+  };
+
+  const isLoading = isLoadingAssignments || isLoadingWaves || authLoading;
+
+  if (isLoading) return <FullPageLoader />;
   
-  const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffectOnce(() => {
-    const fetchAssignments = async () => {
-      if (!db) return;
-      setIsLoading(true);
-
-      try {
-        const assignmentsSnap = await getDocs(query(collectionGroup(db, 'assignments'), orderBy('assignedAt', 'desc')));
-        
-        const wavePromises = new Map<string, Promise<any>>();
-        const projectPromises = new Map<string, Promise<any>>();
-
-        const getDocAndCache = (ref: any, cache: Map<string, Promise<any>>) => {
-            if (!cache.has(ref.path)) {
-                cache.set(ref.path, getDoc(ref));
-            }
-            return cache.get(ref.path);
-        };
-        
-        const detailedAssignments = await Promise.all(assignmentsSnap.docs.map(async (doc) => {
-            const assignment = { id: doc.id, ...doc.data() } as AssignmentWithDetails;
-            assignment.path = doc.ref.path;
-            
-            const waveRef = doc.ref.parent.parent; // This is the wave document
-            if (!waveRef) return assignment;
-
-            const waveSnap = await getDocAndCache(waveRef, wavePromises);
-            if (waveSnap && waveSnap.exists()) {
-                const waveData = waveSnap.data() as Wave;
-                assignment.waveCode = waveData.waveCode;
-
-                const projectRef = waveRef.parent.parent; // This is the project document
-                 if (!projectRef) return assignment;
-
-                 const projectSnap = await getDocAndCache(projectRef, projectPromises);
-                 if (projectSnap && projectSnap.exists()) {
-                     const projectData = projectSnap.data() as Project;
-                     assignment.projectName = projectData.name;
-                 }
-            }
-            return assignment;
-        }));
-
-        setAssignments(detailedAssignments);
-      } catch (error) {
-          console.error("Error fetching assignments:", error);
-      } finally {
-          setIsLoading(false);
-      }
-    };
-
-    fetchAssignments();
-  });
-
-
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes('HR_MANAGER') || userProfile?.roleIds.includes('OPERATION_MANAGER');
-
-  const getWavePath = (assignment: AssignmentWithDetails) => {
-    if (!assignment.path) return '#';
-    const segments = assignment.path.split('/');
-    // Path: /clients/{cId}/contracts/{coId}/projects/{pId}/waves/{wId}/assignments/{aId}
-    // Segments length is 10
-    if (segments.length >= 8) {
-      // Return up to the wave ID
-      return `/dashboard/clients/${segments[1]}/contracts/${segments[3]}/projects/${segments[5]}/waves/${segments[7]}`;
-    }
-    return '#';
-  };
-
-  const EligibilityBadge = ({ status }: { status: EligibilityStatus }) => {
-    switch (status) {
-      case 'PASS':
-        return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><ShieldCheck className="mr-1 h-3 w-3" />PASS</Badge>;
-      case 'ALERT':
-        return <Badge variant="secondary" className="bg-amber-500 text-white"><ShieldAlert className="mr-1 h-3 w-3" />ALERT</Badge>;
-      case 'FAIL':
-        return <Badge variant="destructive"><ShieldAlert className="mr-1 h-3 w-3" />FAIL</Badge>;
-      default:
-        return <Badge variant="outline"><Shield className="mr-1 h-3 w-3" />N/A</Badge>;
-    }
-  };
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds?.includes('HR_MANAGER');
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight font-headline">
-          All Assignments
-        </h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><UserCheck /> Assignments</h1>
+          <p className="text-muted-foreground">Manage all employee assignments to work waves.</p>
+        </div>
+        {canManage && (
+          <Button onClick={() => router.push('/dashboard/hr/assignments/new')}>
+            <PlusCircle className="mr-2 h-4 w-4" /> New Assignment
+          </Button>
+        )}
       </div>
-      <p className="text-muted-foreground">
-        A master list of all employee assignments across all waves and projects.
-      </p>
 
       <Card>
         <CardHeader>
           <CardTitle>Master Assignment List</CardTitle>
-          <CardDescription>
-            This view provides a comprehensive overview of manpower allocation and compliance status.
-          </CardDescription>
+          <CardDescription>A complete log of all manpower assignments.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center gap-4 mb-4">
+            <Input 
+              placeholder="Search by name or code..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+            <Select value={filterWave} onValueChange={setFilterWave}>
+              <SelectTrigger className="w-[280px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Waves</SelectItem>
+                {waves?.map(w => <SelectItem key={w.id} value={w.id}>{w.waveCode}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="ACTIVE">Active</SelectItem>
+                <SelectItem value="ENDED">Ended</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Employee Name</TableHead>
-                <TableHead>Position</TableHead>
+                <TableHead>Employee</TableHead>
                 <TableHead>Wave</TableHead>
+                <TableHead>Dates (Start - End)</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Eligibility</TableHead>
-                <TableHead>Assigned At</TableHead>
+                {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoadingAssignments ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-28" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                  </TableRow>
+                  <TableRow key={i}><TableCell colSpan={canManage ? 5 : 4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                 ))
-              ) : assignments && assignments.length > 0 ? (
-                assignments.map((assignment) => (
-                  <TableRow key={assignment.id}>
-                    <TableCell className="font-medium">{assignment.employeeName}</TableCell>
-                    <TableCell>{assignment.positionName}</TableCell>
-                    <TableCell>
-                      <Link href={getWavePath(assignment)} className="hover:underline text-primary">
-                        {assignment.waveCode || 'N/A'}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">{assignment.projectName}</p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{assignment.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                       <EligibilityBadge status={(assignment.eligibility && assignment.eligibility.overall) || 'PASS'} />
-                    </TableCell>
-                    <TableCell>
-                      {assignment.assignedAt?.toDate().toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))
+              ) : filteredAssignments.length > 0 ? (
+                filteredAssignments.map(a => {
+                  const wave = waveMap.get(a.waveId);
+                  return (
+                    <TableRow key={a.id}>
+                      <TableCell>
+                        <div className="font-medium">{a.employeeName}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{a.employeeCode}</div>
+                      </TableCell>
+                      <TableCell>
+                        {wave ? (
+                          <Link className="hover:underline text-primary" href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`}>
+                            {wave.waveCode}
+                          </Link>
+                        ) : a.waveId}
+                      </TableCell>
+                      <TableCell>{formatDate(a.startDate)} - {formatDate(a.endDate)}</TableCell>
+                      <TableCell><Badge variant={a.status === 'ACTIVE' ? 'default' : 'secondary'}>{a.status}</Badge></TableCell>
+                      {canManage && (
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem disabled={a.status === 'ENDED'} onClick={() => setAssignmentToEnd(a)}>End Assignment</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  )
+                })
               ) : (
-                <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
-                    No assignments found.
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">No assignments found for the current filters.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+      
+      {assignmentToEnd && (
+        <AlertDialog open={!!assignmentToEnd} onOpenChange={() => setAssignmentToEnd(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>End Assignment?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will change the status for {assignmentToEnd.employeeName} to 'ENDED'. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleEndAssignment}>Confirm</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
+
+    

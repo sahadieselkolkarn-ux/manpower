@@ -1170,49 +1170,26 @@
       "description": "Represents the assignment of an employee to a specific wave.",
       "type": "object",
       "properties": {
-        "employeeId": {
-          "type": "string"
-        },
-        "employeeName": {
-          "type": "string"
-        },
-        "positionId": {
-          "type": "string"
-        },
-        "positionName": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "PENDING",
-            "ASSIGNED",
-            "CONFIRMED",
-            "COMPLETED",
-            "CANCELLED"
-          ]
-        },
-        "costRateAtSnapshot": {
-          "type": "number"
-        },
-        "sellRateAtSnapshot": {
-          "type": "number"
-        },
-        "assignedAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "assignedBy": {
-          "type": "string"
-        }
+        "waveId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "employeeCode": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "employeeType": { "type": "string", "enum": ["OFFICE", "FIELD"] },
+        "positionId": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "ENDED"] },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "endedBy": { "type": "string" }
       },
-      "required": [
-        "employeeId",
-        "positionId",
-        "status",
-        "assignedAt",
-        "assignedBy"
-      ]
+      "required": ["waveId", "employeeId", "status", "createdAt", "createdBy"]
     },
     "TimesheetBatch": {
       "title": "Timesheet Batch",
@@ -1633,11 +1610,11 @@
       },
       "description": "Work waves or batches within a project."
     },
-    "/clients/{clientId}/contracts/{contractId}/projects/{projectId}/waves/{waveId}/assignments/{assignmentId}": {
+    "/assignments/{assignmentId}": {
       "schema": {
         "$ref": "#/backend/entities/Assignment"
       },
-      "description": "Employee assignments within a wave."
+      "description": "Top-level collection for employee assignments to waves, allowing for easier queries across all waves."
     },
     "/timesheetBatches/{batchId}": {
       "schema": {
@@ -1826,3 +1803,5 @@
     }
   }
 }
+
+    

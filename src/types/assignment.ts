@@ -1,46 +1,35 @@
+
+
 'use client';
 
 import { type Timestamp } from 'firebase/firestore';
 
-export type EligibilityStatus = 'PASS' | 'ALERT' | 'FAIL';
-
 export interface Assignment {
   id: string;
+  waveId: string;
+  projectId?: string; // Snapshot
+  clientId?: string;  // Snapshot
+  
   employeeId: string;
-  employeeName: string; // Denormalized for display
-  positionId: string;
-  positionName: string; // Denormalized for display
-  
-  status: 'PENDING' | 'ASSIGNED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
-  
-  // Eligibility check results at time of assignment
-  eligibility: {
-    passportStatus: EligibilityStatus;
-    certificateStatus: EligibilityStatus;
-    cooldownStatus: EligibilityStatus;
-    overall: EligibilityStatus;
-    details: string[]; // Array of human-readable warning/fail messages
-  };
+  employeeCode: string; // Snapshot
+  employeeName: string; // Snapshot
+  employeeType: 'OFFICE' | 'FIELD'; // Snapshot
 
-  // Override information
-  override: {
-    overrideFlag: boolean;
-    overrideReason?: string;
-    overrideBy?: string;
-    overrideAt?: Timestamp;
-  };
+  positionId?: string;
   
-  // Snapshots from Cooldown Policy at time of assignment
-  policyVersion?: string;
-  workModePair?: string;
-  appliedRestDays?: number;
-
-  assignedAt: Timestamp;
-  assignedBy: string;
-
-  costRateAtSnapshot?: number; // Snapshot from contract at time of confirmation
-  sellRateAtSnapshot?: number; // Snapshot from contract at time of confirmation
+  status: 'ACTIVE' | 'ENDED';
   
+  startDate?: string; // ISO "YYYY-MM-DD"
+  endDate?: string;   // ISO "YYYY-MM-DD"
+  notes?: string;
+  
+  // Audit fields
   createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdBy: string;
+  updatedAt?: Timestamp;
+  updatedBy?: string;
+  endedAt?: Timestamp;
+  endedBy?: string;
 }
+
+    
