@@ -18,13 +18,24 @@ export function getPersonKey(type: Employee['employeeType'], id: string): string
 /**
  * Parses a raw, potentially URL-encoded personKey string into its constituent parts.
  * Gracefully handles formats with or without a colon, and with or without URL encoding.
+ * Returns null if the format is invalid, instead of throwing an error.
  * e.g., "OFFICE:123", "OFFICE123", "OFFICE%3A123", "FIELD:456"
  * @param rawPersonKey The key to parse, likely from a URL parameter.
- * @returns An object with personType ('OFFICE' | 'MP'), personRefId (doc id), and the canonical key.
- * @throws An error if the format is invalid.
+ * @returns An object with personType ('OFFICE' | 'MP'), personRefId (doc id), and the canonical key, or null if invalid.
  */
-export function parsePersonKey(rawPersonKey: string): { personType: PersonType, personRefId: string, canonicalPersonKey: string } {
-    const key = decodeURIComponent(rawPersonKey);
+export function parsePersonKey(rawPersonKey: string | null | undefined): { personType: PersonType, personRefId: string, canonicalPersonKey: string } | null {
+    if (!rawPersonKey) {
+        return null;
+    }
+
+    let key: string;
+    try {
+        key = decodeURIComponent(rawPersonKey);
+    } catch (e) {
+        console.error("Failed to decode personKey:", rawPersonKey, e);
+        return null; // Invalid encoding
+    }
+
     let prefix: string;
     let personRefId: string;
     let personType: PersonType;
@@ -41,11 +52,11 @@ export function parsePersonKey(rawPersonKey: string): { personType: PersonType, 
         prefix = 'FIELD';
         personRefId = key.substring('FIELD'.length);
     } else {
-         throw new Error(`Invalid personKey format: does not contain a recognized prefix in "${key}"`);
+         return null; // No recognized prefix
     }
 
     if (!personRefId) {
-        throw new Error(`Invalid personKey format: ID part is missing in "${key}"`);
+        return null; // ID part is missing
     }
 
     if (prefix === 'OFFICE') {
@@ -53,7 +64,7 @@ export function parsePersonKey(rawPersonKey: string): { personType: PersonType, 
     } else if (prefix === 'MP' || prefix === 'FIELD') {
         personType = 'MP';
     } else {
-        throw new Error(`Invalid personKey format: unrecognized prefix "${prefix}"`);
+        return null; // Unrecognized prefix after all checks
     }
     
     const canonicalPersonKey = `${personType}:${personRefId}`;

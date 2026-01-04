@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { use, useState, useEffect } from 'react';
@@ -9,7 +10,7 @@ import { Employee, Ly01Profile } from '@/types/employee';
 import { TaxProfileForm } from '@/components/tax/TaxProfileForm';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -21,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { parsePersonKey, getPersonKey } from '@/lib/tax/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getYear, getMonth } from 'date-fns';
+import { PersonType } from '@/types/tax';
 
 export default function TaxProfileDetailPage({ params }: { params: Promise<{ personKey: string }> }) {
     const resolvedParams = use(params);
@@ -31,22 +33,18 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
     const [employee, setEmployee] = useState<Employee | null>(null);
     const [isLoadingEmployee, setIsLoadingEmployee] = useState(true);
     
-    // Using a state for the parsed key to avoid re-parsing on every render
-    const [parsedKey, setParsedKey] = useState<{ personType: 'OFFICE' | 'MP', personRefId: string, canonicalPersonKey: string } | null>(null);
+    const [parsedKey, setParsedKey] = useState<{ personType: PersonType, personRefId: string, canonicalPersonKey: string } | null>(null);
     
     useEffect(() => {
-        try {
-            const pKey = parsePersonKey(resolvedParams.personKey);
-            setParsedKey(pKey);
-        } catch (error) {
-            console.error("Invalid personKey:", error);
-            // Handle invalid key error, maybe redirect or show error page
-        }
+        const pKey = parsePersonKey(resolvedParams.personKey);
+        setParsedKey(pKey);
     }, [resolvedParams.personKey]);
 
-    // Fetch Employee using the parsed docId (personRefId) from the single 'employees' collection
     useEffect(() => {
-        if (!db || !parsedKey?.personRefId) return;
+        if (!db || !parsedKey) {
+            setIsLoadingEmployee(false);
+            return;
+        };
         
         setIsLoadingEmployee(true);
         const employeeRef = doc(db, "employees", parsedKey.personRefId);
@@ -55,7 +53,6 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
              if (docSnap.exists()) {
                 const empData = { id: docSnap.id, ...docSnap.data() } as Employee;
                 
-                // Ensure LY01 profile exists, if not, create it.
                 if (!empData.taxProfile?.ly01) {
                     console.log(`LY.01 profile for ${empData.employeeCode} not found. Creating draft.`);
                     const now = new Date();
@@ -69,11 +66,10 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
                     };
                     try {
                         await updateDoc(employeeRef, { 'taxProfile.ly01': newLy01 });
-                        // The listener will pick up the change and update the state
                     } catch (e) {
                          console.error("Failed to create draft LY.01 profile:", e);
                          toast({ variant: 'destructive', title: 'Error', description: 'Could not initialize tax profile.' });
-                         setEmployee(empData); // Set employee data even if profile creation fails
+                         setEmployee(empData);
                     }
                 } else {
                    setEmployee(empData);
@@ -94,6 +90,28 @@ export default function TaxProfileDetailPage({ params }: { params: Promise<{ per
 
     if (isLoadingEmployee) {
         return <FullPageLoader />
+    }
+
+    if (!parsedKey) {
+        return (
+            <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+                <Button variant="ghost" onClick={() => router.push('/dashboard/hr/tax-profiles')} className="mb-4">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to All Tax Profiles
+                </Button>
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert />Invalid Profile Key</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>The link you followed seems to be broken or invalid.</p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                           Raw Key: {resolvedParams.personKey}
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+        )
     }
 
     if (!employee) {
