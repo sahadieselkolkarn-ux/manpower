@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy, Download } from "lucide-react";
 import FullPageLoader from "@/components/full-page-loader";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -156,6 +156,9 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
           <p className="text-muted-foreground">
             Manage assignments and requirements for this work period.
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+            <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
         </div>
       </header>
 
@@ -334,6 +337,3 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
     </div>
   );
 }
-
-
-

@@ -31,6 +31,8 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '../ui/badge';
 import { getPersonKey } from '@/lib/tax/utils';
+import { Separator } from '../ui/separator';
+import { Download } from 'lucide-react';
 
 interface TaxProfileFormProps {
   employee: Employee;
@@ -127,9 +129,12 @@ export function TaxProfileForm({ employee, taxProfile, personKey, onSuccess }: T
                   Employee: {employee.personalInfo.firstName} {employee.personalInfo.lastName} ({employee.employeeCode})
                 </CardDescription>
               </div>
-              <Badge variant={status === 'COMPLETE' ? 'default' : 'outline'} className="text-lg">
-                Status: {status.replace('_', ' ')}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" type="button"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+                <Badge variant={status === 'COMPLETE' ? 'default' : 'outline'} className="text-lg">
+                  Status: {status.replace('_', ' ')}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-8">

@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Download } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -139,6 +139,7 @@ export default function ComplianceAlertsPage() {
           </h1>
           <p className="text-muted-foreground">Proactive alerts for expiring employee documents.</p>
         </div>
+        <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
       </div>
 
       <Card>

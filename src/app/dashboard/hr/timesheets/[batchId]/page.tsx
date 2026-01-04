@@ -7,7 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ShieldAlert, CheckCircle, Banknote, FileCheck, CircleDashed } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, CheckCircle, Banknote, FileCheck, CircleDashed, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TimesheetBatch } from '@/types/timesheet';
@@ -119,6 +119,7 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
                                 {statusInfo.text}
                             </Badge>
                             <div className="space-x-2">
+                            <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
                             {canManageHR && batch.status === 'DRAFT' && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>

@@ -25,7 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, PlusCircle, BookUser } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, BookUser, Download } from 'lucide-react';
 import { collection, query, where } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -85,11 +85,14 @@ export default function OfficeEmployeesPage() {
           <BookUser />
           Office Employees
         </h1>
-        {canManage && (
-          <Button onClick={handleAddEmployee}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Employee
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+            <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+            {canManage && (
+              <Button onClick={handleAddEmployee}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Employee
+              </Button>
+            )}
+        </div>
       </div>
       <p className="text-muted-foreground">
         Manage all office staff in the system.
