@@ -39,6 +39,18 @@ export interface InternalQuery extends Query<DocumentData> {
   }
 }
 
+function getPathFromRefOrQuery(refOrQuery: CollectionReference | Query): string | null {
+    if (refOrQuery.type === 'collection') {
+        return (refOrQuery as CollectionReference).path;
+    }
+    const internalQuery = refOrQuery as unknown as InternalQuery;
+    if (internalQuery._query?.path) {
+        return internalQuery._query.path.canonicalString();
+    }
+    return null;
+}
+
+
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * Handles nullable references/queries.
@@ -67,12 +79,25 @@ export function useCollection<T = any>(
   const refetch = useCallback(() => setRefetchIndex(prev => prev + 1), []);
 
   useEffect(() => {
+    // Primary guard: If the query/ref object itself is null, do nothing.
     if (!memoizedTargetRefOrQuery) {
       setData(null);
       setIsLoading(false);
       setError(null);
       return;
     }
+
+    // Secondary guard: Extract path and check if it's valid. This prevents root queries.
+    const path = getPathFromRefOrQuery(memoizedTargetRefOrQuery);
+    if (!path || path === '/') {
+        // Path is invalid or points to root. Do not proceed.
+        setData(null);
+        setIsLoading(false);
+        // Optionally set an error to indicate a bad path
+        // setError(new Error('Invalid Firestore path provided to useCollection.'));
+        return;
+    }
+
 
     setIsLoading(true);
     setError(null);
@@ -90,15 +115,9 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path,
+          path, // Use the path we already validated
         })
 
         setError(contextualError)
@@ -114,7 +133,7 @@ export function useCollection<T = any>(
   }, [memoizedTargetRefOrQuery, refetchIndex]); // Re-run if the target query/reference changes or on refetch
   
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+    throw new Error('A non-null query/reference was passed to useCollection without being memoized. Use useMemoFirebase to wrap your query.');
   }
 
   return { data, isLoading, error, refetch };
