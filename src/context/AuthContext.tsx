@@ -61,21 +61,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           } else {
             // If profile doesn't exist, create it. This is the bootstrap process.
             console.log(`Creating new user profile for ${firebaseUser.email}`);
-            const newUserProfile: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
+            const newUserProfileData = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
               displayName: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
               isAdmin: false,
               roleIds: [],
-              status: "ACTIVE",
+              status: "ACTIVE" as const,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
             };
             try {
-              await setDoc(userDocRef, {
-                  ...newUserProfile,
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-              });
+              await setDoc(userDocRef, newUserProfileData);
               // The onSnapshot listener will fire again with the new data, so we don't set state here.
+              // The component will naturally re-render with the newly created profile.
             } catch (error) {
               console.error("Failed to create user document:", error);
               setUserProfile(null);
