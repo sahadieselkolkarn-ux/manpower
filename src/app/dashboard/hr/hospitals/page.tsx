@@ -117,7 +117,7 @@ export default function HospitalsPage() {
   const hospitalsQuery = useMemoFirebase(() => (db ? collection(db, 'hospitals') : null), [db]);
   const { data: hospitals, isLoading, refetch } = useCollection<Hospital>(hospitalsQuery);
 
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'hrManager';
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
 
   const handleCreate = () => {
     setSelectedHospital(null);
@@ -203,5 +203,3 @@ export default function HospitalsPage() {
     </div>
   );
 }
-
-    
