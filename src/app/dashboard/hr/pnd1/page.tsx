@@ -1,5 +1,4 @@
-// This is a placeholder file for the /dashboard/hr/pnd1 route.
-// The full implementation will be provided in a future step.
+
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

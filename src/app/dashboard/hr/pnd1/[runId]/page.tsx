@@ -1,5 +1,4 @@
-// This is a placeholder file for the /dashboard/hr/pnd1/[runId] route.
-// The full implementation will be provided in a future step.
+
 'use client';
 
 import { use } from 'react';

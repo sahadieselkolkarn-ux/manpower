@@ -209,6 +209,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/pnd1")}>
+                    <Link href="/dashboard/hr/pnd1">
+                      <FileText />
+                      <span>P.N.D.1 Runs</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                  <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/tax-profiles")}>
                     <Link href="/dashboard/hr/tax-profiles">
@@ -270,7 +278,15 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
             {canViewFinance && (
                  <SidebarGroup>
-                    <SidebarGroupLabel>Business &amp; Finance</SidebarGroupLabel>
+                    <SidebarGroupLabel>Accounting</SidebarGroupLabel>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/finance/pending-billing")}>
+                          <Link href="/dashboard/finance/pending-billing">
+                              <FileUp />
+                              <span>Pending Processing</span>
+                          </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
                      <Collapsible>
                         <CollapsibleTrigger asChild className="w-full">
                             <SidebarMenuButton isActive={pathname.startsWith("/dashboard/billing")}>
@@ -293,8 +309,8 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
 
                       <Collapsible>
                         <CollapsibleTrigger asChild className="w-full">
-                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance")}>
-                                <Banknote /><span>Accounting</span>
+                            <SidebarMenuButton isActive={pathname.startsWith("/dashboard/finance") && !pathname.startsWith("/dashboard/finance/pending-billing")}>
+                                <Banknote /><span>Core Accounting</span>
                             </SidebarMenuButton>
                         </CollapsibleTrigger>
                         <CollapsibleContent className="pl-4">
