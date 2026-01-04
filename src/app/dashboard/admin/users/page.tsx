@@ -2,14 +2,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, updateDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
-import { UserProfile, Role } from '@/types/user';
+import { UserProfile, Role, RoleCode } from '@/types/user';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MoreHorizontal, Users, ShieldAlert, Link as LinkIcon, Link2Off } from 'lucide-react';
+import { Users, ShieldAlert, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,11 +17,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -29,11 +27,12 @@ import { useToast } from '@/hooks/use-toast';
 import FullPageLoader from '@/components/full-page-loader';
 import { Employee } from '@/types/employee';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { serverTimestamp } from 'firebase/firestore';
 
 
 function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { user: UserProfile, roles: Role[], open: boolean, onOpenChange: (open: boolean) => void, onUpdate: () => void }) {
   const [isAdmin, setIsAdmin] = useState(user.isAdmin);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>(user.roleIds || []);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>(user.roleIds || []);
   const [loading, setLoading] = useState(false);
   const db = useFirestore();
   const { toast } = useToast();
@@ -41,12 +40,12 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
   React.useEffect(() => {
     if (open) {
       setIsAdmin(user.isAdmin);
-      setSelectedRoles(user.roleIds || []);
+      setSelectedRoleIds(user.roleIds || []);
     }
   }, [open, user]);
 
   const handleRoleToggle = (roleId: string, checked: boolean) => {
-    setSelectedRoles(prev => checked ? [...prev, roleId] : prev.filter(id => id !== roleId));
+    setSelectedRoleIds(prev => checked ? [...prev, roleId] : prev.filter(id => id !== roleId));
   };
 
   const handleSave = async () => {
@@ -54,10 +53,22 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
     setLoading(true);
     try {
       const userRef = doc(db, 'users', user.uid);
+      
+      const selectedRoleCodes = roles
+        .filter(r => selectedRoleIds.includes(r.id))
+        .map(r => r.code);
+
+      if (isAdmin && !selectedRoleCodes.includes('ADMIN')) {
+          selectedRoleCodes.push('ADMIN');
+      }
+
       await updateDoc(userRef, {
         isAdmin: isAdmin,
-        roleIds: selectedRoles,
+        roleIds: selectedRoleIds,
+        roleCodes: selectedRoleCodes,
+        updatedAt: serverTimestamp()
       });
+
       toast({ title: 'Success', description: 'User roles updated.' });
       onUpdate();
       onOpenChange(false);
@@ -86,10 +97,10 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
               <div key={role.id} className="flex items-center space-x-2">
                 <Checkbox
                   id={role.id}
-                  checked={selectedRoles.includes(role.id)}
+                  checked={selectedRoleIds.includes(role.id)}
                   onCheckedChange={(checked) => handleRoleToggle(role.id, !!checked)}
                 />
-                <Label htmlFor={role.id}>{role.name}</Label>
+                <Label htmlFor={role.id}>{role.name ?? role.code}</Label>
               </div>
             ))}
           </div>
@@ -120,10 +131,10 @@ function LinkEmployeeModal({ user, open, onOpenChange, onUpdate, allOfficeEmploy
         const batch = writeBatch(db);
         try {
             const userRef = doc(db, 'users', user.uid);
-            batch.update(userRef, { employeeId: selectedEmployeeId });
+            batch.update(userRef, { employeeId: selectedEmployeeId, updatedAt: serverTimestamp() });
 
             const employeeRef = doc(db, 'employees', selectedEmployeeId);
-            batch.update(employeeRef, { userUid: user.uid });
+            batch.update(employeeRef, { userUid: user.uid, updatedAt: serverTimestamp() });
 
             await batch.commit();
 
@@ -181,9 +192,9 @@ export default function AdminUsersPage() {
 
   const rolesQuery = useMemoFirebase(() => (db ? collection(db, 'roles') : null), [db]);
   const { data: roles, isLoading: isLoadingRoles } = useCollection<Role>(rolesQuery);
-  const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name])), [roles]);
+  const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name ?? r.code])), [roles]);
   
-  const officeEmployeesQuery = useMemoFirebase(() => (db ? query(collection(db, 'employees'), where('employeeType', '==', 'OFFICE')) : null), [db]);
+  const officeEmployeesQuery = useMemoFirebase(() => (db ? collection(db, 'employees') : null), [db]);
   const { data: officeEmployees, isLoading: isLoadingEmployees } = useCollection<Employee>(officeEmployeesQuery);
 
   const employeeMap = useMemo(() => new Map(officeEmployees?.map(e => [e.id, `${e.personalInfo.firstName} ${e.personalInfo.lastName}`])), [officeEmployees]);
@@ -328,23 +339,6 @@ export default function AdminUsersPage() {
             allOfficeEmployees={officeEmployees}
             allUsers={users}
         />
-      )}
-
-      {userToUnlink && (
-        <AlertDialog open={!!userToUnlink} onOpenChange={() => setUserToUnlink(null)}>
-            <AlertDialogContent>
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure you want to unlink this user?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This will remove the association between the user account '{userToUnlink.displayName}' and the employee profile '{employeeMap.get(userToUnlink.employeeId!)}'. It will NOT delete either record.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleUnlink}>Yes, Unlink</AlertDialogAction>
-                </AlertDialogFooter>
-            </AlertDialogContent>
-        </AlertDialog>
       )}
 
     </div>

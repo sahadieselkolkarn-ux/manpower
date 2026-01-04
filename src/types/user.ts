@@ -15,6 +15,7 @@ export type RoleCode =
 
 export interface Role {
     id: string;
+    name?: string;
     code: RoleCode;
     department: Department;
     level: RoleLevel;
@@ -26,11 +27,12 @@ export interface UserProfile {
   uid: string;
   email: string;
   displayName?: string;
+  phone?: string;
   isAdmin: boolean;
-  roleIds: string[]; // List of role IDs from /roles collection
+  roleIds: string[];
+  roleCodes: RoleCode[];
   employeeId?: string; // Optional link to /employees collection
   status: "ACTIVE" | "DISABLED";
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
-
