@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, query, orderBy, doc, updateDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, serverTimestamp, where, collectionGroup } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,7 +23,6 @@ import { Assignment } from '@/types/assignment';
 import { WaveWithProject } from '@/types/wave';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { useCollectionGroup } from '@/hooks/use-collection-group';
 
 
 export default function AssignmentsMasterListPage() {
@@ -36,7 +35,10 @@ export default function AssignmentsMasterListPage() {
   const { data: assignments, isLoading: isLoadingAssignments, refetch: refetchAssignments } = useCollection<Assignment>(
     useMemoFirebase(() => db ? query(collection(db, 'assignments'), orderBy('createdAt', 'desc')) : null, [db])
   );
-  const { data: waves, isLoading: isLoadingWaves } = useCollectionGroup<WaveWithProject>('waves');
+  
+  const { data: waves, isLoading: isLoadingWaves } = useCollection<WaveWithProject>(
+    useMemoFirebase(() => db ? query(collectionGroup(db, 'waves')) : null, [db])
+  );
 
   const [filterWave, setFilterWave] = useState(searchParams.get('waveId') || 'all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -200,5 +202,3 @@ export default function AssignmentsMasterListPage() {
     </div>
   );
 }
-
-    
