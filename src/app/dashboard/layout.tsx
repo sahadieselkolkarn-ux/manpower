@@ -1,5 +1,6 @@
 import AuthGuard from "@/components/auth-guard";
 import SidebarLayout from "@/components/sidebar-layout";
+import { RolesProvider } from "@/context/RolesContext";
 
 export default function DashboardLayout({
   children,
@@ -8,7 +9,9 @@ export default function DashboardLayout({
 }) {
   return (
     <AuthGuard>
-      <SidebarLayout>{children}</SidebarLayout>
+      <RolesProvider>
+        <SidebarLayout>{children}</SidebarLayout>
+      </RolesProvider>
     </AuthGuard>
   );
 }

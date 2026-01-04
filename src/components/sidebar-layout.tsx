@@ -63,24 +63,12 @@ import { Icons } from "./icons";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { type Role } from "@/types/user";
-
-// This is a static map of role codes to their expected names.
-// It avoids a Firestore query in the layout.
-const StaticRoleNames: Record<string, string> = {
-  ADMIN: "Admin",
-  HR_OFFICER: "HR Officer",
-  HR_MANAGER: "HR Manager",
-  OPERATION_OFFICER: "Operation Officer",
-  OPERATION_MANAGER: "Operation Manager",
-  PAYROLL_OFFICER: "Payroll Officer",
-  FINANCE_OFFICER: "Finance Officer",
-  FINANCE_MANAGER: "Finance Manager",
-  MANAGEMENT_MANAGER: "Management Manager"
-};
+import { useRoles } from "@/context/RolesContext";
 
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const { user, userProfile } = useAuth();
+  const { rolesById, isLoading: isLoadingRoles } = useRoles();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -95,9 +83,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   }
 
   const isAdmin = userProfile?.isAdmin;
-  // Note: We are no longer querying roles from Firestore here.
-  // The check is based on the roleIds which are assumed to be the role codes.
-  // This relies on the convention that roleId in userProfile is the role's code string.
+  
   const userRoleCodes = React.useMemo(() => {
     if (!userProfile || !userProfile.roleIds) return new Set<string>();
     return new Set(userProfile.roleIds);
@@ -107,8 +93,13 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const canViewHR = isAdmin || userRoleCodes.has("HR_MANAGER") || userRoleCodes.has("HR_OFFICER");
   const canViewFinance = isAdmin || userRoleCodes.has("FINANCE_MANAGER") || userRoleCodes.has("FINANCE_OFFICER") || userRoleCodes.has("PAYROLL_OFFICER");
   
-  // Create a display-friendly list of role names
-  const roleDisplayNames = userProfile?.roleIds.map(code => StaticRoleNames[code] || code).join(', ');
+  const roleDisplayNames = React.useMemo(() => {
+      if (isLoadingRoles || !userProfile?.roleIds) return 'Loading Roles...';
+      return userProfile.roleIds
+        .map(id => rolesById.get(id)?.code || id)
+        .join(', ');
+  }, [userProfile, rolesById, isLoadingRoles]);
+
 
   return (
     <SidebarProvider>
