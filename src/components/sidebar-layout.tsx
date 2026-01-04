@@ -40,7 +40,8 @@ import {
   CalendarDays,
   CalendarCheck,
   FileCog,
-  Settings
+  Settings,
+  AlertCircle
 } from "lucide-react";
 
 import {
@@ -217,6 +218,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     <Link href="/dashboard/hr/pnd1">
                       <FileText />
                       <span>P.N.D.1 Form</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/compliance-alerts")}>
+                    <Link href="/dashboard/hr/compliance-alerts">
+                      <AlertCircle />
+                      <span>Compliance Alerts</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
