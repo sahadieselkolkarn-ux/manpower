@@ -1,36 +1,44 @@
 
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import React from "react";
+
+// The project's auth context
+import { useAuth } from "@/context/AuthContext"; 
 import FullPageLoader from "./full-page-loader";
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, userProfile, loading } = useAuth();
+type Props = { children: React.ReactNode };
+
+export default function AuthGuard({ children }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
 
-  useEffect(() => {
-    // If loading is finished and there's no user at all, redirect to login.
-    if (!loading && !user) {
-      router.replace("/");
-    }
-  }, [user, loading, router]);
+  // Adapted to the project's specific context values:
+  // authUser -> user
+  // userDoc -> userProfile
+  const { user, userProfile, loading } = useAuth(); 
 
-  // While loading is true, show the loader.
-  // This now waits for both the auth state and the user profile to be resolved.
+  // 1) Always wait for the auth state to be determined.
   if (loading) {
     return <FullPageLoader />;
   }
 
-  // If loading is done, but there's no user or userProfile,
-  // it means they're not logged in or their profile is missing (which shouldn't happen with bootstrap).
-  // The useEffect will handle the redirect, but we can show a loader in the meantime.
-  if (!user || !userProfile) {
-     return <FullPageLoader />;
+  // 2) If not logged in, redirect to the login page.
+  if (!user) {
+    // Prevent redirect loop if already on a public page.
+    if (pathname !== "/" && pathname !== "/signup" && !pathname.startsWith('/kiosk')) {
+      router.replace("/");
+    }
+    return <FullPageLoader />;
   }
 
+  // 3) If logged in, but the Firestore user profile is not ready yet, keep showing the loader.
+  // This is the critical step that prevents Firestore queries from running too early.
+  if (!userProfile) {
+    return <FullPageLoader />;
+  }
 
-  // If everything is loaded and user/profile exists, render the children.
+  // 4) Only at this point is it safe to render pages that might run Firestore queries.
   return <>{children}</>;
 }
