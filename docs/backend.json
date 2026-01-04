@@ -383,6 +383,54 @@
         "assignmentStatus"
       ]
     },
+    "TaxProfile": {
+      "title": "Tax Profile (LY.01)",
+      "description": "A unified LY.01 tax profile for any person in the system.",
+      "type": "object",
+      "properties": {
+        "personKey": {
+          "type": "string",
+          "description": "Unique key for the person, e.g., OFFICE:{id} or MP:{id}."
+        },
+        "personType": {
+          "type": "string",
+          "enum": ["OFFICE", "MP"]
+        },
+        "personRefId": {
+          "type": "string",
+          "description": "The original ID from the employees collection."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["NOT_STARTED", "INCOMPLETE", "COMPLETE", "NEEDS_UPDATE"]
+        },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "updatedBy": { "type": "string" },
+        "verifiedBySelf": { "type": "boolean" },
+        "verifiedAt": { "type": "string", "format": "date-time" },
+        "personal": {
+          "type": "object",
+          "properties": {
+            "fullName": { "type": "string" },
+            "taxId": { "type": "string" },
+            "address": { "type": "string" },
+            "phone": { "type": "string" }
+          }
+        },
+        "tax": {
+          "type": "object",
+          "properties": {
+            "taxpayerStatus": { "type": "string" },
+            "maritalStatus": { "type": "string" },
+            "spouse": { "type": "object" },
+            "dependentsCount": { "type": "number" },
+            "allowances": { "type": "object" },
+            "notes": { "type": "string" }
+          }
+        }
+      },
+      "required": ["personKey", "personType", "personRefId", "status"]
+    },
     "Ly01Profile": {
       "title": "LY.01 Tax Profile",
       "description": "Represents an employee's tax deduction profile (LY.01).",
@@ -1553,6 +1601,12 @@
         "$ref": "#/backend/entities/Role"
       },
       "description": "Master data for all functional roles in the system."
+    },
+    "/taxProfiles/{personKey}": {
+      "schema": {
+        "$ref": "#/backend/entities/TaxProfile"
+      },
+      "description": "Unified LY.01 tax profiles for all employees."
     },
     "/clients/{clientId}": {
       "schema": {

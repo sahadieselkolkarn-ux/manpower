@@ -205,6 +205,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                  <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/tax-profiles")}>
+                    <Link href="/dashboard/hr/tax-profiles">
+                      <FileText />
+                      <span>Tax Profiles (ล.ย.01)</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/pnd1")}>
                     <Link href="/dashboard/hr/pnd1">
                       <FileText />

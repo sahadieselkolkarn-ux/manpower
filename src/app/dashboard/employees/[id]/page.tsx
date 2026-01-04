@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getPersonKey } from "@/lib/tax/utils";
 
 export default function EmployeeDetailsPage({
   params,
@@ -40,8 +41,14 @@ export default function EmployeeDetailsPage({
   } = useDoc<Employee>(employeeRef);
 
   const canManage =
-    userProfile?.role === "admin" || userProfile?.role === "hrManager";
+    userProfile?.isAdmin || (userProfile?.roleIds || []).includes("HR_MANAGER");
   const isLoading = authLoading || isLoadingEmployee;
+  
+  const handleOpenTaxProfile = () => {
+    if (!employee) return;
+    const personKey = getPersonKey(employee.employeeType, employee.id);
+    router.push(`/dashboard/hr/tax-profiles/${personKey}`);
+  }
 
   if (isLoading) {
     return <FullPageLoader />;
@@ -67,11 +74,11 @@ export default function EmployeeDetailsPage({
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <Button
         variant="ghost"
-        onClick={() => router.push("/dashboard/employees")}
+        onClick={() => router.back()}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to All Employees
+        Back to Employee List
       </Button>
       <Card>
         <CardHeader>
@@ -82,9 +89,12 @@ export default function EmployeeDetailsPage({
                 Employee Code: <span className="font-mono">{employee.employeeCode}</span>
               </CardDescription>
             </div>
-            <Badge variant="outline" className="text-lg">
-              {employee.employmentStatus}
-            </Badge>
+             <div className="flex flex-col items-end gap-2">
+               <Badge variant="outline" className="text-lg">
+                {employee.employmentStatus}
+              </Badge>
+              <Button onClick={handleOpenTaxProfile} variant="secondary">แบบฟอร์ม ล.ย.01</Button>
+             </div>
           </div>
         </CardHeader>
         <CardContent>
