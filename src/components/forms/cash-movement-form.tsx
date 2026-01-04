@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -46,7 +47,7 @@ import { BankAccount } from '@/types/bank-account';
 import { CashMovementSourceType, CashMovementType } from '@/types/cash-movement';
 import { Textarea } from '../ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { DATE_FORMAT } from '@/lib/utils';
+import { DATE_FORMAT, formatDate } from '@/lib/utils';
 
 const dateSchema = z.preprocess((arg) => {
     if (typeof arg === 'string' && arg) {
@@ -217,7 +218,7 @@ export default function CashMovementForm({
                             <FormItem>
                                 <FormLabel>Date</FormLabel>
                                 <FormControl>
-                                    <Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} />
+                                    <Input placeholder={DATE_FORMAT} {...field} value={formatDate(field.value) || ''} />
                                 </FormControl>
                                 <FormMessage />
                             </FormItem>
@@ -290,7 +291,7 @@ export default function CashMovementForm({
                                 <FormItem>
                                     <FormLabel>Date</FormLabel>
                                     <FormControl>
-                                        <Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} />
+                                        <Input placeholder={DATE_FORMAT} {...field} value={formatDate(field.value) || ''} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

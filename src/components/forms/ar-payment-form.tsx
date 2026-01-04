@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -40,7 +41,7 @@ import { BankAccount } from '@/types/bank-account';
 import { Textarea } from '../ui/textarea';
 import { createARPayment } from '@/lib/firestore/ar-payment.service';
 import { useFirestore } from '@/firebase';
-import { DATE_FORMAT } from '@/lib/utils';
+import { DATE_FORMAT, formatDate } from '@/lib/utils';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {
@@ -168,7 +169,7 @@ export default function ARPaymentForm({
                 <FormItem>
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
-                    <Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} />
+                    <Input placeholder={DATE_FORMAT} {...field} value={formatDate(field.value) || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

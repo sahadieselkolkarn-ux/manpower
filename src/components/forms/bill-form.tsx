@@ -1,10 +1,10 @@
+
 'use client';
 
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format, parse, isValid } from 'date-fns';
 import {
   addDoc,
   collection,
@@ -45,18 +45,18 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { BillAP } from '@/types/ap-bill';
 import { Textarea } from '../ui/textarea';
-import { toDate, DATE_FORMAT } from '@/lib/utils';
+import { toDate, DATE_FORMAT, formatDate } from '@/lib/utils';
 
 
 const dateSchema = (required = true) => z.preprocess((arg) => {
-  if (typeof arg === 'string' && arg) {
-    try {
-      const parsedDate = parse(arg, DATE_FORMAT, new Date());
-      if (isValid(parsedDate)) return parsedDate;
-    } catch (e) { /* ignore */ }
-  }
-  return arg;
-}, required ? z.date({ required_error: 'Date is required.' }) : z.date().optional());
+    if (typeof arg === 'string' && arg) {
+        try {
+            const parsed = parse(arg, DATE_FORMAT, new Date());
+            if (isValid(parsed)) return parsed;
+        } catch (e) {}
+    }
+    return arg;
+}, required ? z.date({ required_error: 'Date is required.'}) : z.date().optional());
 
 const formSchema = z.object({
   vendorName: z.string().min(1, 'Vendor name is required.'),
@@ -196,7 +196,7 @@ export default function BillForm({
                 <FormItem>
                   <FormLabel>Bill Date</FormLabel>
                   <FormControl>
-                    <Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''}  disabled={isPaidOrVoid}/>
+                    <Input placeholder={DATE_FORMAT} {...field} value={formatDate(field.value) || ''}  disabled={isPaidOrVoid}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -205,7 +205,7 @@ export default function BillForm({
                 <FormItem>
                   <FormLabel>Due Date (Optional)</FormLabel>
                   <FormControl>
-                    <Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} disabled={isPaidOrVoid}/>
+                    <Input placeholder={DATE_FORMAT} {...field} value={formatDate(field.value) || ''} disabled={isPaidOrVoid}/>
                   </FormControl>
                   <FormMessage />
                 </FormItem>

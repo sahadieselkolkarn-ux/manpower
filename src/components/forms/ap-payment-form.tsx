@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -150,7 +151,7 @@ export default function APPaymentForm({
                 <FormItem>
                   <FormLabel>Payment Date</FormLabel>
                   <FormControl>
-                    <Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} />
+                    <Input placeholder={DATE_FORMAT} {...field} value={formatDate(field.value) || ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

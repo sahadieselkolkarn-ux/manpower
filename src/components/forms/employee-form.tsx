@@ -1,8 +1,4 @@
 
-
-
-
-
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -29,11 +25,11 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
@@ -64,7 +60,7 @@ import { Textarea } from '../ui/textarea';
 import { CertificateType } from '@/types/certificate-type';
 import { Hospital } from '@/types/hospital';
 import { useRouter, usePathname } from 'next/navigation';
-import { DATE_FORMAT, toDate } from '@/lib/utils';
+import { DATE_FORMAT, toDate, formatDate } from '@/lib/utils';
 import { officeEmployeeFormSchema, fieldEmployeeFormSchema, type EmployeeFormData } from '@/types/employee.schema';
 import { removeUndefineds } from '@/lib/firestore/utils';
 
@@ -136,14 +132,13 @@ export default function EmployeeForm({
   useEffect(() => {
     if (open) {
       if (employee) {
-        const dob = toDate(employee.personalInfo.dateOfBirth);
         
         const defaultData: any = {
           employeeType: employee.employeeType || employeeType,
           personalInfo: {
             firstName: employee.personalInfo.firstName || '',
             lastName: employee.personalInfo.lastName || '',
-            dateOfBirth: dob ? format(dob, DATE_FORMAT) : undefined,
+            dateOfBirth: formatDate(employee.personalInfo.dateOfBirth),
             nationalId: employee.personalInfo.nationalId || '',
             address: employee.personalInfo.address || '',
             emergencyContact: employee.personalInfo.emergencyContact || undefined,
@@ -161,12 +156,10 @@ export default function EmployeeForm({
           skillTags: employee.skillTags?.join(', ') || '',
           employmentStatus: employee.employmentStatus || 'Active',
           documents: employee.documents?.map(doc => {
-            const issueD = toDate(doc.issueDate);
-            const expiryD = toDate(doc.expiryDate);
             return {
                 ...doc,
-                issueDate: issueD ? format(issueD, DATE_FORMAT) : '',
-                expiryDate: expiryD ? format(expiryD, DATE_FORMAT) : '',
+                issueDate: formatDate(doc.issueDate),
+                expiryDate: formatDate(doc.expiryDate),
             };
           }) || [],
         };
@@ -252,9 +245,8 @@ export default function EmployeeForm({
       const skillTagsArray = values.skillTags ? values.skillTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
       
       const parseAndGetTimestamp = (dateValue: any) => {
-          if (!dateValue || typeof dateValue !== 'string') return undefined;
-          const parsed = parse(dateValue, DATE_FORMAT, new Date());
-          return isValid(parsed) ? Timestamp.fromDate(parsed) : undefined;
+          const date = toDate(dateValue);
+          return date ? Timestamp.fromDate(date) : undefined;
       }
 
       const documentsWithTimestamps = values.documents?.map(doc => ({
