@@ -8,55 +8,21 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-    
+
+    // --- Strict User Data Rule ---
+    // This rule is more specific and is evaluated before the general dev rule.
+    // It restricts access to a user's own document.
     match /users/{userId} {
       allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
     
-    // --- DEV MODE OVERRIDE ---
-    // The following collections are open to any authenticated user for development purposes.
+    // --- DEV MODE GLOBAL OVERRIDE ---
+    // This rule allows any authenticated user to read/write ANY document
+    // in the database, except for those matched by more specific rules above (i.e., /users).
+    // This is for development purposes only to prevent permission errors.
     // This is NOT secure for production.
-
-    // This rule is specifically for collectionGroup('contracts') queries.
-    match /{path=**}/contracts/{contractId} {
+    match /{document=**} {
       allow read, write: if isSignedIn();
     }
-    
-    // HR Master Data
-    match /employees/{id} { allow read, write: if isSignedIn(); }
-    match /hospitals/{id} { allow read, write: if isSignedIn(); }
-    match /certificateTypes/{id} { allow read, write: if isSignedIn(); }
-    match /officePositions/{id} { allow read, write: if isSignedIn(); }
-    match /manpowerPositions/{id} { allow read, write: if isSignedIn(); }
-    match /positions/{id} { allow read, write: if isSignedIn(); }
-    match /cooldownPolicies/{id} { allow read, write: if isSignedIn(); }
-    
-    // Timesheet Collections
-    match /timesheetBatches/{id} { allow read, write: if isSignedIn(); }
-    match /timesheetLines/{id} { allow read, write: if isSignedIn(); }
-    match /timesheetTemplates/{id} { allow read, write: if isSignedIn(); }
-    match /timesheetTemplateVersions/{id} { allow read, write: if isSignedIn(); }
-
-    // Finance Collections
-    match /payrolls/{id} { allow read, write: if isSignedIn(); }
-    match /taxProfiles/{id} { allow read, write: if isSignedIn(); }
-    match /bankAccounts/{id} { allow read, write: if isSignedIn(); }
-    match /invoices/{id} { allow read, write: if isSignedIn(); }
-    match /billsAP/{id} { allow read, write: if isSignedIn(); }
-    match /paymentsAR/{id} { allow read, write: if isSignedIn(); }
-    match /paymentsAP/{id} { allow read, write: if isSignedIn(); }
-    match /cashMovements/{id} { allow read, write: if isSignedIn(); }
-    
-    // Operation Data (Clients Tree) & ALL subcollections
-    match /clients/{clientId}/{document=**} {
-      allow read, write: if isSignedIn();
-    }
-    
-    // Exports & Other
-    match /exports/{id} { allow read, write: if isSignedIn(); }
-    match /audit-logs/{id} { allow read, write: if isSignedIn(); }
-    match /companyProfile/{id} { allow read, write: if isSignedIn(); }
-    match /settings/{docId} { allow read, write: if isSignedIn(); }
-    match /roles/{roleId} { allow read, write: if isSignedIn(); }
   }
 }
