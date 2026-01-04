@@ -17,6 +17,7 @@ const documentSchema = z.object({
 
 // Base schema for properties common to all employees
 const baseEmployeeSchema = z.object({
+  employeeType: z.enum(['OFFICE', 'FIELD']),
   personalInfo: z.object({
     firstName: z.string().min(1, 'First name is required.'),
     lastName: z.string().min(1, 'Last name is required.'),
@@ -49,10 +50,10 @@ const baseEmployeeSchema = z.object({
 
 // Schema specific to Office employees, includes orgLevel and user creation fields
 const officeEmployeeSchema = baseEmployeeSchema.extend({
-  employeeType: z.literal('OFFICE'),
-  orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
-  createUser: z.boolean(),
-  userEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
+    employeeType: z.literal('OFFICE'),
+    orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
+    createUser: z.boolean(),
+    userEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
 }).refine(data => {
     if (data.createUser && !data.userEmail) {
         return false;
