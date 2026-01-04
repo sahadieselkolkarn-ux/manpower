@@ -1,10 +1,10 @@
 
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { doc, serverTimestamp, updateDoc, Timestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -26,6 +26,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -33,20 +34,16 @@ import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { Download } from 'lucide-react';
 import { removeUndefineds } from '@/lib/firestore/utils';
+import { ly01FormSchema, Ly01FormData } from '@/types/ly01.schema';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { toDate, formatDate } from '@/lib/utils';
+import { Textarea } from '../ui/textarea';
+
 
 interface TaxProfileFormProps {
   employee: Employee;
 }
 
-const formSchema = z.object({
-  status: z.custom<Ly01Profile['status']>(),
-  data: z.object({
-    maritalStatus: z.enum(['single', 'married', 'divorced', 'widowed']).optional(),
-  }),
-  verifiedBySelf: z.boolean(),
-});
-
-type FormData = z.infer<typeof formSchema>;
 
 export function TaxProfileForm({ employee }: TaxProfileFormProps) {
   const db = useFirestore();
@@ -56,48 +53,69 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
 
   const ly01Profile = employee.taxProfile?.ly01;
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {},
+  const form = useForm<Ly01FormData>({
+    resolver: zodResolver(ly01FormSchema),
+    defaultValues: {
+      data: {
+        personal: {},
+        marital: { status: 'SINGLE', spouseHasIncome: false, marriedDuringYear: false },
+        children: {},
+        parents: { self: {}, spouse: {} },
+        disability: {},
+        insuranceAndFunds: {},
+        otherDeductions: {},
+      },
+      verifiedBySelf: false,
+    },
   });
 
   useEffect(() => {
     if (ly01Profile) {
+        const declared = toDate(ly01Profile.declaredDate);
         form.reset({
-            status: ly01Profile.status,
             data: {
-                maritalStatus: ly01Profile.data?.maritalStatus,
+                personal: {
+                    taxId: ly01Profile.data?.personal?.taxId || '',
+                    address: ly01Profile.data?.personal?.address || { houseNo: '', province: '', subDistrict: '', district: '', postalCode: '' },
+                },
+                marital: ly01Profile.data?.marital || { status: 'SINGLE', spouseHasIncome: false, marriedDuringYear: false },
+                children: ly01Profile.data?.children || undefined,
+                parents: ly01Profile.data?.parents || { self: {}, spouse: {} },
+                disability: ly01Profile.data?.disability || undefined,
+                insuranceAndFunds: ly01Profile.data?.insuranceAndFunds || undefined,
+                otherDeductions: ly01Profile.data?.otherDeductions || undefined,
             },
+            declaredDate: declared ? formatDate(declared) : undefined,
             verifiedBySelf: ly01Profile.verifiedBySelf || false,
         });
     }
   }, [ly01Profile, form]);
+  
+  const maritalStatus = form.watch('data.marital.status');
 
 
-  const onSubmit = async (values: FormData) => {
+  const onSubmit = async (values: Ly01FormData) => {
     if (!db || !ly01Profile) return;
     setLoading(true);
 
-    const isComplete = !!values.data.maritalStatus && values.verifiedBySelf;
-    let newStatus: Ly01Profile['status'] = 'DRAFT';
+    const isMandatoryFilled = !!values.data.personal?.taxId && !!values.data.marital?.status;
+    let newStatus: Ly01Profile['status'] = ly01Profile.status || 'MISSING';
 
-    if(values.status === 'MISSING' && isComplete) {
-        newStatus = 'SUBMITTED';
-    } else if (values.status === 'DRAFT' && isComplete) {
-        newStatus = 'SUBMITTED';
-    } else if (values.status === 'SUBMITTED' || values.status === 'VERIFIED') {
-        newStatus = values.status; // Don't downgrade status
+    if (newStatus === 'MISSING' || newStatus === 'DRAFT') {
+        if (isMandatoryFilled && values.verifiedBySelf) {
+            newStatus = 'SUBMITTED';
+        } else if (isMandatoryFilled || Object.keys(form.formState.dirtyFields).length > 0) {
+            newStatus = 'DRAFT';
+        }
     }
 
     const dataToSave = {
       taxProfile: {
           ly01: {
-            ...ly01Profile, // Keep existing data
+            ...ly01Profile,
             status: newStatus,
-            data: { // Merge new data
-                ...ly01Profile.data,
-                ...values.data,
-            },
+            data: values.data,
+            declaredDate: values.declaredDate ? Timestamp.fromDate(new Date(values.declaredDate)) : serverTimestamp(),
             verifiedBySelf: values.verifiedBySelf,
             verifiedAt: (values.verifiedBySelf && !ly01Profile.verifiedBySelf) ? serverTimestamp() : ly01Profile.verifiedAt,
             updatedAt: serverTimestamp(),
@@ -142,48 +160,85 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
             </div>
           </CardHeader>
           <CardContent className="space-y-8">
-            <div>
+            {/* Personal Info */}
+            <section>
               <h3 className="text-lg font-medium">Personal Information</h3>
               <Separator className="my-2" />
               <div className="space-y-4">
-                {/* Personal fields will be read-only from employee doc */}
-                <p>Tax ID: {employee.taxProfile?.ly01?.data?.taxId || 'N/A'}</p>
+                 <FormField control={form.control} name="data.personal.taxId" render={({ field }) => (
+                  <FormItem><FormLabel>Tax ID*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="data.personal.address.houseNo" render={({ field }) => (
+                    <FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="Full address details..." {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
               </div>
-            </div>
+            </section>
             
-            <div>
-              <h3 className="text-lg font-medium">Tax Information</h3>
+             {/* Marital Status */}
+            <section>
+              <h3 className="text-lg font-medium">Marital Status</h3>
               <Separator className="my-2" />
                <div className="space-y-4">
-                <FormField control={form.control} name="data.maritalStatus" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Marital Status</FormLabel>
-                    <FormControl><Input {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
+                 <FormField control={form.control} name="data.marital.status" render={({ field }) => (
+                    <FormItem><FormLabel>Marital Status*</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="SINGLE">Single</SelectItem>
+                                <SelectItem value="MARRIED">Married</SelectItem>
+                                <SelectItem value="WIDOWED">Widowed</SelectItem>
+                                <SelectItem value="DIVORCED">Divorced</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    <FormMessage /></FormItem>
+                )} />
+                {maritalStatus === 'MARRIED' && (
+                     <FormField control={form.control} name="data.marital.spouseHasIncome" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2 pt-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Spouse has income?</FormLabel><FormMessage /></FormItem>
+                    )}/>
+                )}
+              </div>
+            </section>
+
+             {/* Children */}
+            <section>
+              <h3 className="text-lg font-medium">Children Allowance</h3>
+              <Separator className="my-2" />
+               <div className="grid grid-cols-3 gap-4">
+                 <FormField control={form.control} name="data.children.totalCount" render={({ field }) => (
+                    <FormItem><FormLabel>Total Children</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="data.children.allowance30kCount" render={({ field }) => (
+                    <FormItem><FormLabel>Born before 2018 (30k)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                )} />
+                <FormField control={form.control} name="data.children.allowance60kCount" render={({ field }) => (
+                    <FormItem><FormLabel>Born 2018+ (60k)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
-            </div>
+            </section>
 
-            <div>
+            {/* Other Sections Placeholder */}
+            <p className="text-center text-muted-foreground italic py-4">... Other sections (Parents, Disability, Insurance, Funds, Other Deductions) under construction ...</p>
+
+
+            {/* Verification */}
+            <section>
               <h3 className="text-lg font-medium">Verification</h3>
               <Separator className="my-2" />
                <FormField control={form.control} name="verifiedBySelf" render={({ field }) => (
                 <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
                   <div className="space-y-1 leading-none">
-                    <FormLabel>
-                      I confirm that the information provided is accurate and complete.
-                    </FormLabel>
+                    <FormLabel>I confirm that the information provided is accurate and complete.</FormLabel>
+                     <FormDescription>By checking this box, you are digitally signing this form.</FormDescription>
                   </div>
                 </FormItem>
               )} />
-            </div>
+               <FormField control={form.control} name="declaredDate" render={({ field }) => (
+                  <FormItem className="mt-4"><FormLabel>Declared Date*</FormLabel><FormControl><Input placeholder="dd/MM/yyyy" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </section>
 
           </CardContent>
           <CardFooter className="flex justify-end">

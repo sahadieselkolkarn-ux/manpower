@@ -1,4 +1,5 @@
 
+
 'use client';
 import { type Timestamp } from 'firebase/firestore';
 import { OfficeAttendancePolicy } from './attendance';
@@ -47,25 +48,61 @@ export interface Ly01Profile {
     updatedBy: string;
     verifiedAt?: Timestamp;
     verifiedBy?: string;
-    data: {
-        maritalStatus?: "single"|"married"|"divorced"|"widowed";
+    verifiedBySelf?: boolean;
+    declaredDate?: Timestamp;
+    data?: {
+      personal?: {
+        taxId?: string;
+        address?: {
+          building?: string;
+          roomNo?: string;
+          floor?: string;
+          village?: string;
+          houseNo?: string;
+          moo?: string;
+          soi?: string;
+          road?: string;
+          subDistrict?: string;
+          district?: string;
+          province?: string;
+          postalCode?: string;
+        };
+      };
+      marital?: {
+        status?: "SINGLE" | "MARRIED" | "WIDOWED" | "DIVORCED";
+        marriedDuringYear?: boolean;
         spouseHasIncome?: boolean;
-        childrenCountTotal?: number;
-        childrenEligible30k?: number;
-        childrenEligible60k?: number;
-        parentsSupport?: { selfFather?: boolean; selfMother?: boolean; spouseFather?: boolean; spouseMother?: boolean; };
-        disabledDependentsCount?: number;
+      };
+      children?: {
+        totalCount?: number;
+        allowance30kCount?: number;
+        allowance60kCount?: number;
+      };
+      parents?: {
+        self?: { father?: boolean; mother?: boolean };
+        spouse?: { father?: boolean; mother?: boolean };
+      };
+      disability?: {
+        dependentsCount?: number;
+      };
+      insuranceAndFunds?: {
         lifeInsuranceAmount?: number;
         healthInsuranceAmount?: number;
-        healthInsuranceParentsAmount?: number;
+        selfParentsHealthInsuranceAmount?: number;
+        spouseParentsHealthInsuranceAmount?: number;
         providentFundAmount?: number;
+        governmentPensionFundAmount?: number;
+        nationalSavingsFundAmount?: number;
         rmfAmount?: number;
-        otherRetirementFundAmount?: number;
+        ltfAmount?: number;
+      };
+      otherDeductions?: {
         homeLoanInterestAmount?: number;
         socialSecurityAmount?: number;
-        donationGeneralAmount?: number;
-        donationEducationAmount?: number;
-        otherDeductionNote?: string;
+        educationDonationAmount?: number;
+        otherDonationAmount?: number;
+        otherDonationDescription?: string;
+      };
     };
     attachments?: Ly01Attachment[];
     audit?: Ly01Audit[];
