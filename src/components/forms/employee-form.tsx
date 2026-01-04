@@ -61,8 +61,7 @@ import { CertificateType } from '@/types/certificate-type';
 import { Hospital } from '@/types/hospital';
 import { useRouter } from 'next/navigation';
 import { UserProfile } from '@/types/user';
-
-const DATE_FORMAT = 'dd/MM/yyyy';
+import { DATE_FORMAT, toDate } from '@/lib/utils';
 
 const dateStringSchema = z.string().refine(val => val === '' || isValid(parse(val, DATE_FORMAT, new Date())), {
     message: `Invalid date. Please use the format ${DATE_FORMAT} or leave it empty.`,
@@ -128,22 +127,6 @@ interface EmployeeFormProps {
   employee?: Employee | null;
   onSuccess?: (employeeId?: string) => void;
 }
-
-const toDate = (value: unknown): Date | undefined => {
-  if (value instanceof Timestamp) {
-    return value.toDate();
-  }
-  if (value instanceof Date) {
-    return value;
-  }
-  if (typeof value === 'string' || typeof value === 'number') {
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) {
-      return d;
-    }
-  }
-  return undefined;
-};
 
 
 export default function EmployeeForm({
@@ -417,20 +400,22 @@ export default function EmployeeForm({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
             
             <h3 className="text-lg font-medium">Employment Details</h3>
-            <FormField control={form.control} name="orgLevel" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Organizational Level</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                        <SelectContent>
-                            <SelectItem value="STAFF">STAFF</SelectItem>
-                            <SelectItem value="MANAGER">MANAGER</SelectItem>
-                            <SelectItem value="EXECUTIVE">EXECUTIVE</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                </FormItem>
-            )}/>
+            {employeeType === 'OFFICE' && (
+              <FormField control={form.control} name="orgLevel" render={({ field }) => (
+                  <FormItem>
+                      <FormLabel>Organizational Level</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                          <SelectContent>
+                              <SelectItem value="STAFF">STAFF</SelectItem>
+                              <SelectItem value="MANAGER">MANAGER</SelectItem>
+                              <SelectItem value="EXECUTIVE">EXECUTIVE</SelectItem>
+                          </SelectContent>
+                      </Select>
+                      <FormMessage />
+                  </FormItem>
+              )}/>
+            )}
             
             <h3 className="text-lg font-medium pt-4">Personal Information</h3>
             <div className="grid grid-cols-2 gap-4">
