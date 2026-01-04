@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { MoreHorizontal, PlusCircle, UserCheck } from "lucide-react";
 import { collection, collectionGroup, getDocs } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -176,7 +176,7 @@ export default function WavesPage() {
                 ))
               ) : waves.length > 0 ? (
                 waves.map((wave) => (
-                  <TableRow key={wave.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`)}>
+                  <TableRow key={wave.id}>
                     <TableCell className="font-medium">
                        <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
                         {wave.waveCode}
@@ -198,6 +198,10 @@ export default function WavesPage() {
                     </TableCell>
                     {canManage && (
                     <TableCell className="text-right">
+                       <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/hr/assignments/new?waveId=${wave.id}`)}}>
+                          <UserCheck className="mr-2 h-4 w-4"/>
+                          Assign
+                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>

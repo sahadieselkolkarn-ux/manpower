@@ -7,8 +7,8 @@ import { type Timestamp } from 'firebase/firestore';
 export interface Assignment {
   id: string;
   waveId: string;
-  projectId?: string; // Snapshot
-  clientId?: string;  // Snapshot
+  projectId: string; // Snapshot
+  clientId: string;  // Snapshot
   
   employeeId: string;
   employeeCode: string; // Snapshot
@@ -19,8 +19,8 @@ export interface Assignment {
   
   status: 'ACTIVE' | 'ENDED';
   
-  startDate?: string; // ISO "YYYY-MM-DD"
-  endDate?: string;   // ISO "YYYY-MM-DD"
+  startDate: string; // ISO "YYYY-MM-DD"
+  endDate: string;   // ISO "YYYY-MM-DD"
   notes?: string;
   
   // Audit fields
@@ -31,5 +31,3 @@ export interface Assignment {
   endedAt?: Timestamp;
   endedBy?: string;
 }
-
-    

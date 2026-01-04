@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { collection, query, orderBy, doc, updateDoc, serverTimestamp, where, collectionGroup } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +23,7 @@ import { Assignment } from '@/types/assignment';
 import { WaveWithProject } from '@/types/wave';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
+import { useEffectOnce } from 'react-use';
 
 
 export default function AssignmentsMasterListPage() {
@@ -36,6 +37,7 @@ export default function AssignmentsMasterListPage() {
     useMemoFirebase(() => db ? query(collection(db, 'assignments'), orderBy('createdAt', 'desc')) : null, [db])
   );
   
+  // Fetch all waves for the filter dropdown.
   const { data: waves, isLoading: isLoadingWaves } = useCollection<WaveWithProject>(
     useMemoFirebase(() => db ? query(collectionGroup(db, 'waves')) : null, [db])
   );
