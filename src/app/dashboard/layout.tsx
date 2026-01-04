@@ -5,11 +5,14 @@ import FullPageLoader from '@/components/full-page-loader';
 import SidebarLayout from '@/components/sidebar-layout';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
+import { FirebaseClientProvider } from "@/firebase/client-provider";
+import { RolesProvider } from "@/context/RolesContext";
+import { AuthProvider } from '@/context/AuthContext';
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, userProfile, loading } = useAuth();
+  const { user, loading } = useAuth();
 
   React.useEffect(() => {
     if (loading) {
@@ -20,12 +23,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, pathname]);
 
-  if (loading || !user || !userProfile) {
+  if (loading || !user) {
     return <FullPageLoader />;
   }
   
   // All checks passed, render the protected content.
-  return <>{children}</>;
+  return <SidebarLayout>{children}</SidebarLayout>;
 }
 
 
@@ -35,10 +38,14 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AuthGuard>
-      <SidebarLayout>
-        {children}
-      </SidebarLayout>
-    </AuthGuard>
+    <FirebaseClientProvider>
+        <AuthProvider>
+          <RolesProvider>
+            <AuthGuard>
+              {children}
+            </AuthGuard>
+          </RolesProvider>
+        </AuthProvider>
+    </FirebaseClientProvider>
   );
 }
