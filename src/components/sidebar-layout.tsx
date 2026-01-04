@@ -228,12 +228,12 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                          </SidebarMenuItem>
                          <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/master/office-positions")}>
-                                <Link href="/dashboard/hr/master/office-positions"><BookUser /><span>ตำแหน่งพนักงานออฟฟิศ</span></Link>
+                                <Link href="/dashboard/hr/master/office-positions"><BookUser /><span>Office Position</span></Link>
                             </SidebarMenuButton>
                          </SidebarMenuItem>
                          <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/master/manpower-positions")}>
-                                <Link href="/dashboard/hr/master/manpower-positions"><Users /><span>ตำแหน่งลูกจ้างแมนพาวเวอร์</span></Link>
+                                <Link href="/dashboard/hr/master/manpower-positions"><Users /><span>Manpower Position</span></Link>
                             </SidebarMenuButton>
                          </SidebarMenuItem>
                          <SidebarMenuItem>
