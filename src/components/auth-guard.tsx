@@ -15,8 +15,6 @@ export default function AuthGuard({ children }: Props) {
   const pathname = usePathname();
 
   // Adapted to the project's specific context values:
-  // authUser -> user
-  // userDoc -> userProfile
   const { user, userProfile, loading } = useAuth(); 
 
   // 1) Always wait for the auth state to be determined.

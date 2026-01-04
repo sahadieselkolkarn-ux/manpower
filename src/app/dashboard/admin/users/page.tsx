@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -44,8 +45,8 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
     }
   }, [open, user]);
 
-  const handleRoleToggle = (roleId: string, checked: boolean) => {
-    setSelectedRoles(prev => checked ? [...prev, roleId] : prev.filter(id => id !== roleId));
+  const handleRoleToggle = (roleCode: string, checked: boolean) => {
+    setSelectedRoles(prev => checked ? [...prev, roleCode] : prev.filter(code => code !== roleCode));
   };
 
   const handleSave = async () => {
@@ -67,6 +68,8 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
       setLoading(false);
     }
   };
+  
+  const roleIdToCodeMap = new Map(roles.map(r => [r.id, r.code]));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -85,8 +88,8 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
               <div key={role.id} className="flex items-center space-x-2">
                 <Checkbox
                   id={role.id}
-                  checked={selectedRoles.includes(role.id)}
-                  onCheckedChange={(checked) => handleRoleToggle(role.id, !!checked)}
+                  checked={selectedRoles.includes(role.code)}
+                  onCheckedChange={(checked) => handleRoleToggle(role.code, !!checked)}
                 />
                 <Label htmlFor={role.id}>{role.code.replace(/_/g, ' ')}</Label>
               </div>
@@ -177,7 +180,6 @@ export default function AdminUsersPage() {
   const officeEmployeesQuery = useMemoFirebase(() => (db ? query(collection(db, 'employees'), where('employeeType', '==', 'OFFICE')) : null), [db]);
   const { data: officeEmployees, isLoading: isLoadingEmployees } = useCollection<Employee>(officeEmployeesQuery);
 
-  const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.code])), [roles]);
   const employeeMap = useMemo(() => new Map(officeEmployees?.map(e => [e.id, `${e.personalInfo.firstName} ${e.personalInfo.lastName}`])), [officeEmployees]);
 
   const { toast } = useToast();
@@ -256,7 +258,7 @@ export default function AdminUsersPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="flex flex-wrap gap-1">
                       {user.isAdmin && <span className="px-2 py-1 text-xs font-bold bg-destructive text-destructive-foreground rounded-full">ADMIN</span>}
-                      {user.roleIds?.map(roleId => roleMap.get(roleId))?.map(roleCode => (
+                      {user.roleIds?.map(roleCode => (
                         <span key={roleCode} className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-full">{roleCode?.replace(/_/g, ' ')}</span>
                       ))}
                     </TableCell>
@@ -335,4 +337,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
 

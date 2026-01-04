@@ -62,20 +62,27 @@ import { useAuth } from "@/context/AuthContext";
 import { Icons } from "./icons";
 import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { Role } from "@/types/user";
-import { collection } from "firebase/firestore";
+import { type Role } from "@/types/user";
+
+// This is a static map of role codes to their expected names.
+// It avoids a Firestore query in the layout.
+const StaticRoleNames: Record<string, string> = {
+  ADMIN: "Admin",
+  HR_OFFICER: "HR Officer",
+  HR_MANAGER: "HR Manager",
+  OPERATION_OFFICER: "Operation Officer",
+  OPERATION_MANAGER: "Operation Manager",
+  PAYROLL_OFFICER: "Payroll Officer",
+  FINANCE_OFFICER: "Finance Officer",
+  FINANCE_MANAGER: "Finance Manager",
+  MANAGEMENT_MANAGER: "Management Manager"
+};
 
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
   const { user, userProfile } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
-
-  const db = useFirestore();
-  const rolesQuery = useMemoFirebase(() => (db ? collection(db, 'roles') : null), [db]);
-  const { data: roles } = useCollection<Role>(rolesQuery);
-  const roleMap = React.useMemo(() => new Map(roles?.map(r => [r.id, r.code])), [roles]);
 
   const handleLogout = async () => {
     const auth = getAuth();
@@ -87,15 +94,21 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   }
 
-  const userRoles = React.useMemo(() => {
-    if (!userProfile || !userProfile.roleIds) return new Set();
-    return new Set(userProfile.roleIds.map(id => roleMap.get(id)));
-  }, [userProfile, roleMap]);
-
   const isAdmin = userProfile?.isAdmin;
-  const canViewOperation = isAdmin || userRoles.has("OPERATION_MANAGER") || userRoles.has("OPERATION_OFFICER");
-  const canViewHR = isAdmin || userRoles.has("HR_MANAGER") || userRoles.has("HR_OFFICER");
-  const canViewFinance = isAdmin || userRoles.has("FINANCE_MANAGER") || userRoles.has("FINANCE_OFFICER") || userRoles.has("PAYROLL_OFFICER");
+  // Note: We are no longer querying roles from Firestore here.
+  // The check is based on the roleIds which are assumed to be the role codes.
+  // This relies on the convention that roleId in userProfile is the role's code string.
+  const userRoleCodes = React.useMemo(() => {
+    if (!userProfile || !userProfile.roleIds) return new Set<string>();
+    return new Set(userProfile.roleIds);
+  }, [userProfile]);
+
+  const canViewOperation = isAdmin || userRoleCodes.has("OPERATION_MANAGER") || userRoleCodes.has("OPERATION_OFFICER");
+  const canViewHR = isAdmin || userRoleCodes.has("HR_MANAGER") || userRoleCodes.has("HR_OFFICER");
+  const canViewFinance = isAdmin || userRoleCodes.has("FINANCE_MANAGER") || userRoleCodes.has("FINANCE_OFFICER") || userRoleCodes.has("PAYROLL_OFFICER");
+  
+  // Create a display-friendly list of role names
+  const roleDisplayNames = userProfile?.roleIds.map(code => StaticRoleNames[code] || code).join(', ');
 
   return (
     <SidebarProvider>
@@ -428,7 +441,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             </Avatar>
             <div className="overflow-hidden flex-1">
               <p className="text-sm font-semibold truncate">{userProfile?.displayName || userProfile?.email}</p>
-              <p className="text-xs text-muted-foreground capitalize truncate">{userProfile?.isAdmin ? "Admin" : (userRoles.size > 0 ? Array.from(userRoles).join(', ') : 'No Roles')}</p>
+              <p className="text-xs text-muted-foreground capitalize truncate">{isAdmin ? "Admin" : (roleDisplayNames || 'No Roles')}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="shrink-0">
               <LogOut className="w-4 h-4" />

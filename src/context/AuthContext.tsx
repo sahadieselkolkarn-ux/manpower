@@ -33,45 +33,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (!auth || !db) {
       // Firebase services not ready, stop loading.
+      if (!auth) console.warn("AuthProvider: Firebase Auth service not available.");
+      if (!db) console.warn("AuthProvider: Firestore service not available.");
       setLoading(false);
       return;
     }
 
+    let profileUnsubscribe: Unsubscribe | undefined;
+    let employeeUnsubscribe: Unsubscribe | undefined;
+
     // Subscribe to Firebase Auth state changes
-    const unsubscribeFromAuth = auth.onAuthStateChanged(async (firebaseUser) => {
+    const authUnsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
+      // Clean up previous listeners
+      if (profileUnsubscribe) profileUnsubscribe();
+      if (employeeUnsubscribe) employeeUnsubscribe();
+
       if (firebaseUser) {
+        setLoading(true);
         setUser(firebaseUser);
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         
         // Subscribe to real-time updates on the user's profile document
-        const unsubscribeFromProfile = onSnapshot(userDocRef, async (userDocSnap) => {
+        profileUnsubscribe = onSnapshot(userDocRef, async (userDocSnap) => {
           let currentProfile: UserProfile | null = null;
-
           if (userDocSnap.exists()) {
             currentProfile = { uid: userDocSnap.id, ...userDocSnap.data() } as UserProfile;
           } else {
             // If profile doesn't exist, create it. This is the bootstrap process.
             console.log(`Creating new user profile for ${firebaseUser.email}`);
-            const newUserProfile: UserProfile = {
+            const newUserProfile: Omit<UserProfile, 'createdAt' | 'updatedAt'> = {
               uid: firebaseUser.uid,
               email: firebaseUser.email!,
               displayName: firebaseUser.displayName || firebaseUser.email!.split('@')[0],
               isAdmin: false,
               roleIds: [],
               status: "ACTIVE",
-              createdAt: serverTimestamp() as any, // Firestore will convert this
-              updatedAt: serverTimestamp() as any,
             };
             try {
-              await setDoc(userDocRef, newUserProfile);
-              // After setting, we don't need to re-read. The snapshot listener will fire with the new data.
-              // We set it here to avoid a flicker, the listener will just confirm it.
-              currentProfile = newUserProfile;
+              await setDoc(userDocRef, {
+                  ...newUserProfile,
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+              });
+              // The onSnapshot listener will fire again with the new data, so we don't set state here.
             } catch (error) {
               console.error("Failed to create user document:", error);
               setUserProfile(null);
               setEmployeeProfile(null);
-              setLoading(false);
+              setLoading(false); // Stop loading on error
               return;
             }
           }
@@ -79,29 +88,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUserProfile(currentProfile);
 
           // Once we have the user profile, check for a linked employee profile
+          // Clean up previous employee listener before creating a new one
+          if (employeeUnsubscribe) employeeUnsubscribe();
+
           if (currentProfile && currentProfile.employeeId) {
             const employeeDocRef = doc(db, 'employees', currentProfile.employeeId);
-            const employeeDocSnap = await getDoc(employeeDocRef);
-            if (employeeDocSnap.exists()) {
-              setEmployeeProfile({ id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee);
-            } else {
-              console.warn(`User ${firebaseUser.uid} has employeeId ${currentProfile.employeeId} but document not found.`);
-              setEmployeeProfile(null);
-            }
+            employeeUnsubscribe = onSnapshot(employeeDocRef, (employeeDocSnap) => {
+                if (employeeDocSnap.exists()) {
+                    setEmployeeProfile({ id: employeeDocSnap.id, ...employeeDocSnap.data() } as Employee);
+                } else {
+                    console.warn(`User ${firebaseUser.uid} has employeeId ${currentProfile?.employeeId} but document not found.`);
+                    setEmployeeProfile(null);
+                }
+                setLoading(false); // All user-related data is now loaded.
+            });
           } else {
             setEmployeeProfile(null);
+            setLoading(false); // No employee to load, so we're done.
           }
-
-          setLoading(false); // All user-related data is now loaded.
         }, (error) => {
           console.error("Error listening to user profile:", error);
           setUserProfile(null);
           setEmployeeProfile(null);
           setLoading(false);
         });
-
-        // Return cleanup function for the profile listener
-        return () => unsubscribeFromProfile();
 
       } else {
         // No Firebase user logged in
@@ -113,7 +123,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     // Return cleanup function for the auth state listener
-    return () => unsubscribeFromAuth();
+    return () => {
+        authUnsubscribe();
+        if (profileUnsubscribe) profileUnsubscribe();
+        if (employeeUnsubscribe) employeeUnsubscribe();
+    };
   }, [auth, db]);
 
   const value = { user, userProfile, employeeProfile, loading };

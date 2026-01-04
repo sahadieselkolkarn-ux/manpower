@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -78,26 +79,17 @@ export default function SignupPage() {
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const firebaseUser = userCredential.user;
-
-      // Create user profile in Firestore with new structure
-      await setDoc(doc(db, "users", firebaseUser.uid), {
-        uid: firebaseUser.uid,
-        email: values.email,
-        displayName: values.displayName,
-        isAdmin: false, // Default to not admin
-        roleIds: [], // Start with no roles
-        status: "ACTIVE",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      // NOTE: We let the AuthContext handle the user profile creation.
+      // This function's only job is to create the Firebase Auth user.
+      // The onSnapshot listener in AuthContext will then pick up the new user
+      // and create their corresponding Firestore document.
+      await createUserWithEmailAndPassword(auth, values.email, values.password);
 
       toast({
         title: "Account Created",
-        description: "Your account has been created. Please contact an admin to assign your roles.",
+        description: "Your account has been created. Please sign in.",
       });
-      // The useEffect will handle redirection.
+      router.push("/"); // Redirect to login page after signup
 
     } catch (error) {
       const authError = error as AuthError;
@@ -190,4 +182,5 @@ export default function SignupPage() {
     </div>
   );
 }
+
 
