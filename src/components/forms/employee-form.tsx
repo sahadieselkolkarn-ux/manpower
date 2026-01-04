@@ -1,5 +1,6 @@
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -62,7 +63,7 @@ import { CertificateType } from '@/types/certificate-type';
 import { Hospital } from '@/types/hospital';
 import { useRouter } from 'next/navigation';
 import { DATE_FORMAT, toDate } from '@/lib/utils';
-import { formSchema, type EmployeeFormData } from '@/types/employee.schema';
+import { formSchema, officeEmployeeSchema, fieldEmployeeSchema, type EmployeeFormData } from '@/types/employee.schema';
 
 
 interface EmployeeFormProps {
@@ -99,8 +100,10 @@ export default function EmployeeForm({
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
+  const currentFormSchema = employeeType === 'OFFICE' ? officeEmployeeSchema : fieldEmployeeSchema;
+
   const form = useForm<EmployeeFormData>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(currentFormSchema),
     defaultValues: {
       employeeType, // Crucially set this from the prop
       ...(employeeType === 'OFFICE'
@@ -151,7 +154,7 @@ export default function EmployeeForm({
       if (employee) {
         const dob = toDate(employee.personalInfo.dateOfBirth);
         
-        const defaultData = {
+        const defaultData: any = {
           employeeType: employee.employeeType || employeeType,
           personalInfo: {
             firstName: employee.personalInfo.firstName || '',
@@ -184,20 +187,13 @@ export default function EmployeeForm({
           }) || [],
         };
 
-        if (employee.employeeType === 'OFFICE') {
-          form.reset({
-            ...defaultData,
-            employeeType: 'OFFICE',
-            orgLevel: employee.orgLevel || 'STAFF',
-            createUser: false, // Don't show for existing employees
-            userEmail: employee.contactInfo?.email || '',
-          });
-        } else {
-           form.reset({
-            ...defaultData,
-            employeeType: 'FIELD',
-           });
+        if (employeeType === 'OFFICE') {
+          defaultData.orgLevel = employee.orgLevel || 'STAFF';
+          defaultData.createUser = false; // Don't show for existing employees
+          defaultData.userEmail = employee.contactInfo?.email || '';
         }
+        
+        form.reset(defaultData);
 
       } else {
         // Reset to default for creating new

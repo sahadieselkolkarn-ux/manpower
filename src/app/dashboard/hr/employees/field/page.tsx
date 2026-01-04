@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -46,7 +47,7 @@ export default function ManpowerEmployeesPage() {
   const { userProfile } = useAuth();
 
   const employeesQuery = useMemoFirebase(
-    () => (db ? query(collection(db, 'employees'), where('employeeType', '!=', 'OFFICE')) : null),
+    () => (db ? query(collection(db, 'employees'), where('employeeType', '==', 'FIELD')) : null),
     [db]
   );
   const { data: employees, isLoading: isLoadingEmployees, refetch: refetchEmployees } = useCollection<Employee>(employeesQuery);

@@ -1,4 +1,5 @@
 
+
 import * as z from 'zod';
 import { DATE_FORMAT } from '@/lib/utils';
 import { isValid, parse } from 'date-fns';
@@ -16,7 +17,7 @@ const documentSchema = z.object({
 });
 
 // Base schema for fields common to both types
-const baseEmployeeSchema = z.object({
+export const baseEmployeeSchema = z.object({
     personalInfo: z.object({
         firstName: z.string().min(1, 'First name is required.'),
         lastName: z.string().min(1, 'Last name is required.'),
@@ -42,7 +43,7 @@ const baseEmployeeSchema = z.object({
 
 
 // Schema specific to Office employees
-const officeEmployeeSchema = baseEmployeeSchema.extend({
+export const officeEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('OFFICE'),
     orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
     createUser: z.boolean(),
@@ -58,7 +59,7 @@ const officeEmployeeSchema = baseEmployeeSchema.extend({
 });
 
 // Schema for Field employees
-const fieldEmployeeSchema = baseEmployeeSchema.extend({
+export const fieldEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('FIELD'),
 });
 
