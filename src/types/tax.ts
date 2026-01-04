@@ -4,6 +4,9 @@ import { type Timestamp } from 'firebase/firestore';
 export type PersonType = 'OFFICE' | 'MP';
 export type TaxProfileStatus = 'NOT_STARTED' | 'INCOMPLETE' | 'COMPLETE' | 'NEEDS_UPDATE';
 
+/**
+ * @deprecated This type is being replaced by the nested Ly01Profile in the Employee type.
+ */
 export interface TaxProfile {
     id: string; // personKey
     personKey: string; // OFFICE:{officeEmployeeId} or MP:{manpowerEmployeeId}
@@ -29,5 +32,3 @@ export interface TaxProfile {
         notes?: string;
     };
 }
-
-    

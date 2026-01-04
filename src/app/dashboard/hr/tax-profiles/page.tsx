@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Employee } from '@/types/employee';
-import { TaxProfile, TaxProfileStatus } from '@/types/tax';
+import { Ly01Profile } from '@/types/employee'; // Changed from TaxProfile
 import { getPersonKey } from '@/lib/tax/utils';
 import { formatDate } from '@/lib/utils';
 import FullPageLoader from '@/components/full-page-loader';
@@ -24,28 +24,20 @@ export default function TaxProfilesListPage() {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState<'ALL' | 'OFFICE' | 'FIELD'>('ALL');
-    const [filterStatus, setFilterStatus] = useState<TaxProfileStatus | 'ALL'>('ALL');
+    const [filterStatus, setFilterStatus] = useState<Ly01Profile['status'] | 'ALL'>('ALL');
 
     const { data: employees, isLoading: isLoadingEmployees } = useCollection<Employee>(
         useMemoFirebase(() => db ? collection(db, 'employees') : null, [db])
     );
-    const { data: taxProfiles, isLoading: isLoadingTaxProfiles } = useCollection<TaxProfile>(
-        useMemoFirebase(() => db ? collection(db, 'taxProfiles') : null, [db])
-    );
-
-    const taxProfileMap = useMemo(() => {
-        if (!taxProfiles) return new Map<string, TaxProfile>();
-        // Key by the employee reference ID, not the full personKey
-        return new Map(taxProfiles.map(p => [p.personRefId, p]));
-    }, [taxProfiles]);
 
     const filteredEmployees = useMemo(() => {
         if (!employees) return [];
         return employees.filter(emp => {
             const typeMatch = filterType === 'ALL' || emp.employeeType === filterType;
             
-            const profile = taxProfileMap.get(emp.id);
-            const statusMatch = filterStatus === 'ALL' || (profile?.status || 'NOT_STARTED') === filterStatus;
+            const profile = emp.taxProfile?.ly01;
+            const status = profile?.status || 'MISSING';
+            const statusMatch = filterStatus === 'ALL' || status === filterStatus;
 
             const searchTermLower = searchTerm.toLowerCase();
             const nameMatch = `${emp.personalInfo.firstName} ${emp.personalInfo.lastName}`.toLowerCase().includes(searchTermLower);
@@ -53,20 +45,19 @@ export default function TaxProfilesListPage() {
 
             return typeMatch && statusMatch && (nameMatch || codeMatch);
         });
-    }, [employees, taxProfileMap, filterType, filterStatus, searchTerm]);
+    }, [employees, filterType, filterStatus, searchTerm]);
 
-    const isLoading = isLoadingEmployees || isLoadingTaxProfiles;
-
-    if (isLoading) {
+    if (isLoadingEmployees) {
         return <FullPageLoader />
     }
 
-    const getStatusVariant = (status?: TaxProfileStatus) => {
+    const getStatusVariant = (status?: Ly01Profile['status']) => {
         switch (status) {
-            case 'COMPLETE': return 'default';
-            case 'INCOMPLETE': return 'secondary';
-            case 'NEEDS_UPDATE': return 'destructive';
-            default: return 'outline';
+            case 'VERIFIED': return 'default';
+            case 'SUBMITTED': return 'secondary';
+            case 'DRAFT': return 'outline';
+            case 'MISSING':
+            default: return 'destructive';
         }
     }
 
@@ -106,10 +97,10 @@ export default function TaxProfilesListPage() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="ALL">All Statuses</SelectItem>
-                                <SelectItem value="NOT_STARTED">Not Started</SelectItem>
-                                <SelectItem value="INCOMPLETE">Incomplete</SelectItem>
-                                <SelectItem value="COMPLETE">Complete</SelectItem>
-                                <SelectItem value="NEEDS_UPDATE">Needs Update</SelectItem>
+                                <SelectItem value="MISSING">Missing</SelectItem>
+                                <SelectItem value="DRAFT">Draft</SelectItem>
+                                <SelectItem value="SUBMITTED">Submitted</SelectItem>
+                                <SelectItem value="VERIFIED">Verified</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -126,19 +117,20 @@ export default function TaxProfilesListPage() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? (
+                            {isLoadingEmployees ? (
                                 Array.from({length: 5}).map((_, i) => (
                                     <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-5" /></TableCell></TableRow>
                                 ))
                             ) : filteredEmployees.length > 0 ? (
                                 filteredEmployees.map(emp => {
-                                    const profile = taxProfileMap.get(emp.id);
+                                    const profile = emp.taxProfile?.ly01;
+                                    const status = profile?.status || 'MISSING';
                                     return (
                                         <TableRow key={emp.id} className="cursor-pointer" onClick={() => handleOpenProfile(emp)}>
                                             <TableCell><Badge variant="outline">{emp.employeeType}</Badge></TableCell>
                                             <TableCell>{emp.employeeCode}</TableCell>
                                             <TableCell>{`${emp.personalInfo.firstName} ${emp.personalInfo.lastName}`}</TableCell>
-                                            <TableCell><Badge variant={getStatusVariant(profile?.status)}>{profile?.status || 'NOT_STARTED'}</Badge></TableCell>
+                                            <TableCell><Badge variant={getStatusVariant(status)}>{status}</Badge></TableCell>
                                             <TableCell>{profile ? formatDate(profile.updatedAt) : '—'}</TableCell>
                                             <TableCell className="text-right">
                                                 <Button variant="outline" size="sm">Open</Button>
