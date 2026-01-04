@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, doc, writeBatch, Timestamp, serverTimestamp, getDocs, deleteDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { TimesheetBatch, TimesheetLine } from '@/types/timesheet';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
