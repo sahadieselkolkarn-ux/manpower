@@ -47,9 +47,8 @@ export default function EmployeeDetailsPage({
   
   const handleOpenTaxProfile = () => {
     if (!employee) return;
-    // Use the employee's document ID to create the correct personKey
     const personKey = getPersonKey(employee.employeeType, id);
-    router.push(`/dashboard/hr/tax-profiles/${personKey}`);
+    router.push(`/dashboard/hr/tax-profiles/${encodeURIComponent(personKey)}`);
   }
 
   if (isLoading) {

@@ -35,6 +35,7 @@ export default function TaxProfilesListPage() {
 
     const taxProfileMap = useMemo(() => {
         if (!taxProfiles) return new Map<string, TaxProfile>();
+        // Key by the employee reference ID, not the full personKey
         return new Map(taxProfiles.map(p => [p.personRefId, p]));
     }, [taxProfiles]);
 
@@ -67,6 +68,11 @@ export default function TaxProfilesListPage() {
             case 'NEEDS_UPDATE': return 'destructive';
             default: return 'outline';
         }
+    }
+
+    const handleOpenProfile = (employee: Employee) => {
+        const personKey = getPersonKey(employee.employeeType, employee.id);
+        router.push(`/dashboard/hr/tax-profiles/${encodeURIComponent(personKey)}`);
     }
 
     return (
@@ -127,9 +133,8 @@ export default function TaxProfilesListPage() {
                             ) : filteredEmployees.length > 0 ? (
                                 filteredEmployees.map(emp => {
                                     const profile = taxProfileMap.get(emp.id);
-                                    const personKey = getPersonKey(emp.employeeType, emp.id);
                                     return (
-                                        <TableRow key={emp.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/hr/tax-profiles/${personKey}`)}>
+                                        <TableRow key={emp.id} className="cursor-pointer" onClick={() => handleOpenProfile(emp)}>
                                             <TableCell><Badge variant="outline">{emp.employeeType}</Badge></TableCell>
                                             <TableCell>{emp.employeeCode}</TableCell>
                                             <TableCell>{`${emp.personalInfo.firstName} ${emp.personalInfo.lastName}`}</TableCell>
@@ -151,5 +156,3 @@ export default function TaxProfilesListPage() {
         </div>
     );
 }
-
-    
