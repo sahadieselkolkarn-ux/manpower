@@ -1252,6 +1252,7 @@
       "type": "object",
       "properties": {
         "batchId": { "type": "string" },
+        "waveId": { "type": "string" },
         "assignmentId": { "type": "string" },
         "employeeId": { "type": "string" },
         "workDate": { "type": "string", "format": "date" },

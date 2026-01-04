@@ -87,7 +87,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   }
   
   // Hide sidebar for specific routes like the export page
-  if (pathname.endsWith('/export')) {
+  if (pathname.includes('/export')) {
     return <main>{children}</main>;
   }
 

@@ -1,3 +1,4 @@
+
 import { type Timestamp } from 'firebase/firestore';
 
 export type TimesheetBatchStatus =
@@ -39,6 +40,7 @@ export interface TimesheetLine {
   otHours: number;
   dayCategory?: DayCategory; // Derived
   anomalies?: string[];
+  waveId: string; // Snapshot for convenience
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { collection, collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, collectionGroup, getDocs, query, orderBy, getDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -89,6 +89,8 @@ export default function AssignmentsPage() {
   const getWavePath = (assignment: AssignmentWithDetails) => {
     if (!assignment.path) return '#';
     const segments = assignment.path.split('/');
+    // Path: /clients/{cId}/contracts/{coId}/projects/{pId}/waves/{wId}/assignments/{aId}
+    // Segments length is 10
     if (segments.length >= 8) {
       // Return up to the wave ID
       return `/dashboard/clients/${segments[1]}/contracts/${segments[3]}/projects/${segments[5]}/waves/${segments[7]}`;
