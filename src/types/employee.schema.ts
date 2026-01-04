@@ -15,7 +15,7 @@ const documentSchema = z.object({
   expiryDate: dateStringSchema.optional(),
 });
 
-// Base schema containing common fields
+// Base schema for fields common to both types
 const baseEmployeeSchema = z.object({
     personalInfo: z.object({
         firstName: z.string().min(1, 'First name is required.'),
@@ -62,11 +62,9 @@ const fieldEmployeeSchema = baseEmployeeSchema.extend({
     employeeType: z.literal('FIELD'),
 });
 
-
 export const formSchema = z.discriminatedUnion('employeeType', [
     officeEmployeeSchema,
     fieldEmployeeSchema,
 ]);
-
 
 export type EmployeeFormData = z.infer<typeof formSchema>;

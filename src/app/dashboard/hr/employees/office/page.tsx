@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -29,11 +30,10 @@ import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { type Employee } from '@/types/employee';
-import { type Position } from '@/types/position';
 import EmployeeForm from '@/components/forms/employee-form';
 import { Badge } from '@/components/ui/badge';
-import { type CertificateType } from '@/types/certificate-type';
 import { useRouter } from 'next/navigation';
+import { OfficePosition } from '@/types/position';
 
 export default function OfficeEmployeesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -51,18 +51,8 @@ export default function OfficeEmployeesPage() {
   );
   const { data: employees, isLoading: isLoadingEmployees, refetch: refetchEmployees } = useCollection<Employee>(employeesQuery);
 
-  const positionsQuery = useMemoFirebase(
-    () => (db ? collection(db, 'positions') : null),
-    [db]
-  );
-  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
-
-  const certificateTypesQuery = useMemoFirebase(
-    () => (db ? collection(db, 'certificateTypes') : null),
-    [db]
-  );
-  const { data: certificateTypes, isLoading: isLoadingCertificateTypes } = useCollection<CertificateType>(certificateTypesQuery);
-
+  const positionsQuery = useMemoFirebase(() => (db ? collection(db, 'officePositions') : null), [db]);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<OfficePosition>(positionsQuery);
 
   const positionMap = useMemo(() => new Map(positions?.map(p => [p.id, p.name])), [positions]);
 
@@ -77,7 +67,7 @@ export default function OfficeEmployeesPage() {
   };
 
   const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes('HR_MANAGER');
-  const isLoading = isLoadingEmployees || isLoadingPositions || isLoadingCertificateTypes;
+  const isLoading = isLoadingEmployees || isLoadingPositions;
 
   const handleSuccess = (employeeId?: string) => {
     refetchEmployees();
@@ -196,14 +186,12 @@ export default function OfficeEmployeesPage() {
           </Table>
         </CardContent>
       </Card>
-      {canManage && (
+      {canManage && isFormOpen && (
         <EmployeeForm
             open={isFormOpen}
             onOpenChange={setIsFormOpen}
             employeeType="OFFICE"
             employee={selectedEmployee}
-            positions={positions || []}
-            certificateTypes={certificateTypes || []}
             onSuccess={handleSuccess}
         />
       )}

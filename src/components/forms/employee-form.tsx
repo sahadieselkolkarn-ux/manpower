@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -100,30 +101,31 @@ export default function EmployeeForm({
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: employeeType === 'OFFICE'
-    ? {
-        employeeType: 'OFFICE',
-        orgLevel: 'STAFF',
-        personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
-        contactInfo: { phone: '', email: ''},
-        financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
-        positionIds: [],
-        skillTags: '',
-        employmentStatus: 'Active',
-        documents: [],
-        createUser: true,
-        userEmail: '',
+    defaultValues: {
+      employeeType, // Crucially set this from the prop
+      ...(employeeType === 'OFFICE'
+        ? {
+            orgLevel: 'STAFF',
+            personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+            contactInfo: { phone: '', email: '' },
+            financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+            positionIds: [],
+            skillTags: '',
+            employmentStatus: 'Active',
+            documents: [],
+            createUser: true,
+            userEmail: '',
+          }
+        : {
+            personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+            contactInfo: { phone: '', email: '' },
+            financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+            positionIds: [],
+            skillTags: '',
+            employmentStatus: 'Active',
+            documents: [],
+          }),
     }
-    : {
-        employeeType: 'FIELD',
-        personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
-        contactInfo: { phone: '', email: ''},
-        financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
-        positionIds: [],
-        skillTags: '',
-        employmentStatus: 'Active',
-        documents: [],
-    },
   });
 
   const { fields, append, remove } = useFieldArray({
@@ -149,7 +151,7 @@ export default function EmployeeForm({
       if (employee) {
         const dob = toDate(employee.personalInfo.dateOfBirth);
         
-        const defaultData: any = {
+        const defaultData = {
           employeeType: employee.employeeType || employeeType,
           personalInfo: {
             firstName: employee.personalInfo.firstName || '',
@@ -199,9 +201,10 @@ export default function EmployeeForm({
 
       } else {
         // Reset to default for creating new
-        form.reset(employeeType === 'OFFICE'
+        form.reset({
+          employeeType, // Always set this from prop
+          ...(employeeType === 'OFFICE'
             ? {
-                employeeType: 'OFFICE',
                 orgLevel: 'STAFF',
                 personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
                 contactInfo: { phone: '', email: ''},
@@ -214,7 +217,6 @@ export default function EmployeeForm({
                 userEmail: '',
             }
             : {
-                employeeType: 'FIELD',
                 personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
                 contactInfo: { phone: '', email: ''},
                 financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
@@ -222,7 +224,8 @@ export default function EmployeeForm({
                 skillTags: '',
                 employmentStatus: 'Active',
                 documents: [],
-            });
+            })
+        });
       }
     }
   }, [open, employee, employeeType, form]);
@@ -285,7 +288,7 @@ export default function EmployeeForm({
         },
         contactInfo: {
             ...values.contactInfo,
-            email: values.employeeType === 'OFFICE' && values.createUser ? values.userEmail : values.contactInfo.email,
+            email: (values.employeeType === 'OFFICE' && values.createUser) ? values.userEmail : values.contactInfo.email,
         },
         financeInfo: {
             ...values.financeInfo,
@@ -381,7 +384,7 @@ export default function EmployeeForm({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
             
-            {employeeType === 'OFFICE' && 'orgLevel' in form.getValues() && (
+            {employeeType === 'OFFICE' && (
              <>
                 <h3 className="text-lg font-medium">Employment Details</h3>
                 <FormField control={form.control} name="orgLevel" render={({ field }) => (
@@ -441,7 +444,7 @@ export default function EmployeeForm({
                 )} />
             </div>
             
-            {!employee && employeeType === 'OFFICE' && 'createUser' in form.getValues() && (
+            {!employee && employeeType === 'OFFICE' && (
                 <>
                 <Separator />
                 <h3 className="text-lg font-medium">System User Account</h3>
