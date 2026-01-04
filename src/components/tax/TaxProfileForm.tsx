@@ -50,20 +50,8 @@ const defaultLy01Data: Ly01FormData = {
   data: {
     personal: {
       taxId: '',
-      address: {
-        building: '',
-        roomNo: '',
-        floor: '',
-        village: '',
-        houseNo: '',
-        moo: '',
-        soi: '',
-        road: '',
-        subDistrict: '',
-        district: '',
-        province: '',
-        postalCode: '',
-      },
+      fullNameSnapshot: '',
+      addressText: '',
     },
     marital: {
       status: 'SINGLE',
@@ -117,28 +105,48 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
 
   const form = useForm<Ly01FormData>({
     resolver: zodResolver(ly01FormSchema),
-    // Initialize with defaults to prevent uncontrolled -> controlled warning
     defaultValues: defaultLy01Data,
   });
 
   useEffect(() => {
-    if (ly01Profile) {
+    // Start with the comprehensive default object.
+    let formData = merge({}, defaultLy01Data);
+
+    // If there's an existing profile, merge its data on top of the defaults.
+    if (ly01Profile?.data) {
         const declared = toDate(ly01Profile.declaredDate);
-        
         const existingData = {
           data: ly01Profile.data,
           declaredDate: declared ? formatDate(declared) : undefined,
           verifiedBySelf: ly01Profile.verifiedBySelf || false,
         };
-        
-        // Deep merge defaults with existing data to ensure all fields are defined
-        const mergedData = merge({}, defaultLy01Data, existingData);
-        form.reset(mergedData);
-    } else {
-        // This case should be rare now, but good to have as a fallback
-        form.reset(defaultLy01Data);
+        formData = merge(formData, existingData);
     }
-  }, [ly01Profile, form]);
+    
+    // --- Prefill Logic ---
+    // Only prefill if the target field in the LY01 form data is still empty.
+    if (!formData.data.personal.taxId) {
+        const taxIdToPrefill = employee.personalInfo.taxId || employee.personalInfo.nationalId;
+        if (taxIdToPrefill) {
+            formData.data.personal.taxId = taxIdToPrefill;
+        }
+    }
+    
+    if (!formData.data.personal.addressText) {
+        // Prefers a simple string address.
+        const addressToPrefill = employee.personalInfo.address;
+        if (addressToPrefill) {
+            formData.data.personal.addressText = addressToPrefill;
+        }
+    }
+
+    // Always snapshot the current full name for the PDF export.
+    formData.data.personal.fullNameSnapshot = `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`;
+
+    // Reset the form with the final, merged, and prefilled data.
+    form.reset(formData);
+
+  }, [ly01Profile, employee, form]);
   
   const maritalStatus = form.watch('data.marital.status');
 
@@ -164,7 +172,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
             ...ly01Profile,
             status: newStatus,
             data: values.data,
-            declaredDate: values.declaredDate ? Timestamp.fromDate(new Date(values.declaredDate)) : serverTimestamp(),
+            declaredDate: values.declaredDate ? Timestamp.fromDate(parse(values.declaredDate, 'dd/MM/yyyy', new Date())) : serverTimestamp(),
             verifiedBySelf: values.verifiedBySelf,
             verifiedAt: (values.verifiedBySelf && !ly01Profile.verifiedBySelf) ? serverTimestamp() : ly01Profile.verifiedAt,
             updatedAt: serverTimestamp(),
@@ -187,7 +195,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
   };
   
   const handleExport = () => {
-    const currentPath = router.asPath;
+    const currentPath = window.location.pathname;
     window.open(`${currentPath}/export`, '_blank');
   };
 
@@ -220,10 +228,20 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
               <Separator className="my-2" />
               <div className="space-y-4">
                  <FormField control={form.control} name="data.personal.taxId" render={({ field }) => (
-                  <FormItem><FormLabel>Tax ID*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem>
+                    <FormLabel>Tax ID*</FormLabel>
+                    <FormControl><Input {...field} value={field.value ?? ''} /></FormControl>
+                    <FormDescription>Prefilled from employee National ID.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
                 )} />
-                <FormField control={form.control} name="data.personal.address.houseNo" render={({ field }) => (
-                    <FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="Full address details..." {...field} /></FormControl><FormMessage /></FormItem>
+                <FormField control={form.control} name="data.personal.addressText" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Address</FormLabel>
+                        <FormControl><Textarea placeholder="Full address details..." {...field} value={field.value ?? ''} /></FormControl>
+                        <FormDescription>Prefilled from employee profile address.</FormDescription>
+                        <FormMessage />
+                    </FormItem>
                 )}/>
               </div>
             </section>
@@ -247,7 +265,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
                 )} />
                 {maritalStatus === 'MARRIED' && (
                      <FormField control={form.control} name="data.marital.spouseHasIncome" render={({ field }) => (
-                        <FormItem className="flex items-center gap-2 pt-2"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><FormLabel>Spouse has income?</FormLabel><FormMessage /></FormItem>
+                        <FormItem className="flex items-center gap-2 pt-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} /></FormControl><FormLabel>Spouse has income?</FormLabel><FormMessage /></FormItem>
                     )}/>
                 )}
               </div>
@@ -259,13 +277,13 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
               <Separator className="my-2" />
                <div className="grid grid-cols-3 gap-4">
                  <FormField control={form.control} name="data.children.totalCount" render={({ field }) => (
-                    <FormItem><FormLabel>Total Children</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Total Children</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="data.children.allowance30kCount" render={({ field }) => (
-                    <FormItem><FormLabel>Born before 2018 (30k)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Born before 2018 (30k)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="data.children.allowance60kCount" render={({ field }) => (
-                    <FormItem><FormLabel>Born 2018+ (60k)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Born 2018+ (60k)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormMessage>
                 )} />
               </div>
             </section>
@@ -281,7 +299,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
                <FormField control={form.control} name="verifiedBySelf" render={({ field }) => (
                 <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border p-4">
                   <FormControl>
-                    <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    <Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} />
                   </FormControl>
                   <div className="space-y-1 leading-none">
                     <FormLabel>I confirm that the information provided is accurate and complete.</FormLabel>
@@ -290,7 +308,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
                 </FormItem>
               )} />
                <FormField control={form.control} name="declaredDate" render={({ field }) => (
-                  <FormItem className="mt-4"><FormLabel>Declared Date*</FormLabel><FormControl><Input placeholder="dd/MM/yyyy" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem className="mt-4"><FormLabel>Declared Date*</FormLabel><FormControl><Input placeholder="dd/MM/yyyy" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />
             </section>
 

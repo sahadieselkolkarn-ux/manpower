@@ -53,20 +53,8 @@ export interface Ly01Profile {
     data?: {
       personal?: {
         taxId?: string;
-        address?: {
-          building?: string;
-          roomNo?: string;
-          floor?: string;
-          village?: string;
-          houseNo?: string;
-          moo?: string;
-          soi?: string;
-          road?: string;
-          subDistrict?: string;
-          district?: string;
-          province?: string;
-          postalCode?: string;
-        };
+        fullNameSnapshot?: string;
+        addressText?: string;
       };
       marital?: {
         status?: "SINGLE" | "MARRIED" | "WIDOWED" | "DIVORCED";
@@ -139,7 +127,8 @@ export interface Employee {
     lastName: string;
     dateOfBirth?: Timestamp;
     nationalId?: string;
-    address?: string;
+    taxId?: string; // For prefill
+    address?: string; // For prefill
     emergencyContact?: {
         name: string;
         relationship: string;

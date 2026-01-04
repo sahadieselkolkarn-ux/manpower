@@ -15,21 +15,9 @@ const emptyStringToUndefined = z.string().transform(val => val === "" ? undefine
 
 const baseDataSchema = z.object({
   personal: z.object({
-    taxId: z.string().min(13, 'Tax ID must be 13 digits.').max(13, 'Tax ID must be 13 digits.'),
-    address: z.object({
-      building: z.string().optional(),
-      roomNo: z.string().optional(),
-      floor: z.string().optional(),
-      village: z.string().optional(),
-      houseNo: z.string().min(1, 'House No. is required.'),
-      moo: z.string().optional(),
-      soi: z.string().optional(),
-      road: z.string().optional(),
-      subDistrict: z.string().min(1, 'Sub-district is required.'),
-      district: z.string().min(1, 'District is required.'),
-      province: z.string().min(1, 'Province is required.'),
-      postalCode: z.string().min(5, 'Postal code must be 5 digits.').max(5, 'Postal code must be 5 digits.'),
-    }),
+    taxId: z.string().optional(),
+    fullNameSnapshot: z.string().optional(),
+    addressText: z.string().optional(),
   }),
   marital: z.object({
     status: z.enum(['SINGLE', 'MARRIED', 'WIDOWED', 'DIVORCED']),
