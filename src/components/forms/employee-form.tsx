@@ -349,13 +349,10 @@ export default function EmployeeForm({
     }
   };
   
-  const handleBackToDetails = () => {
-    if (employee && returnTo) {
-      router.push(returnTo);
-    } else if (employee) {
-      router.push(`/dashboard/employees/${employee.id}`);
+  const handleBack = () => {
+    if (returnTo) {
+      router.replace(returnTo);
     } else {
-      // Default fallback if somehow opened without context
       onOpenChange(false);
     }
   };
@@ -593,7 +590,7 @@ export default function EmployeeForm({
                         )}
                     </div>
                 )})}
-                <Button type="button" variant="outline" size="sm" onClick={() => append({ type: 'Certificate', name: '', issueDate: '', expiryDate: '' })}>
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ type: 'Certificate', name: '', certificateTypeId: '', issueDate: '', expiryDate: '' })}>
                     Add Document
                 </Button>
             </div>
@@ -603,7 +600,7 @@ export default function EmployeeForm({
                     {employee && <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/employees/${employee.id}/ly01`)}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
                 </div>
               <div>
-                <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                <Button type="button" variant="secondary" onClick={handleBack}>Cancel</Button>
                 <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Employee'}</Button>
               </div>
             </DialogFooter>
