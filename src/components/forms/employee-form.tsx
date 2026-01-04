@@ -396,40 +396,40 @@ export default function EmployeeForm({
             <h3 className="text-lg font-medium pt-4">Personal Information</h3>
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="personalInfo.firstName" render={({ field }) => (
-                  <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>First Name</FormLabel><FormControl><Input placeholder="John" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="personalInfo.lastName" render={({ field }) => (
-                  <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Last Name</FormLabel><FormControl><Input placeholder="Doe" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="personalInfo.dateOfBirth" render={({ field }) => (
-                  <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Date of Birth</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )}/>
                <FormField control={form.control} name="personalInfo.nationalId" render={({ field }) => (
-                <FormItem><FormLabel>National ID No.</FormLabel><FormControl><Input placeholder="1234567890123" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>National ID No.</FormLabel><FormControl><Input placeholder="1234567890123" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <FormField control={form.control} name="personalInfo.address" render={({ field }) => (
-              <FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="Full address" {...field} /></FormControl><FormMessage /></FormItem>
+              <FormItem><FormLabel>Address</FormLabel><FormControl><Textarea placeholder="Full address" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
             )} />
 
             <h3 className="text-lg font-medium pt-4">Contact Information</h3>
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="contactInfo.phone" render={({ field }) => (
-                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+66 12 345 6789" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Phone Number</FormLabel><FormControl><Input placeholder="+66 12 345 6789" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="contactInfo.email" render={({ field }) => (
-                <FormItem><FormLabel>Personal Email Address</FormLabel><FormControl><Input placeholder="personal@example.com" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Personal Email Address</FormLabel><FormControl><Input placeholder="personal@example.com" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
              <div className="grid grid-cols-3 gap-4">
                 <FormField control={form.control} name="personalInfo.emergencyContact.name" render={({ field }) => (
-                    <FormItem><FormLabel>Emergency Contact</FormLabel><FormControl><Input placeholder="Contact's Name" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Emergency Contact</FormLabel><FormControl><Input placeholder="Contact's Name" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="personalInfo.emergencyContact.relationship" render={({ field }) => (
-                    <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g. Spouse" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g. Spouse" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="personalInfo.emergencyContact.phone" render={({ field }) => (
-                    <FormItem><FormLabel>Contact's Phone</FormLabel><FormControl><Input placeholder="+66 98 765 4321" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Contact's Phone</FormLabel><FormControl><Input placeholder="+66 98 765 4321" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
             
@@ -451,7 +451,7 @@ export default function EmployeeForm({
                         <FormField control={form.control} name={"userEmail"} render={({ field }) => (
                             <FormItem>
                                 <FormLabel>User Email (for login)</FormLabel>
-                                <FormControl><Input placeholder="login.email@company.com" {...field} /></FormControl>
+                                <FormControl><Input placeholder="login.email@company.com" {...field} value={field.value ?? ''} /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}/>
@@ -463,10 +463,10 @@ export default function EmployeeForm({
             <h3 className="text-lg font-medium pt-4">Finance & Social Security</h3>
             <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="financeInfo.bankName" render={({ field }) => (
-                    <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g. Kasikornbank" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Bank Name</FormLabel><FormControl><Input placeholder="e.g. Kasikornbank" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="financeInfo.accountNumber" render={({ field }) => (
-                    <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="123-4-56789-0" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Account Number</FormLabel><FormControl><Input placeholder="123-4-56789-0" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
              <div className="space-y-4 rounded-lg border p-4">
@@ -521,7 +521,7 @@ export default function EmployeeForm({
                 </FormItem>
             )} />
             <FormField control={form.control} name="skillTags" render={({ field }) => (
-                <FormItem><FormLabel>Skill Tags</FormLabel><FormControl><Input placeholder="e.g. Welding, 6G, TIG" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Skill Tags</FormLabel><FormControl><Input placeholder="e.g. Welding, 6G, TIG" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="employmentStatus" render={({ field }) => (
                 <FormItem>
@@ -546,7 +546,7 @@ export default function EmployeeForm({
                     const docType = form.watch(`documents.${index}.type`);
                     const certTypeId = form.watch(`documents.${index}.certificateTypeId`);
                     const selectedCertType = certTypeMap.get(certTypeId || '');
-                    const showExpiry = selectedCertType?.requiresExpiry ?? true; // Default to true if not found
+                    const showExpiry = selectedCertType?.requiresExpiry ?? (docType !== 'Certificate');
 
                     return (
                     <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end border p-4 rounded-md relative">
@@ -580,15 +580,15 @@ export default function EmployeeForm({
                             )}/>
                         ) : (
                              <FormField control={form.control} name={`documents.${index}.name`} render={({ field }) => (
-                                <FormItem><FormLabel>Document Name / No.</FormLabel><FormControl><Input {...field} placeholder={docType === 'Passport' ? 'Passport Number' : 'Document Name'}/></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Document Name / No.</FormLabel><FormControl><Input {...field} value={field.value ?? ''} placeholder={docType === 'Passport' ? 'Passport Number' : 'Document Name'}/></FormControl><FormMessage /></FormItem>
                             )}/>
                         )}
                         <FormField control={form.control} name={`documents.${index}.issueDate`} render={({ field }) => (
-                            <FormItem><FormLabel>Issue Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Issue Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                         )}/>
                         {showExpiry && (
                             <FormField control={form.control} name={`documents.${index}.expiryDate`} render={({ field }) => (
-                                <FormItem><FormLabel>Expiry Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
+                                <FormItem><FormLabel>Expiry Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>
                             )}/>
                         )}
                     </div>
@@ -600,7 +600,7 @@ export default function EmployeeForm({
 
             <DialogFooter className="pt-4 flex justify-between items-center">
                 <div className='flex gap-2'>
-                    {employee && <Button type="button" variant="outline" size="sm" onClick={handleBackToDetails}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
+                    {employee && <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/employees/${employee.id}/ly01`)}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
                 </div>
               <div>
                 <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
