@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -34,7 +33,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { type Employee } from '@/types/employee';
 import EmployeeForm from '@/components/forms/employee-form';
 import { Badge } from '@/components/ui/badge';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { ManpowerPosition } from '@/types/position';
 
 export default function ManpowerEmployeesPage() {
@@ -43,6 +42,7 @@ export default function ManpowerEmployeesPage() {
     null
   );
   const router = useRouter();
+  const pathname = usePathname();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
@@ -74,6 +74,7 @@ export default function ManpowerEmployeesPage() {
   const handleSuccess = (employeeId?: string) => {
     refetchEmployees();
     if (employeeId) {
+      // After creating, redirect to the main details page, not a sub-page
       router.push(`/dashboard/employees/${employeeId}`);
     }
   }
@@ -203,6 +204,7 @@ export default function ManpowerEmployeesPage() {
             employeeType="FIELD"
             employee={selectedEmployee}
             onSuccess={handleSuccess}
+            returnTo={pathname}
         />
       )}
     </div>

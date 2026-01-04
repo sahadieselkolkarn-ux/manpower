@@ -1,9 +1,5 @@
 
 
-
-
-
-
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -76,6 +72,7 @@ interface EmployeeFormProps {
   employeeType: 'OFFICE' | 'FIELD';
   employee?: Employee | null;
   onSuccess?: (employeeId?: string) => void;
+  returnTo?: string | null;
 }
 
 
@@ -85,6 +82,7 @@ export default function EmployeeForm({
   employeeType,
   employee,
   onSuccess,
+  returnTo = null,
 }: EmployeeFormProps) {
   const [loading, setLoading] = React.useState(false);
   const db = useFirestore();
@@ -103,6 +101,7 @@ export default function EmployeeForm({
 
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
+  const certTypeMap = useMemo(() => new Map(certificateTypes?.map(ct => [ct.id, ct])), [certificateTypes]);
 
   const currentFormSchema = employeeType === 'OFFICE' ? officeEmployeeFormSchema : fieldEmployeeFormSchema;
 
@@ -349,6 +348,18 @@ export default function EmployeeForm({
       setLoading(false);
     }
   };
+  
+  const handleBackToDetails = () => {
+    if (employee && returnTo) {
+      router.push(returnTo);
+    } else if (employee) {
+      router.push(`/dashboard/employees/${employee.id}`);
+    } else {
+      // Default fallback if somehow opened without context
+      onOpenChange(false);
+    }
+  };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -533,6 +544,10 @@ export default function EmployeeForm({
             <div className="space-y-4">
                 {fields.map((field, index) => {
                     const docType = form.watch(`documents.${index}.type`);
+                    const certTypeId = form.watch(`documents.${index}.certificateTypeId`);
+                    const selectedCertType = certTypeMap.get(certTypeId || '');
+                    const showExpiry = selectedCertType?.requiresExpiry ?? true; // Default to true if not found
+
                     return (
                     <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end border p-4 rounded-md relative">
                         <Button type="button" variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => remove(index)}>
@@ -571,9 +586,11 @@ export default function EmployeeForm({
                         <FormField control={form.control} name={`documents.${index}.issueDate`} render={({ field }) => (
                             <FormItem><FormLabel>Issue Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
-                        <FormField control={form.control} name={`documents.${index}.expiryDate`} render={({ field }) => (
-                            <FormItem><FormLabel>Expiry Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
-                        )}/>
+                        {showExpiry && (
+                            <FormField control={form.control} name={`documents.${index}.expiryDate`} render={({ field }) => (
+                                <FormItem><FormLabel>Expiry Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
+                            )}/>
+                        )}
                     </div>
                 )})}
                 <Button type="button" variant="outline" size="sm" onClick={() => append({ type: 'Certificate', name: '', issueDate: '', expiryDate: '' })}>
@@ -583,7 +600,7 @@ export default function EmployeeForm({
 
             <DialogFooter className="pt-4 flex justify-between items-center">
                 <div className='flex gap-2'>
-                    {employee && <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/employees/${employee.id}/ly01`)}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
+                    {employee && <Button type="button" variant="outline" size="sm" onClick={handleBackToDetails}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
                 </div>
               <div>
                 <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>

@@ -1,6 +1,5 @@
 
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -34,7 +33,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { type Employee } from '@/types/employee';
 import EmployeeForm from '@/components/forms/employee-form';
 import { Badge } from '@/components/ui/badge';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { OfficePosition } from '@/types/position';
 
 export default function OfficeEmployeesPage() {
@@ -43,6 +42,7 @@ export default function OfficeEmployeesPage() {
     null
   );
   const router = useRouter();
+  const pathname = usePathname();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
@@ -195,6 +195,7 @@ export default function OfficeEmployeesPage() {
             employeeType="OFFICE"
             employee={selectedEmployee}
             onSuccess={handleSuccess}
+            returnTo={pathname}
         />
       )}
     </div>
