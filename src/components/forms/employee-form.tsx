@@ -3,6 +3,7 @@
 
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -66,6 +67,7 @@ import { Hospital } from '@/types/hospital';
 import { useRouter } from 'next/navigation';
 import { DATE_FORMAT, toDate } from '@/lib/utils';
 import { officeEmployeeFormSchema, fieldEmployeeFormSchema, type EmployeeFormData } from '@/types/employee.schema';
+import { removeUndefineds } from '@/lib/firestore/utils';
 
 
 interface EmployeeFormProps {
@@ -107,29 +109,7 @@ export default function EmployeeForm({
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(currentFormSchema),
     defaultValues: {
-      employeeType, // Crucially set this from the prop
-      ...(employeeType === 'OFFICE'
-        ? {
-            orgLevel: 'STAFF',
-            personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
-            contactInfo: { phone: '', email: '' },
-            financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
-            positionIds: [],
-            skillTags: '',
-            employmentStatus: 'Active',
-            documents: [],
-            createUser: true,
-            userEmail: '',
-          }
-        : {
-            personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
-            contactInfo: { phone: '', email: '' },
-            financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
-            positionIds: [],
-            skillTags: '',
-            employmentStatus: 'Active',
-            documents: [],
-          }),
+      employeeType,
     }
   });
 
@@ -204,7 +184,7 @@ export default function EmployeeForm({
           ...(employeeType === 'OFFICE'
             ? {
                 orgLevel: 'STAFF',
-                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '', emergencyContact: { name: '', relationship: '', phone: '' } },
                 contactInfo: { phone: '', email: ''},
                 financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
                 positionIds: [],
@@ -215,7 +195,7 @@ export default function EmployeeForm({
                 userEmail: '',
             }
             : {
-                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '', emergencyContact: { name: '', relationship: '', phone: '' } },
                 contactInfo: { phone: '', email: ''},
                 financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
                 positionIds: [],
@@ -263,12 +243,9 @@ export default function EmployeeForm({
       const skillTagsArray = values.skillTags ? values.skillTags.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
       
       const parseAndGetTimestamp = (dateValue: any) => {
-          if (!dateValue) return undefined;
-          if (typeof dateValue === 'string') {
-              const parsed = parse(dateValue, DATE_FORMAT, new Date());
-              if (isValid(parsed)) return Timestamp.fromDate(parsed);
-          }
-          return undefined;
+          if (!dateValue || typeof dateValue !== 'string') return undefined;
+          const parsed = parse(dateValue, DATE_FORMAT, new Date());
+          return isValid(parsed) ? Timestamp.fromDate(parsed) : undefined;
       }
 
       const documentsWithTimestamps = values.documents?.map(doc => ({
@@ -301,9 +278,12 @@ export default function EmployeeForm({
         updatedAt: serverTimestamp(),
       };
 
+      const cleanPayload = removeUndefineds(dataToSave);
+
+
       if (employee) {
         const employeeRef = doc(db, 'employees', employee.id);
-        await updateDoc(employeeRef, dataToSave);
+        await updateDoc(employeeRef, cleanPayload);
         toast({
           title: 'Success',
           description: 'Employee updated successfully.',
@@ -318,7 +298,7 @@ export default function EmployeeForm({
 
         const employeeRef = doc(collection(db, 'employees'));
         batch.set(employeeRef, {
-            ...dataToSave,
+            ...cleanPayload,
             employeeCode,
             assignmentStatus: 'Available',
             taxProfile: {
@@ -385,7 +365,7 @@ export default function EmployeeForm({
             {employeeType === 'OFFICE' && (
              <>
                 <h3 className="text-lg font-medium">Employment Details</h3>
-                <FormField control={form.control} name={"orgLevel" as "orgLevel"} render={({ field }) => (
+                <FormField control={form.control} name={"orgLevel"} render={({ field }) => (
                     <FormItem>
                         <FormLabel>Organizational Level</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
@@ -447,7 +427,7 @@ export default function EmployeeForm({
                 <Separator />
                 <h3 className="text-lg font-medium">System User Account</h3>
                  <div className="space-y-4 rounded-lg border p-4">
-                    <FormField control={form.control} name={"createUser" as "createUser"} render={({ field }) => (
+                    <FormField control={form.control} name={"createUser"} render={({ field }) => (
                         <FormItem className="flex flex-row items-center space-x-3 space-y-0">
                             <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                              <div className="space-y-1 leading-none">
@@ -457,7 +437,7 @@ export default function EmployeeForm({
                         </FormItem>
                     )} />
                     {shouldCreateUser && (
-                        <FormField control={form.control} name={"userEmail" as "userEmail"} render={({ field }) => (
+                        <FormField control={form.control} name={"userEmail"} render={({ field }) => (
                             <FormItem>
                                 <FormLabel>User Email (for login)</FormLabel>
                                 <FormControl><Input placeholder="login.email@company.com" {...field} /></FormControl>
