@@ -2,6 +2,7 @@
 
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -437,7 +438,7 @@ export default function EmployeeForm({
                     <FormItem><FormLabel>Relationship</FormLabel><FormControl><Input placeholder="e.g. Spouse" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="personalInfo.emergencyContact.phone" render={({ field }) => (
-                    <FormItem><FormLabel>Contact's Phone</FormLabel><FormControl><Input placeholder="+66 98 765 4321" {...field} /></FormControl><FormMessage /></FormMessage>
+                    <FormItem><FormLabel>Contact's Phone</FormLabel><FormControl><Input placeholder="+66 98 765 4321" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
             </div>
             
