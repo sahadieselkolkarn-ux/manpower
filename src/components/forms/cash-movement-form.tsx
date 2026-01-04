@@ -46,8 +46,7 @@ import { BankAccount } from '@/types/bank-account';
 import { CashMovementSourceType, CashMovementType } from '@/types/cash-movement';
 import { Textarea } from '../ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-
-const DATE_FORMAT = 'dd/MM/yyyy';
+import { DATE_FORMAT } from '@/lib/utils';
 
 const dateSchema = z.preprocess((arg) => {
     if (typeof arg === 'string' && arg) {

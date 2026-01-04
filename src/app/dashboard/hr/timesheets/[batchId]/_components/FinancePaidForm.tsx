@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { DATE_FORMAT } from '@/lib/utils';
 
 interface FinancePaidFormProps {
   open: boolean;
@@ -24,8 +25,6 @@ interface FinancePaidFormProps {
   batch: TimesheetBatch;
   onSuccess: () => void;
 }
-
-const DATE_FORMAT = 'dd/MM/yyyy';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {

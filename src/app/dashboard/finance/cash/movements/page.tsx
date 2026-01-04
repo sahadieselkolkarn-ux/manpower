@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { CashMovement } from '@/types/cash-movement';
 import CashMovementForm from '@/components/forms/cash-movement-form';
 import { BankAccount } from '@/types/bank-account';
+import { formatDate } from '@/lib/utils';
 
 
 export default function CashMovementsPage() {
@@ -48,7 +49,7 @@ export default function CashMovementsPage() {
 
   const accountMap = new Map(accounts?.map(acc => [acc.id, acc.accountName]));
 
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'financeManager';
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('FINANCE_MANAGER');
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -102,7 +103,7 @@ export default function CashMovementsPage() {
               ) : movements && movements.length > 0 ? (
                 movements.map((movement) => (
                   <TableRow key={movement.id}>
-                    <TableCell>{movement.date.toDate().toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(movement.date)}</TableCell>
                     <TableCell>{accountMap.get(movement.bankAccountId) || 'Unknown Account'}</TableCell>
                     <TableCell>
                       <Badge

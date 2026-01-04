@@ -15,6 +15,7 @@ import ClientForm from "@/components/forms/client-form";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 export default function ClientPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -37,7 +38,7 @@ export default function ClientPage() {
     setIsFormOpen(true);
   };
   
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
 
 
   return (
@@ -96,7 +97,7 @@ export default function ClientPage() {
                     <TableCell>{client.shortName}</TableCell>
                     <TableCell>{client.createdBy}</TableCell>
                     <TableCell>
-                      {client.createdAt?.toDate().toLocaleDateString()}
+                      {formatDate(client.createdAt)}
                     </TableCell>
                     {canManage && (
                     <TableCell className="text-right">

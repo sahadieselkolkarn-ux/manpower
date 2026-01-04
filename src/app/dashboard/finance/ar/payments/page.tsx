@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ARPayment } from '@/types/ar-payment';
 import { BankAccount } from '@/types/bank-account';
+import { formatDate } from '@/lib/utils';
 
 export default function ARPaymentsPage() {
   const db = useFirestore();
@@ -86,7 +87,7 @@ export default function ARPaymentsPage() {
               ) : payments && payments.length > 0 ? (
                 payments.map((payment) => (
                   <TableRow key={payment.id}>
-                    <TableCell>{payment.paidAt.toDate().toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(payment.paidAt)}</TableCell>
                     <TableCell className="font-medium">
                       {/* TODO: Link to invoice page */}
                       {payment.invoiceId}

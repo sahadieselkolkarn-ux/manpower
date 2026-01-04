@@ -25,7 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Invoice } from '@/types/invoice';
 import { DollarSign, FileText } from 'lucide-react';
-import { getInvoiceStatusVariant } from '@/lib/utils';
+import { getInvoiceStatusVariant, formatDate } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import ARPaymentForm from '@/components/forms/ar-payment-form';
 import { BankAccount } from '@/types/bank-account';
@@ -37,7 +37,7 @@ export default function ARInvoicesPage() {
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'financeManager';
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('FINANCE_MANAGER');
 
   // Query for invoices that are ready to be paid
   const invoicesQuery = useMemoFirebase(
@@ -127,7 +127,7 @@ export default function ARInvoicesPage() {
                       <TableRow key={invoice.id}>
                         <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                         <TableCell>{/* clientName would be here */ 'Client Placeholder'}</TableCell>
-                        <TableCell>{invoice.dueDate.toDate().toLocaleDateString()}</TableCell>
+                        <TableCell>{formatDate(invoice.dueDate)}</TableCell>
                         <TableCell>
                            <Badge variant={getInvoiceStatusVariant(invoice.status)}>
                             {invoice.status}

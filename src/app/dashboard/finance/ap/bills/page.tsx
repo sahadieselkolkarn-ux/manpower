@@ -38,7 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { BillAP } from '@/types/ap-bill';
-import { getBillStatusVariant } from '@/lib/utils';
+import { getBillStatusVariant, formatDate } from '@/lib/utils';
 import BillForm from '@/components/forms/bill-form';
 import APPaymentForm from '@/components/forms/ap-payment-form';
 import { BankAccount } from '@/types/bank-account';
@@ -53,7 +53,7 @@ export default function APBillsPage() {
   const [selectedBill, setSelectedBill] = useState<BillAP | null>(null);
   const [billToVoid, setBillToVoid] = useState<BillAP | null>(null);
 
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'financeManager';
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('FINANCE_MANAGER');
 
   const billsQuery = useMemoFirebase(() => db ? query(collection(db, 'billsAP'), orderBy('billDate', 'desc')) : null, [db]);
   const { data: bills, isLoading: isLoadingBills, refetch: refetchBills } = useCollection<BillAP>(billsQuery);
@@ -166,8 +166,8 @@ export default function APBillsPage() {
                     <TableRow key={bill.id}>
                       <TableCell className="font-medium">{bill.vendorName}</TableCell>
                       <TableCell><Badge variant="outline">{bill.category}</Badge></TableCell>
-                      <TableCell>{bill.billDate.toDate().toLocaleDateString()}</TableCell>
-                      <TableCell>{bill.dueDate ? bill.dueDate.toDate().toLocaleDateString() : 'N/A'}</TableCell>
+                      <TableCell>{formatDate(bill.billDate)}</TableCell>
+                      <TableCell>{formatDate(bill.dueDate)}</TableCell>
                       <TableCell><Badge variant={getBillStatusVariant(bill.status)}>{bill.status}</Badge></TableCell>
                       <TableCell className="text-right font-mono font-bold">
                         {new Intl.NumberFormat('en-US', { style: 'currency', currency: bill.currency || 'USD' }).format(balance)}

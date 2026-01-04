@@ -27,8 +27,7 @@ import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import WaveSelector, { WaveSelectorData } from '@/components/selectors/wave-selector';
 import { type Wave } from '@/types/wave';
 import FullPageLoader from '@/components/full-page-loader';
-
-const DATE_FORMAT = 'dd/MM/yyyy';
+import { DATE_FORMAT } from '@/lib/utils';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {

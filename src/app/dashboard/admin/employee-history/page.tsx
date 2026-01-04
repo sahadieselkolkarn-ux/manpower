@@ -10,9 +10,10 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import FullPageLoader from '@/components/full-page-loader';
-import { toDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { Employee, WorkHistoryItem } from '@/types/employee';
 import { useEffectOnce } from 'react-use';
+import { toDate } from '@/lib/utils';
 
 interface FlatWorkHistory extends WorkHistoryItem {
   employeeId: string;
@@ -26,7 +27,7 @@ export default function EmployeeHistoryPage() {
   const [history, setHistory] = useState<FlatWorkHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = userProfile?.isAdmin;
 
   useEffectOnce(() => {
     if (!db || !isAdmin) {
@@ -125,8 +126,8 @@ export default function EmployeeHistoryPage() {
                         </TableCell>
                         <TableCell className="font-mono text-xs">{item.waveId}</TableCell>
                         <TableCell>{item.workMode}</TableCell>
-                        <TableCell>{toDate(item.actualStartDate)?.toLocaleDateString() || 'N/A'}</TableCell>
-                        <TableCell>{toDate(item.actualEndDate)?.toLocaleDateString() || 'N/A'}</TableCell>
+                        <TableCell>{formatDate(item.actualStartDate)}</TableCell>
+                        <TableCell>{formatDate(item.actualEndDate)}</TableCell>
                     </TableRow>
                 ))
               ) : (

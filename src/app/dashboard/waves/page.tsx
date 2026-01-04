@@ -20,6 +20,7 @@ import { useEffectOnce } from "react-use";
 import { Badge } from "@/components/ui/badge";
 import WaveForm from "@/components/forms/wave-form";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 
 export default function WavesPage() {
@@ -33,7 +34,7 @@ export default function WavesPage() {
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
 
   const fetchData = async () => {
     if (!db) {
@@ -189,7 +190,7 @@ export default function WavesPage() {
                         <Badge variant={wave.workMode === "Onshore" ? "secondary" : "default"}>{wave.workMode}</Badge>
                     </TableCell>
                     <TableCell>
-                        {wave.planningWorkPeriod.startDate?.toDate().toLocaleDateString()} - {wave.planningWorkPeriod.endDate?.toDate().toLocaleDateString()}
+                        {formatDate(wave.planningWorkPeriod.startDate)} - {formatDate(wave.planningWorkPeriod.endDate)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{wave.status}</Badge>

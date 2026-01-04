@@ -11,7 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AuditLog } from '@/types/audit-log';
 import FullPageLoader from '@/components/full-page-loader';
-import { toDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 
@@ -23,7 +23,7 @@ export default function AuditLogsPage() {
   const logsQuery = useMemoFirebase(() => (db ? query(collection(db, 'audit-logs'), orderBy('timestamp', 'desc')) : null), [db]);
   const { data: logs, isLoading } = useCollection<AuditLog>(logsQuery);
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = userProfile?.isAdmin;
 
   if (authLoading || isLoading) {
     return <FullPageLoader />;
@@ -76,7 +76,7 @@ export default function AuditLogsPage() {
                 logs.map((log) => (
                     <React.Fragment key={log.id}>
                         <TableRow>
-                            <TableCell>{toDate(log.timestamp)?.toLocaleString()}</TableCell>
+                            <TableCell>{formatDate(log.timestamp)}</TableCell>
                             <TableCell>{log.userName}</TableCell>
                             <TableCell><Badge variant="outline">{log.action}</Badge></TableCell>
                             <TableCell>{log.targetEntity}</TableCell>

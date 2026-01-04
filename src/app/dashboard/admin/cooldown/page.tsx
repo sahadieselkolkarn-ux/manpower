@@ -28,10 +28,8 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
-import { toDate } from '@/lib/utils';
+import { toDate, formatDate, DATE_FORMAT } from '@/lib/utils';
 import { format, parse, isValid } from 'date-fns';
-
-const DATE_FORMAT = 'dd/MM/yyyy';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {
@@ -160,7 +158,7 @@ export default function CooldownPolicyPage() {
   const policiesQuery = useMemoFirebase(() => db ? collection(db, 'cooldownPolicies') : null, [db]);
   const { data: policies, isLoading } = useCollection<CooldownPolicy>(policiesQuery);
 
-  const isAdmin = userProfile?.role === 'admin';
+  const isAdmin = userProfile?.isAdmin;
 
   if (authLoading || isLoading) {
       return <FullPageLoader />;
@@ -194,7 +192,7 @@ export default function CooldownPolicyPage() {
         <Card>
           <CardHeader>
             <CardTitle>Current Active Policy (Version: {activePolicy.policyVersion})</CardTitle>
-            <CardDescription>Effective since {toDate(activePolicy.effectiveFrom)?.toLocaleDateString()}</CardDescription>
+            <CardDescription>Effective since {formatDate(activePolicy.effectiveFrom)}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
@@ -223,11 +221,11 @@ export default function CooldownPolicyPage() {
               {sortedPolicies.map(p => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.policyVersion}</TableCell>
-                  <TableCell>{toDate(p.effectiveFrom)?.toLocaleDateString()}</TableCell>
+                  <TableCell>{formatDate(p.effectiveFrom)}</TableCell>
                   <TableCell className="font-mono">
                     {p.matrix.onshore_to_onshore} / {p.matrix.onshore_to_offshore} / {p.matrix.offshore_to_onshore} / {p.matrix.offshore_to_offshore}
                   </TableCell>
-                  <TableCell>{toDate(p.createdAt)?.toLocaleString()}</TableCell>
+                  <TableCell>{formatDate(p.createdAt)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -45,10 +45,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { BillAP } from '@/types/ap-bill';
 import { Textarea } from '../ui/textarea';
-import { toDate } from '@/lib/utils';
+import { toDate, DATE_FORMAT } from '@/lib/utils';
 
-
-const DATE_FORMAT = 'dd/MM/yyyy';
 
 const dateSchema = (required = true) => z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {

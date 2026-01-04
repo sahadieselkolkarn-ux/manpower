@@ -40,8 +40,7 @@ import { BankAccount } from '@/types/bank-account';
 import { Textarea } from '../ui/textarea';
 import { createARPayment } from '@/lib/firestore/ar-payment.service';
 import { useFirestore } from '@/firebase';
-
-const DATE_FORMAT = 'dd/MM/yyyy';
+import { DATE_FORMAT } from '@/lib/utils';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {

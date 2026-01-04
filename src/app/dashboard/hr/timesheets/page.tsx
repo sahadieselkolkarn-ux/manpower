@@ -27,6 +27,7 @@ import { TimesheetBatch } from '@/types/timesheet';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
+import { formatDate } from '@/lib/utils';
 
 export default function TimesheetsListPage() {
   const db = useFirestore();
@@ -41,7 +42,6 @@ export default function TimesheetsListPage() {
 
   const isLoading = authLoading || isLoadingBatches;
 
-  // Corrected permission check
   const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
 
   if (isLoading) {
@@ -112,13 +112,13 @@ export default function TimesheetsListPage() {
                 batches.map((batch) => (
                   <TableRow key={batch.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/hr/timesheets/${batch.id}`)}>
                     <TableCell className="font-medium">
-                      {batch.periodStart.toDate().toLocaleDateString()} - {batch.periodEnd.toDate().toLocaleDateString()}
+                      {formatDate(batch.periodStart)} - {formatDate(batch.periodEnd)}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{batch.status.replace('_', ' ')}</Badge>
                     </TableCell>
                     <TableCell>
-                      {batch.createdAt.toDate().toLocaleString()}
+                      {formatDate(batch.createdAt)}
                     </TableCell>
                     <TableCell>{batch.createdBy}</TableCell>
                   </TableRow>

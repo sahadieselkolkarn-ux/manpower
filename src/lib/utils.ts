@@ -4,12 +4,16 @@ import { Timestamp } from "firebase/firestore";
 import { InvoiceStatus } from "@/types/invoice";
 import { BillStatus } from "@/types/ap-bill";
 import { BadgeProps } from "@/components/ui/badge";
+import { format, parse, isValid } from "date-fns";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export const DATE_FORMAT = 'dd/MM/yyyy';
+
 export const toDate = (value: unknown): Date | undefined => {
+  if (!value) return undefined;
   if (value instanceof Timestamp) {
     return value.toDate();
   }
@@ -22,8 +26,23 @@ export const toDate = (value: unknown): Date | undefined => {
       return d;
     }
   }
+  // Try parsing from dd/MM/yyyy as a fallback
+  if (typeof value === 'string') {
+    const parsed = parse(value, DATE_FORMAT, new Date());
+    if (isValid(parsed)) {
+      return parsed;
+    }
+  }
   return undefined;
 };
+
+export const formatDate = (date: Date | Timestamp | string | undefined | null): string => {
+    if (!date) return 'N/A';
+    const dateObj = toDate(date);
+    if (!dateObj) return 'Invalid Date';
+    return format(dateObj, DATE_FORMAT);
+};
+
 
 export const getInvoiceStatusVariant = (status: InvoiceStatus): BadgeProps['variant'] => {
     switch (status) {

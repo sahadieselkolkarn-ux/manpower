@@ -18,6 +18,7 @@ import { Client } from "@/types/client";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 export default function ContractPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -30,7 +31,7 @@ export default function ContractPage() {
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
   
   const fetchData = async () => {
     if (!db) {
@@ -145,7 +146,7 @@ export default function ContractPage() {
                        <Badge variant={contract.status === 'active' ? 'default' : 'secondary'}>{contract.status}</Badge>
                     </TableCell>
                     <TableCell>
-                      {contract.createdAt?.toDate().toLocaleDateString()}
+                      {formatDate(contract.createdAt)}
                     </TableCell>
                     {canManage && (
                     <TableCell className="text-right">

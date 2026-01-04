@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { collection, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import { APPayment } from '@/types/ap-payment';
 import { BankAccount } from '@/types/bank-account';
 import { BillAP } from '@/types/ap-bill';
 import { useEffect, useState } from 'react';
+import { formatDate } from '@/lib/utils';
 
 export default function APPaymentsPage() {
   const db = useFirestore();
@@ -51,10 +52,19 @@ export default function APPaymentsPage() {
       setIsLoadingBills(true);
       const billIds = [...new Set(payments.map(p => p.billId))];
       if (billIds.length > 0) {
-        const billsRef = collection(db, 'billsAP');
-        const billsQuery = query(billsRef, where('__name__', 'in', billIds));
-        const billSnaps = await getDocs(billsQuery);
-        const fetchedBillMap = new Map(billSnaps.docs.map(doc => [doc.id, { id: doc.id, ...doc.data() } as BillAP]));
+        // Firestore 'in' query is limited to 30 items. For more, chunk the array.
+        const chunks = [];
+        for (let i = 0; i < billIds.length; i += 30) {
+          chunks.push(billIds.slice(i, i + 30));
+        }
+        
+        const fetchedBillMap = new Map<string, BillAP>();
+        for (const chunk of chunks) {
+            const billsRef = collection(db, 'billsAP');
+            const billsQuery = query(billsRef, where('__name__', 'in', chunk));
+            const billSnaps = await getDocs(billsQuery);
+            billSnaps.forEach(doc => fetchedBillMap.set(doc.id, { id: doc.id, ...doc.data() } as BillAP));
+        }
         setBillMap(fetchedBillMap);
       }
       setIsLoadingBills(false);
@@ -110,7 +120,7 @@ export default function APPaymentsPage() {
                   const bill = billMap.get(payment.billId);
                   return (
                     <TableRow key={payment.id}>
-                      <TableCell>{payment.paidAt.toDate().toLocaleDateString()}</TableCell>
+                      <TableCell>{formatDate(payment.paidAt)}</TableCell>
                       <TableCell className="font-medium">{bill?.vendorName || 'N/A'}</TableCell>
                       <TableCell>{bill?.billNo || 'N/A'}</TableCell>
                       <TableCell className="font-mono">

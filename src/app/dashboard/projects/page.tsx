@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useEffectOnce } from "react-use";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { formatDate } from "@/lib/utils";
 
 
 export default function ProjectPage() {
@@ -32,7 +33,7 @@ export default function ProjectPage() {
   const db = useFirestore();
   const { userProfile } = useAuth();
   
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
 
   const fetchData = async () => {
     if (!db) {
@@ -173,7 +174,7 @@ export default function ProjectPage() {
                     </TableCell>
                     <TableCell>
                       {/* @ts-ignore */}
-                      {project.createdAt?.toDate().toLocaleDateString()}
+                      {formatDate(project.createdAt)}
                     </TableCell>
                     {canManage && (
                     <TableCell className="text-right">
