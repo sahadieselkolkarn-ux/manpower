@@ -66,6 +66,7 @@ service cloud.firestore {
         || hasRoleCode("OPERATION_MANAGER");
     }
 
+    // This is the main check for dev mode: is the user part of the internal team?
     function isInternalStaff() {
       return isHR() || isFinance() || isOperation() || isAdmin();
     }
@@ -73,6 +74,8 @@ service cloud.firestore {
     function isOwner(userId) {
       return isSignedIn() && myUid() == userId;
     }
+
+    // --- RULE DEFINITIONS ---
 
     // SETTINGS: bootstrap allowlist lives here
     match /settings/security {
@@ -85,7 +88,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // USERS
+    // USERS: Keep this strict
     match /users/{userId} {
 
       allow get: if isOwner(userId) || isAdmin();
@@ -127,82 +130,48 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // ROLES master
+    // ROLES master: Read for any staff, write only for admin
     match /roles/{roleId} {
-      allow read: if isSignedIn();
+      allow read: if isInternalStaff();
       allow write: if isAdmin();
     }
 
-    // HR master
-    match /employees/{id} {
-      allow read: if isHR() || isFinance() || isAdmin();
-      allow write: if isHR() || isAdmin();
+    // HR master data: Open for any internal staff for now
+    match /employees/{id} { allow read, write: if isInternalStaff(); }
+    match /hospitals/{id} { allow read, write: if isInternalStaff(); }
+    match /certificateTypes/{id} { allow read, write: if isInternalStaff(); }
+    match /officePositions/{id} { allow read, write: if isInternalStaff(); }
+    match /manpowerPositions/{id} { allow read, write: if isInternalStaff(); }
+    match /cooldownPolicies/{id} { allow read, write: if isInternalStaff(); }
+    match /positions/{id} { allow read, write: if isInternalStaff(); } // Legacy
+
+    // Timesheets: Open for any internal staff for now
+    match /timesheetBatches/{id} { allow read, write: if isInternalStaff(); }
+    match /timesheetLines/{id} { allow read, write: if isInternalStaff(); }
+
+    // Finance data: Open for any internal staff for now
+    match /payrolls/{id} { allow read, write: if isInternalStaff(); }
+    match /taxProfiles/{id} { allow read, write: if isInternalStaff(); }
+    match /bankAccounts/{id} { allow read, write: if isInternalStaff(); }
+    match /invoices/{id} { allow read, write: if isInternalStaff(); }
+    match /billsAP/{id} { allow read, write: if isInternalStaff(); }
+    match /paymentsAR/{id} { allow read, write: if isInternalStaff(); }
+    match /paymentsAP/{id} { allow read, write: if isInternalStaff(); }
+    match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
+
+    // Operation data (clients tree): Open for any internal staff for now
+    match /clients/{clientId}/{document=**} {
+        allow read, write: if isInternalStaff();
     }
-    match /hospitals/{id} { allow read, write: if isHR() || isAdmin(); }
-    match /certificateTypes/{id} { allow read, write: if isHR() || isAdmin(); }
-    match /officePositions/{id} { allow read, write: if isHR() || isAdmin(); }
-    match /manpowerPositions/{id} { allow read, write: if isHR() || isAdmin(); }
-    match /cooldownPolicies/{id} { allow read, write: if isHR() || isAdmin(); }
-
-
-    // Timesheets
-    match /timesheetBatches/{batchId} {
-      allow read: if isHR() || isFinance() || isAdmin();
-      allow create: if isHR();
-      allow update: if (isHRManager() && resource.data.status == 'DRAFT') || 
-                       (isFinance() && resource.data.status == 'HR_APPROVED');
-    }
-    
-    match /timesheetLines/{lineId} {
-      allow read: if isHR() || isFinance() || isAdmin();
-      function canEditTimesheet() {
-        let batchId = request.resource.data.batchId;
-        let batch = get(/databases/$(database)/documents/timesheetBatches/$(batchId)).data;
-        return batch.status == 'DRAFT' && (isHR() || isAdmin());
-      }
-      allow create, update: if canEditTimesheet();
-      allow delete: if isHR() || isAdmin();
-    }
-
-    // Finance (placeholders but protected)
-    match /payrolls/{id} { allow read, write: if isFinance() || isAdmin(); }
-    match /taxProfiles/{id} { allow read, write: if isFinance() || isOwner(resource.data.personRefId) || isHR(); }
-    match /bankAccounts/{id} { allow read, write: if isFinance() || isAdmin(); }
-    match /invoices/{id} { allow read, write: if isFinance() || isAdmin(); }
-    match /billsAP/{id} { allow read, write: if isFinance() || isAdmin(); }
-    match /paymentsAR/{id} { allow read, write: if isFinance() || isAdmin(); }
-    match /paymentsAP/{id} { allow read, write: if isFinance() || isAdmin(); }
-    match /cashMovements/{id} { allow read, write: if isFinance() || isAdmin(); }
-
-    // Operation data (clients tree)
-    match /clients/{clientId} {
-      allow read: if isInternalStaff();
-      allow write: if isOperation() || isAdmin();
-
-      match /contracts/{contractId} {
-        allow read: if isInternalStaff();
-        allow write: if isOperation() || isAdmin();
-
-        match /projects/{projectId} {
-          allow read: if isInternalStaff();
-          allow write: if isOperation() || isAdmin();
-
-          match /waves/{waveId} {
-            allow read: if isInternalStaff();
-            allow write: if isOperation() || isAdmin();
-             match /assignments/{assignmentId} {
-                allow read: if isInternalStaff();
-                allow write: if isHR() || isOperation() || isAdmin();
-            }
-          }
-        }
-      }
+     match /clients/{clientId} {
+        allow read, write: if isInternalStaff();
     }
 
-    match /audit-logs/{id} { allow read: if isAdmin(); allow create: if isSignedIn(); }
 
-    match /{document=**} {
-      allow read, write: if false;
+    // Audit logs: Any signed in user can create, only admin can read
+    match /audit-logs/{id} { 
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
     }
   }
 }
