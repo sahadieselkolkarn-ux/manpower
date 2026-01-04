@@ -14,6 +14,7 @@ import {
   writeBatch,
   serverTimestamp,
   collectionGroup,
+  doc,
 } from 'firebase/firestore';
 
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -32,8 +33,9 @@ import { ArrowLeft, UserCheck } from 'lucide-react';
 import FullPageLoader from '@/components/full-page-loader';
 import { WaveWithProject } from '@/types/wave';
 import { Employee } from '@/types/employee';
-import { formatDate, parseThaiDateToISO } from '@/lib/utils';
 import { Assignment } from '@/types/assignment';
+import { parseThaiDateToISO, formatDate } from '@/lib/date/thaiDate';
+import { DATE_FORMAT } from '@/lib/utils';
 
 const formSchema = z.object({
   waveId: z.string().min(1, 'A wave must be selected.'),
@@ -104,6 +106,9 @@ function NewAssignmentFormComponent() {
         form.setValue('startDate', formatDate(selectedWave.planningWorkPeriod.startDate));
         form.setValue('endDate', formatDate(selectedWave.planningWorkPeriod.endDate));
       }
+    } else {
+        form.setValue('startDate', '');
+        form.setValue('endDate', '');
     }
   }, [selectedWaveId, waves, form]);
   
@@ -120,6 +125,20 @@ function NewAssignmentFormComponent() {
       return;
     }
 
+    const parsedStartDate = values.startDate ? parseThaiDateToISO(values.startDate) : { ok: true, iso: '' };
+    const parsedEndDate = values.endDate ? parseThaiDateToISO(values.endDate) : { ok: true, iso: '' };
+
+    if (!parsedStartDate.ok) {
+        form.setError('startDate', { message: parsedStartDate.error });
+        setLoading(false);
+        return;
+    }
+    if (!parsedEndDate.ok) {
+        form.setError('endDate', { message: parsedEndDate.error });
+        setLoading(false);
+        return;
+    }
+
     try {
       for (const employeeId of values.employeeIds) {
         const employee = manpower?.find(e => e.id === employeeId);
@@ -129,7 +148,7 @@ function NewAssignmentFormComponent() {
         const q = query(collection(db, 'assignments'), where('waveId', '==', values.waveId), where('employeeId', '==', employeeId), where('status', '==', 'ACTIVE'));
         const existing = await getDocs(q);
         if (!existing.empty) {
-            toast({ variant: 'destructive', title: 'Skipped Duplicate', description: `${employee.employeeName} is already actively assigned to this wave.` });
+            toast({ variant: 'destructive', title: 'Skipped Duplicate', description: `${employee.personalInfo.firstName} is already actively assigned to this wave.` });
             continue; // Skip this employee
         }
 
@@ -143,8 +162,8 @@ function NewAssignmentFormComponent() {
           employeeName: `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`,
           employeeType: employee.employeeType,
           status: 'ACTIVE',
-          startDate: parseThaiDateToISO(values.startDate),
-          endDate: parseThaiDateToISO(values.endDate),
+          startDate: parsedStartDate.iso || null,
+          endDate: parsedEndDate.iso || null,
           notes: values.notes || '',
           createdAt: serverTimestamp(),
           createdBy: userProfile.uid,
@@ -235,7 +254,7 @@ function NewAssignmentFormComponent() {
                                       checked={field.value?.includes(emp.id)}
                                       onCheckedChange={(checked) => {
                                         return checked
-                                          ? field.onChange([...field.value, emp.id])
+                                          ? field.onChange([...(field.value || []), emp.id])
                                           : field.onChange(field.value?.filter((id) => id !== emp.id));
                                       }}
                                     />
@@ -256,10 +275,10 @@ function NewAssignmentFormComponent() {
                      <FormLabel>3. Assignment Period</FormLabel>
                      <div className="grid grid-cols-2 gap-4">
                         <FormField control={form.control} name="startDate" render={({ field }) => (
-                          <FormItem><FormLabel className="text-muted-foreground font-normal">Start Date</FormLabel><FormControl><Input placeholder="dd/MM/yyyy" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-muted-foreground font-normal">Start Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                          <FormField control={form.control} name="endDate" render={({ field }) => (
-                          <FormItem><FormLabel className="text-muted-foreground font-normal">End Date</FormLabel><FormControl><Input placeholder="dd/MM/yyyy" {...field} /></FormControl><FormMessage /></FormItem>
+                          <FormItem><FormLabel className="text-muted-foreground font-normal">End Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                      </div>
                   </div>
