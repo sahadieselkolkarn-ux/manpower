@@ -1,186 +1,72 @@
-
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
+    // Helper Functions
     function isSignedIn() {
       return request.auth != null;
     }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified;
+    }
 
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+
+    function isUserAdmin(userId) {
+      return getUserData(userId).role == 'ADMIN';
+    }
+
+    function getSecuritySettings() {
+      return get(/databases/$(database)/documents/settings/security).data;
+    }
+
+    // --- Rules Start Here ---
+
+    // SETTINGS: Only admins can read/write security settings.
+    match /settings/security {
+      allow read: if isSignedIn();
+      allow write: if isUserAdmin(request.auth.uid);
     }
     
-    function isAdmin() {
-      // Check the user's document in Firestore to determine admin status.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // hasRole is not fully implemented with custom claims yet.
-    // This provides a placeholder for future role-based security.
-    function hasRole(roleCode) {
-        // For now, only an admin can have roles that grant extra permissions.
-        // This will be expanded when custom claims are implemented.
-        return isAdmin(); 
-    }
-
-    function isHrManager() {
-        return hasRole('HR_MANAGER') || isAdmin();
-    }
-    
-    function isFinanceManager() {
-        return hasRole('FINANCE_MANAGER') || isAdmin();
-    }
-
-    function isOperationManager() {
-        return hasRole('OPERATION_MANAGER') || isAdmin();
-    }
-
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
+      // READ: Users can read their own profile. Admins can read any profile.
+      allow get: if request.auth.uid == userId || isUserAdmin(request.auth.uid);
       
-      // Allow user to create their own profile document, but with restrictions.
-      allow create: if isOwner(userId)
-                    && request.resource.data.uid == request.auth.uid
-                    // Ensure they cannot make themselves an admin on creation.
-                    && request.resource.data.isAdmin == false
-                    // Ensure they start with no roles.
-                    && request.resource.data.roleIds == [];
-
-      // Allow user to update their own document, but not their roles or admin status.
-      allow update: if isOwner(userId) 
-                    && request.resource.data.isAdmin == resource.data.isAdmin
-                    && request.resource.data.roleIds == resource.data.roleIds;
+      // LIST: Only admins can list all users.
+      allow list: if isUserAdmin(request.auth.uid);
       
-      // Only an admin can update another user's roles or admin status.
-      allow update: if isAdmin();
-      
-      allow delete: if isAdmin();
-    }
-    
-    match /roles/{roleId} {
-        // Any signed-in user can get a specific role document (e.g., to see its name).
-        allow get: if isSignedIn();
-        // Only an admin can list all roles or write to them.
-        allow list, write: if isAdmin();
+      // CREATE: A user can create their OWN profile document, one time only.
+      // The role is determined by the bootstrap settings.
+      allow create: if request.auth.uid == userId
+                    && !exists(/databases/$(database)/documents/users/$(userId))
+                    && (
+                      // Case 1: Bootstrap is open and user is in allowlist
+                      (
+                        getSecuritySettings().bootstrap.isOpen == true
+                        && request.auth.token.email in getSecuritySettings().bootstrap.adminEmailsAllowlist
+                        && request.resource.data.role == 'ADMIN'
+                        && request.resource.data.department == 'MANAGEMENT'
+                      ) ||
+                      // Case 2: Any other case (bootstrap closed, or not in list)
+                      (
+                        request.resource.data.role == 'PENDING'
+                      )
+                    )
+                    // Validate common fields on creation
+                    && request.resource.data.email == request.auth.token.email
+                    && request.resource.data.isActive == true;
+
+      // UPDATE: Admins can update any user.
+      allow update: if isUserAdmin(request.auth.uid);
     }
 
-    match /clients/{clientId} {
-      allow read: if isOperationManager() || isFinanceManager() || isAdmin();
-      allow write: if isOperationManager() || isAdmin();
-      
-      match /contracts/{contractId} {
-        allow read: if isOperationManager() || isFinanceManager() || isAdmin();
-        allow write: if isOperationManager() || isAdmin();
-
-        match /projects/{projectId} {
-          allow read: if isOperationManager() || isFinanceManager() || isAdmin();
-          allow write: if isOperationManager() || isAdmin();
-
-          match /waves/{waveId} {
-            allow read: if isOperationManager() || isHrManager() || isAdmin();
-            allow write: if isOperationManager() || isAdmin();
-
-            match /assignments/{assignmentId} {
-              allow read, write: if isOperationManager() || isHrManager();
-            }
-          }
-        }
-      }
-    }
-    
-    match /timesheetBatches/{batchId} {
-        allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
-    }
-
-    match /timesheetLines/{lineId} {
-      allow read, delete: if isHrManager() || isAdmin();
-      allow create, update: if (isHrManager() || isAdmin()) && get(/databases/$(database)/documents/timesheetBatches/$(request.resource.data.batchId)).data.status == 'DRAFT';
-    }
-
-    match /payrolls/{payrollId} {
-        allow read, write: if isFinanceManager();
-    }
-    match /invoices/{invoiceId} {
-        allow get, list: if isFinanceManager() || isOperationManager();
-        allow create, update: if isFinanceManager();
-    }
-    
-    match /billsAP/{billId} {
-      allow read, list, write: if isFinanceManager() || isAdmin();
-    }
-    match /paymentsAP/{paymentId} {
-      allow read, create: if isFinanceManager() || isAdmin();
-    }
-    match /bankAccounts/{accountId} {
-      allow read, write: if isFinanceManager() || isAdmin();
-    }
-    match /cashMovements/{movementId} {
-      allow read, create: if isFinanceManager() || isAdmin();
-    }
-    match /paymentsAR/{paymentId} {
-      allow read, create: if isFinanceManager() || isAdmin();
-    }
-    
-    match /pnd1Runs/{runId} {
-        allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
-        match /lines/{lineId} {
-            allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
-        }
-    }
-    
-    match /officePositions/{positionId} {
-        allow read, write: if isHrManager() || isAdmin();
-    }
-    match /manpowerPositions/{positionId} {
-        allow read, write: if isHrManager() || isAdmin();
-    }
-    
-    match /certificateTypes/{typeId} {
-        allow read: if isSignedIn();
-        allow write: if isHrManager() || isAdmin();
-    }
-
-    match /employees/{employeeId} {
-        allow read: if isHrManager() || isOperationManager() || isAdmin();
-        allow write: if isHrManager() || isAdmin();
-    }
-    
-    match /hospitals/{hospitalId} {
-        allow read: if isHrManager() || isAdmin();
-        allow write: if isHrManager() || isAdmin();
-    }
-    
-    match /audit-logs/{logId} {
-        allow read: if isAdmin();
-        allow create: if isSignedIn();
-    }
-
-    match /settings/{docId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-    }
-    
-    match /companyProfile/{profileId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-    }
-
-    match /holidayCalendars/{calendarId} {
-        allow read: if isSignedIn();
-        allow write: if isHrManager() || isAdmin();
-    }
-
-    match /attendanceDaily/{dailyId} {
-        allow read, write: if isHrManager() || isAdmin();
-    }
-
-    match /attendanceBatches/{batchId} {
-        allow read, write: if isHrManager() || isAdmin();
-        match /lines/{lineId} {
-          allow read, write: if isHrManager() || isAdmin();
-        }
+    // Default deny all other collections for now
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

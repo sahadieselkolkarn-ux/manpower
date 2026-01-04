@@ -1,29 +1,26 @@
-// src/app/signup/page.tsx
+// src/app/login/page.tsx
 'use client';
 
 import { useState } from 'react';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function SignUpPage() {
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      // On successful creation, onAuthStateChanged in the hook will trigger profile bootstrap.
-      // Redirect to login to let the user sign in with their new account.
-      alert('Sign up successful! Please log in.');
-      router.push('/login');
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push('/dashboard');
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -33,8 +30,8 @@ export default function SignUpPage() {
 
   return (
     <div>
-      <h1>Sign Up</h1>
-      <form onSubmit={handleSignUp}>
+      <h1>Login</h1>
+      <form onSubmit={handleLogin}>
         <input
           type="email"
           value={email}
@@ -50,12 +47,12 @@ export default function SignUpPage() {
           required
         />
         <button type="submit" disabled={loading}>
-          {loading ? 'Signing up...' : 'Sign Up'}
+          {loading ? 'Logging in...' : 'Login'}
         </button>
         {error && <p style={{ color: 'red' }}>{error}</p>}
       </form>
       <p>
-        Already have an account? <Link href="/login">Login</Link>
+        Don't have an account? <Link href="/signup">Sign up</Link>
       </p>
     </div>
   );
