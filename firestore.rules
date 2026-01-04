@@ -8,45 +8,19 @@ service cloud.firestore {
     function isSignedIn() {
       return request.auth != null;
     }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    // --- Rule Definitions ---
-
-    // USERS: Stays relatively secure. Owner can write, Admin can do anything.
-    // This is more complex than a simple isOwner check but is safer.
-    function isBootstrapAdminAllowlisted() {
-      return securityDoc().bootstrap.isOpen == true && request.auth.token.email in securityDoc().bootstrap.adminEmailsAllowlist;
-    }
-
-    function securityDoc() {
-      return get(/databases/$(database)/documents/settings/security).data;
-    }
-
-    function isAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
     
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
-    }
-
-    // ROLES: Allow read for any signed-in user, write for admin.
-    match /roles/{roleId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    // SETTINGS: Allow read for any signed-in user, write for admin.
-    match /settings/{docId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
     
     // --- DEV MODE OVERRIDE ---
     // The following collections are open to any authenticated user for development purposes.
     // This is NOT secure for production.
+
+    // This rule is specifically for collectionGroup('contracts') queries.
+    match /{path=**}/contracts/{contractId} {
+      allow read, write: if isSignedIn();
+    }
     
     // HR Master Data
     match /employees/{id} { allow read, write: if isSignedIn(); }
@@ -82,5 +56,7 @@ service cloud.firestore {
     match /exports/{id} { allow read, write: if isSignedIn(); }
     match /audit-logs/{id} { allow read, write: if isSignedIn(); }
     match /companyProfile/{id} { allow read, write: if isSignedIn(); }
+    match /settings/{docId} { allow read, write: if isSignedIn(); }
+    match /roles/{roleId} { allow read, write: if isSignedIn(); }
   }
 }

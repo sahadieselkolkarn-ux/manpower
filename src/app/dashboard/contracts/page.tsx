@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, PlusCircle, Lock } from "lucide-react";
+import { MoreHorizontal, PlusCircle, Lock, ShieldAlert } from "lucide-react";
 import { collection, collectionGroup, getDocs } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +26,7 @@ export default function ContractPage() {
   const [contracts, setContracts] = useState<ContractWithClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const db = useFirestore();
@@ -40,6 +41,7 @@ export default function ContractPage() {
     }
 
     setIsLoading(true);
+    setError(null);
     try {
       const clientSnapshot = await getDocs(collection(db, 'clients'));
       const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
@@ -58,8 +60,9 @@ export default function ContractPage() {
       });
 
       setContracts(contractList);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching data:", error);
+      setError(error.message);
     } finally {
       setIsLoading(false);
     }
@@ -98,6 +101,20 @@ export default function ContractPage() {
       <p className="text-muted-foreground">
         Manage all client contracts and their terms.
       </p>
+
+      {error && (
+         <Card className="bg-destructive/10 border-destructive">
+            <CardHeader>
+                <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert />Error Loading Contracts</CardTitle>
+                <CardDescription className="text-destructive">
+                    There was a problem fetching the contract list. Please check the console or contact support.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <pre className="text-xs text-destructive-foreground bg-destructive p-2 rounded-md">{error}</pre>
+            </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
