@@ -34,7 +34,7 @@ import FullPageLoader from '@/components/full-page-loader';
 import { WaveWithProject } from '@/types/wave';
 import { Employee } from '@/types/employee';
 import { Assignment } from '@/types/assignment';
-import { parseThaiDateToISO, formatDate } from '@/lib/date/thaiDate';
+import { parseThaiDateToISO, formatThaiDateFromISO, formatDate } from '@/lib/date/thaiDate';
 import { DATE_FORMAT } from '@/lib/utils';
 
 const formSchema = z.object({
@@ -116,14 +116,24 @@ function NewAssignmentFormComponent() {
     if (!db || !userProfile) return;
     setLoading(true);
     
-    const batch = writeBatch(db);
-    const selectedWave = waves?.find(w => w.id === values.waveId);
-    
-    if (!selectedWave) {
+    const waveDocRef = waves?.find(w => w.id === values.waveId)?.ref;
+
+    if (!waveDocRef) {
       toast({ variant: 'destructive', title: 'Error', description: 'Selected wave not found.' });
       setLoading(false);
       return;
     }
+    const waveSnap = await getDoc(waveDocRef);
+    if (!waveSnap.exists()) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Wave document does not exist.' });
+        setLoading(false);
+        return;
+    }
+    const selectedWave = {id: waveSnap.id, ...waveSnap.data()} as WaveWithProject;
+    const pathSegments = waveDocRef.path.split('/');
+    const clientId = pathSegments[1];
+    const contractId = pathSegments[3];
+    const projectId = pathSegments[5];
 
     const parsedStartDate = values.startDate ? parseThaiDateToISO(values.startDate) : { ok: true, iso: '' };
     const parsedEndDate = values.endDate ? parseThaiDateToISO(values.endDate) : { ok: true, iso: '' };
@@ -140,11 +150,11 @@ function NewAssignmentFormComponent() {
     }
 
     try {
+      const batch = writeBatch(db);
       for (const employeeId of values.employeeIds) {
         const employee = manpower?.find(e => e.id === employeeId);
         if (!employee) continue;
 
-        // Check for duplicates before adding to batch
         const q = query(collection(db, 'assignments'), where('waveId', '==', values.waveId), where('employeeId', '==', employeeId), where('status', '==', 'ACTIVE'));
         const existing = await getDocs(q);
         if (!existing.empty) {
@@ -155,8 +165,8 @@ function NewAssignmentFormComponent() {
         const assignmentRef = doc(collection(db, 'assignments'));
         batch.set(assignmentRef, {
           waveId: values.waveId,
-          projectId: selectedWave.projectId,
-          clientId: selectedWave.clientId,
+          projectId: projectId,
+          clientId: clientId,
           employeeId: employee.id,
           employeeCode: employee.employeeCode,
           employeeName: `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`,

@@ -4,6 +4,8 @@
 
 import { type Timestamp } from 'firebase/firestore';
 
+export type EligibilityStatus = "PASS" | "ALERT" | "FAIL";
+
 export interface Assignment {
   id: string;
   waveId: string;
@@ -15,13 +17,36 @@ export interface Assignment {
   employeeName: string; // Snapshot
   employeeType: 'OFFICE' | 'FIELD'; // Snapshot
 
-  positionId?: string;
+  positionId: string;
+  positionName: string; // Snapshot
   
-  status: 'ACTIVE' | 'ENDED';
+  status: 'PENDING' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
   
   startDate: string; // ISO "YYYY-MM-DD"
   endDate: string;   // ISO "YYYY-MM-DD"
   notes?: string;
+
+  eligibility?: {
+    passportStatus: EligibilityStatus;
+    certificateStatus: EligibilityStatus;
+    cooldownStatus: EligibilityStatus;
+    overall: EligibilityStatus;
+    details: string[];
+  };
+
+  override?: {
+    overrideFlag: boolean;
+    overrideReason?: string;
+    overrideBy?: string;
+    overrideAt?: Timestamp;
+  };
+
+  policyVersion?: string; // Cooldown policy version
+  workModePair?: string; // e.g. "onshore_to_offshore"
+  appliedRestDays?: number;
+
+  costRateAtSnapshot?: number;
+  sellRateAtSnapshot?: number;
   
   // Audit fields
   createdAt: Timestamp;
