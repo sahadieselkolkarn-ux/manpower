@@ -1734,5 +1734,88 @@
       },
       "description": "Summary lines for the monthly attendance batch."
     }
+  },
+  "documentation": {
+    "v1.2_delta_notice": "Use the original blueprint + this DELTA; if conflict, this DELTA wins.",
+    "v1.2_delta": {
+      "title": "BLUEPRINT v1.2 DELTA – RBAC/RULES/SIGNUP (Authoritative)",
+      "content": {
+        "precedence_rule": {
+          "title": "Precedence Rule",
+          "description": "This DELTA is the latest truth for Auth/RBAC/Firestore Rules and must override any conflicting older blueprint rules. For all other modules, keep the original blueprint unchanged."
+        },
+        "single_source_firestore_rules": {
+          "title": "Single Source of Truth – Firestore Rules",
+          "points": [
+            "Firestore rules deployed MUST come from exactly one file: `/firestore.rules` (root).",
+            "`firebase.json` must point `\"firestore.rules\"` to this root file only. Avoid duplicate rules files that cause deploying the wrong one."
+          ]
+        },
+        "security_settings": {
+          "title": "Security Settings (Bootstrap Admin)",
+          "document": "`settings/security`",
+          "structure": {
+            "bootstrap.isOpen": "boolean",
+            "bootstrap.adminEmailsAllowlist": "string[]"
+          },
+          "logic": [
+            "If `isOpen=true` and current auth email is in allowlist → first profile creation is allowed to set `isAdmin=true` and must include `roleCodes=[\"ADMIN\"]`.",
+            "Optional policy: close bootstrap after first admin is established."
+          ]
+        },
+        "user_profile_model": {
+          "title": "User Profile Model (Firestore: `users/{uid}`)",
+          "required_fields": {
+            "uid": "string (must equal `request.auth.uid`)",
+            "email": "string (must equal `request.auth.token.email`)",
+            "displayName": "string (optional)",
+            "phone": "string (optional)",
+            "status": "\"ACTIVE\" | \"DISABLED\"",
+            "isAdmin": "boolean",
+            "roleIds": "string[] (references roles master)",
+            "roleCodes": "RoleCode[] (authoritative for rules checks)",
+            "employeeId": "string (optional, links to `employees`)",
+            "createdAt, updatedAt": "serverTimestamp"
+          },
+          "note": "Signup must NOT allow users to choose roles or admin status."
+        },
+        "roles_master": {
+          "title": "Roles Master (`roles/{roleId}`)",
+          "points": [
+            "Roles are master data managed by admin.",
+            "Firestore rules must authorize using `users.roleCodes` (not roleIds) to avoid rule-time joins.",
+            "Admin UI that assigns `roleIds` must also compute and persist matching `roleCodes` onto the user profile every time."
+          ]
+        },
+        "rbac_enforcement": {
+          "title": "RBAC Enforcement – Rules and UI must match",
+          "rules_behavior": {
+            "owner_read": "Owner can read own `users/{uid}`.",
+            "admin_list": "Only admin can list users (prevents directory scraping).",
+            "owner_update": "Owner update only safe fields and MUST NOT change: `isAdmin`, `roleIds`, `roleCodes`, `status`, `email`, `uid`.",
+            "admin_update": "Admin can update any user profile.",
+            "create_profile": [
+              "Owner can create only their own doc.",
+              "Allowlisted bootstrap can create with admin privileges only under the bootstrap conditions above."
+            ]
+          },
+          "ui_gating": "UI permission checks must rely on `user.roleCodes` for consistency with rules."
+        },
+        "signup_ux": {
+          "title": "Signup UX (Internal-friendly)",
+          "required_fields": ["firstName", "lastName", "email", "password", "confirmPassword"],
+          "optional_fields": ["phone"],
+          "consent": {
+            "necessary_cookies": "checked+disabled",
+            "analytics_cookies": "optional"
+          },
+          "flow": "After `createUserWithEmailAndPassword`, create `users/{uid}` doc using bootstrap logic from `settings/security`."
+        },
+        "compatibility_note": {
+          "title": "Compatibility Note",
+          "description": "All existing business modules/collections remain as defined in the original blueprint (timesheets, employees, assignments, client/contract/project/wave, etc.). Only Auth/RBAC/Rules/UserProfile schema is updated by this DELTA."
+        }
+      }
+    }
   }
 }
