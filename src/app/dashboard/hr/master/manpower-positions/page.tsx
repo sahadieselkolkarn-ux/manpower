@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { collection, query } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, PlusCircle, ShieldAlert, Users } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function ManpowerPositionsPage() {
   const manpowerPositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'manpowerPositions')) : null), [db]);
   const { data: manpowerPositions, isLoading: isLoadingManpower, refetch: refetchManpower } = useCollection<ManpowerPosition>(manpowerPositionsQuery);
 
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes('HR_MANAGER');
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
 
   const handleCreate = () => {
     setSelectedPosition(null);
@@ -57,7 +57,7 @@ export default function ManpowerPositionsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><Users />Manpower Position</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><Users />Manpower Positions</h1>
           <p className="text-muted-foreground">Manage system-wide job positions for manpower.</p>
         </div>
         <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Position</Button>

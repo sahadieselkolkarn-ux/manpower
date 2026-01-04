@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { collection, query } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, PlusCircle, ShieldAlert, BookUser } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function OfficePositionsPage() {
   const officePositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'officePositions')) : null), [db]);
   const { data: officePositions, isLoading: isLoadingOffice, refetch: refetchOffice } = useCollection<OfficePosition>(officePositionsQuery);
 
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes('HR_MANAGER');
+  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
 
   const handleCreate = () => {
     setSelectedPosition(null);
@@ -57,7 +57,7 @@ export default function OfficePositionsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><BookUser />Office Position</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><BookUser />Office Positions</h1>
           <p className="text-muted-foreground">Manage system-wide job positions for office staff.</p>
         </div>
         <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Position</Button>

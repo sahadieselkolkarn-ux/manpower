@@ -2,6 +2,7 @@
 
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -374,7 +375,7 @@ export default function EmployeeForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{employee ? 'Edit' : 'Add New'} {employeeType === 'FIELD' ? 'Manpower' : 'Office'} Employee</DialogTitle>
+          <DialogTitle>{employee ? 'Edit' : 'Add New'} {employeeType === 'FIELD' ? 'ลูกจ้างแมนพาวเวอร์' : 'พนักงานออฟฟิศ'}</DialogTitle>
           <DialogDescription>
             Fill in the details below. Click save when you're done.
           </DialogDescription>

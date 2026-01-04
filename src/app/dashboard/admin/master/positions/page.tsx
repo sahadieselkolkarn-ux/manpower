@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 // We redirect to the manpower page as a sensible default.
 export default function DeprecatedPositionsPage() {
   useEffect(() => {
-    redirect('/dashboard/hr/master/manpower-positions');
+    redirect('/dashboard/hr/settings/manpower-positions');
   }, []);
 
   return null;
