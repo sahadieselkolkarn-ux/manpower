@@ -31,22 +31,17 @@ service cloud.firestore {
     }
     
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin();
-      allow create: if isOwner(userId); // Simplified for now
-      allow update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if isOwner(userId);
     }
 
     // ROLES: Allow read for any signed-in user, write for admin.
     match /roles/{roleId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read, write: if isSignedIn();
     }
     
-    // SETTINGS: Admin-only
+    // SETTINGS: Allow read for any signed-in user, write for admin.
     match /settings/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isSignedIn();
     }
     
     // --- DEV MODE OVERRIDE ---
@@ -59,7 +54,7 @@ service cloud.firestore {
     match /certificateTypes/{id} { allow read, write: if isSignedIn(); }
     match /officePositions/{id} { allow read, write: if isSignedIn(); }
     match /manpowerPositions/{id} { allow read, write: if isSignedIn(); }
-    match /positions/{id} { allow read, write: if isSignedIn(); } // Legacy
+    match /positions/{id} { allow read, write: if isSignedIn(); }
     match /cooldownPolicies/{id} { allow read, write: if isSignedIn(); }
     
     // Timesheet Collections
@@ -78,15 +73,14 @@ service cloud.firestore {
     match /paymentsAP/{id} { allow read, write: if isSignedIn(); }
     match /cashMovements/{id} { allow read, write: if isSignedIn(); }
     
-    // Operation Data (Clients Tree)
+    // Operation Data (Clients Tree) & ALL subcollections
     match /clients/{clientId}/{document=**} {
       allow read, write: if isSignedIn();
     }
-
+    
     // Exports & Other
     match /exports/{id} { allow read, write: if isSignedIn(); }
     match /audit-logs/{id} { allow read, write: if isSignedIn(); }
     match /companyProfile/{id} { allow read, write: if isSignedIn(); }
-
   }
 }
