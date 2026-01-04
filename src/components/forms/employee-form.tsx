@@ -1,6 +1,7 @@
 
 
 
+
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -362,10 +363,9 @@ export default function EmployeeForm({
   };
   
   const handleBack = () => {
+    onOpenChange(false);
     if (returnTo) {
       router.replace(returnTo);
-    } else {
-      onOpenChange(false);
     }
   };
 
@@ -400,7 +400,10 @@ export default function EmployeeForm({
                     </FormItem>
                 )}/>
                 <div className="space-y-4 rounded-lg border p-4">
-                  <h4 className="font-medium text-sm">Salary Information</h4>
+                  <div className='flex justify-between items-center'>
+                    <h4 className="font-medium text-sm">Salary Information</h4>
+                    {employee && <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/employees/${employee.id}/ly01`)}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ล.ย.01</Button>}
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="employmentTerms.baseSalary" render={({ field }) => (
                       <FormItem><FormLabel>Base Salary / month</FormLabel><FormControl><Input type="number" placeholder="50000" {...field} /></FormControl><FormMessage /></FormItem>
@@ -574,7 +577,7 @@ export default function EmployeeForm({
                     const docType = form.watch(`documents.${index}.type`);
                     const certTypeId = form.watch(`documents.${index}.certificateTypeId`);
                     const selectedCertType = certTypeMap.get(certTypeId || '');
-                    const showExpiry = docType === 'Certificate' ? selectedCertType?.requiresExpiry : (docType !== 'Seaman Book');
+                    const showExpiry = docType === 'Certificate' ? selectedCertType?.requiresExpiry : (docType === 'Passport');
 
                     return (
                     <div key={field.id} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end border p-4 rounded-md relative">
@@ -626,10 +629,7 @@ export default function EmployeeForm({
                 </Button>
             </div>
 
-            <DialogFooter className="pt-4 flex justify-between items-center">
-                <div className='flex gap-2'>
-                    {employee && <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/dashboard/employees/${employee.id}/ly01`)}><FileText className='mr-2 h-4 w-4' />แบบฟอร์ม ลย.01</Button>}
-                </div>
+            <DialogFooter className="pt-4 flex justify-end items-center">
               <div className='space-x-2'>
                 <Button type="button" variant="secondary" onClick={handleBack}>Cancel</Button>
                 <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Employee'}</Button>
