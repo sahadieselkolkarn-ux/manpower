@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -84,6 +85,12 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const getInitials = (email: string) => {
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   }
+  
+  // Hide sidebar for specific routes like the export page
+  if (pathname.endsWith('/export')) {
+    return <main>{children}</main>;
+  }
+
 
   const isAdmin = userProfile?.isAdmin;
   
@@ -434,5 +441,3 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     </SidebarProvider>
   );
 }
-
-    

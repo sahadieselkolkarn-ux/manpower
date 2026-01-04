@@ -39,6 +39,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { toDate, formatDate } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
 import { merge } from 'lodash';
+import { useRouter } from 'next/navigation';
 
 
 interface TaxProfileFormProps {
@@ -107,6 +108,7 @@ const defaultLy01Data: Ly01FormData = {
 
 export function TaxProfileForm({ employee }: TaxProfileFormProps) {
   const db = useFirestore();
+  const router = useRouter();
   const { userProfile } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -183,6 +185,11 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
       setLoading(false);
     }
   };
+  
+  const handleExport = () => {
+    const currentPath = router.asPath;
+    window.open(`${currentPath}/export`, '_blank');
+  };
 
   const status = ly01Profile?.status || 'MISSING';
 
@@ -199,7 +206,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
                 </CardDescription>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" type="button"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+                <Button variant="outline" size="sm" type="button" onClick={handleExport}><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
                 <Badge variant={status === 'VERIFIED' ? 'default' : 'outline'} className="text-lg">
                   Status: {status.replace('_', ' ')}
                 </Badge>
