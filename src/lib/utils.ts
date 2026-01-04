@@ -5,11 +5,7 @@ import { Timestamp } from "firebase/firestore";
 import { InvoiceStatus } from "@/types/invoice";
 import { BillStatus } from "@/types/ap-bill";
 import { BadgeProps } from "@/components/ui/badge";
-import { format, parse, isValid } from "date-fns";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
+import { format, parse, isValid, toDate as fnsToDate } from "date-fns";
 
 export const DATE_FORMAT = 'dd/MM/yyyy';
 
@@ -21,29 +17,38 @@ export const toDate = (value: unknown): Date | undefined => {
   if (value instanceof Date) {
     return value;
   }
-  if (typeof value === 'string' || typeof value === 'number') {
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) {
-      return d;
-    }
-  }
-  // Try parsing from dd/MM/yyyy as a fallback
   if (typeof value === 'string') {
+    const fromString = fnsToDate(value);
+    if(isValid(fromString)) return fromString;
+    
     const parsed = parse(value, DATE_FORMAT, new Date());
     if (isValid(parsed)) {
       return parsed;
     }
   }
+  if (typeof value === 'number') {
+     const fromNumber = fnsToDate(value);
+     if(isValid(fromNumber)) return fromNumber;
+  }
+
   return undefined;
 };
 
-export const formatDate = (date: Date | Timestamp | string | undefined | null): string => {
+export const formatDate = (date: Date | Timestamp | string | number | undefined | null): string => {
     if (!date) return 'N/A';
     const dateObj = toDate(date);
-    if (!dateObj) return 'Invalid Date';
-    return format(dateObj, DATE_FORMAT);
+    if (!dateObj || !isValid(dateObj)) return 'Invalid Date';
+    try {
+        return format(dateObj, DATE_FORMAT);
+    } catch (error) {
+        return 'Invalid Date';
+    }
 };
 
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
 
 export const getInvoiceStatusVariant = (status: InvoiceStatus): BadgeProps['variant'] => {
     switch (status) {

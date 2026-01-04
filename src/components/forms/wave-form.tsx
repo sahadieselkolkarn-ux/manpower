@@ -1,5 +1,6 @@
 
 
+
 "use client";
 
 import React, { useEffect, useMemo } from "react";
@@ -55,29 +56,17 @@ import { useToast } from "@/hooks/use-toast";
 import { type Wave, WaveWithProject, ManpowerRequirement } from "@/types/wave";
 import { type ManpowerPosition } from "@/types/position";
 import { ProjectWithContract, Project } from "@/types/project";
-import { toDate, DATE_FORMAT } from "@/lib/utils";
+import { toDate, DATE_FORMAT, formatDate } from "@/lib/utils";
 import { Contract } from "@/types/contract";
 import { Client } from "@/types/client";
 import { CertificateType } from "@/types/certificate-type";
 import { Checkbox } from "../ui/checkbox";
 import { MultiSelect } from "../ui/multi-select";
 
-const dateSchema = z.preprocess((arg) => {
-  if (typeof arg === 'string' && arg) {
-    try {
-      const parsedDate = parse(arg, DATE_FORMAT, new Date());
-      if (isValid(parsedDate)) {
-        return parsedDate;
-      }
-    } catch (e) {
-      // Let Zod handle the error
-    }
-  }
-  return arg;
-}, z.date({
-    invalid_type_error: `Invalid date. Please use the format ${DATE_FORMAT}.`,
-    required_error: "Date is required."
-}));
+
+const dateStringSchema = z.string().refine(val => val ? isValid(parse(val, DATE_FORMAT, new Date())) : false, {
+    message: `Invalid date format. Please use ${DATE_FORMAT}.`
+});
 
 
 const manpowerRequirementSchema = z.object({
@@ -91,13 +80,15 @@ const formSchema = z.object({
   waveCode: z.string().min(1, "Wave code is required."),
   projectId: z.string().min(1, "Project is required."),
   planningWorkPeriod: z.object({
-    startDate: dateSchema,
-    endDate: dateSchema,
+    startDate: dateStringSchema,
+    endDate: dateStringSchema,
   }),
   manpowerRequirement: z.array(manpowerRequirementSchema).min(1, "At least one manpower requirement is needed."),
 }).refine(data => {
-    if (data.planningWorkPeriod.startDate && data.planningWorkPeriod.endDate) {
-        return data.planningWorkPeriod.endDate >= data.planningWorkPeriod.startDate;
+    const start = parse(data.planningWorkPeriod.startDate, DATE_FORMAT, new Date());
+    const end = parse(data.planningWorkPeriod.endDate, DATE_FORMAT, new Date());
+    if (isValid(start) && isValid(end)) {
+        return end >= start;
     }
     return true;
 }, {
@@ -147,8 +138,8 @@ export default function WaveForm({
       projectId: routeParams?.projectId || "",
       manpowerRequirement: [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
       planningWorkPeriod: {
-          startDate: new Date(),
-          endDate: new Date()
+          startDate: format(new Date(), DATE_FORMAT),
+          endDate: format(new Date(), DATE_FORMAT)
       }
     },
   });
@@ -185,8 +176,8 @@ export default function WaveForm({
           waveCode: wave.waveCode,
           projectId: wave.projectId,
           planningWorkPeriod: {
-            startDate: startDate || new Date(),
-            endDate: endDate || new Date(),
+            startDate: startDate ? formatDate(startDate) : format(new Date(), DATE_FORMAT),
+            endDate: endDate ? formatDate(endDate) : format(new Date(), DATE_FORMAT),
           },
           manpowerRequirement: requirements.length > 0 ? requirements : [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
         });
@@ -195,8 +186,8 @@ export default function WaveForm({
           waveCode: "",
           projectId: routeParams?.projectId || "",
           planningWorkPeriod: {
-            startDate: new Date(),
-            endDate: new Date()
+            startDate: format(new Date(), DATE_FORMAT),
+            endDate: format(new Date(), DATE_FORMAT)
           },
           manpowerRequirement: [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
         });
@@ -276,12 +267,14 @@ export default function WaveForm({
               };
         }
 
+      const startDate = parse(values.planningWorkPeriod.startDate, DATE_FORMAT, new Date());
+      const endDate = parse(values.planningWorkPeriod.endDate, DATE_FORMAT, new Date());
 
       const dataToSave: any = {
         waveCode: values.waveCode,
         planningWorkPeriod: {
-          startDate: Timestamp.fromDate(values.planningWorkPeriod.startDate),
-          endDate: Timestamp.fromDate(values.planningWorkPeriod.endDate),
+          startDate: Timestamp.fromDate(startDate),
+          endDate: Timestamp.fromDate(endDate),
         },
         manpowerRequirement: manpowerRequirementObject,
         updatedAt: serverTimestamp(),
@@ -389,7 +382,6 @@ export default function WaveForm({
                                 <Input
                                   placeholder={DATE_FORMAT}
                                   {...field}
-                                  value={field.value ? format(field.value, DATE_FORMAT) : ''}
                                 />
                                 </FormControl>
                                 <FormMessage />
@@ -406,7 +398,6 @@ export default function WaveForm({
                                 <Input
                                   placeholder={DATE_FORMAT}
                                   {...field}
-                                  value={field.value ? format(field.value, DATE_FORMAT) : ''}
                                 />
                                 </FormControl>
                                 <FormMessage />
