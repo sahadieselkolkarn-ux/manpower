@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React, { useEffect, useMemo } from "react";
@@ -146,8 +147,8 @@ export default function WaveForm({
       projectId: routeParams?.projectId || "",
       manpowerRequirement: [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
       planningWorkPeriod: {
-          startDate: undefined,
-          endDate: undefined
+          startDate: new Date(),
+          endDate: new Date()
       }
     },
   });
@@ -194,8 +195,8 @@ export default function WaveForm({
           waveCode: "",
           projectId: routeParams?.projectId || "",
           planningWorkPeriod: {
-            startDate: undefined,
-            endDate: undefined
+            startDate: new Date(),
+            endDate: new Date()
           },
           manpowerRequirement: [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
         });
