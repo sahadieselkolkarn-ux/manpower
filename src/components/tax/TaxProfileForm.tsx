@@ -253,20 +253,27 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
                <div className="space-y-4">
                  <FormField control={form.control} name="data.marital.status" render={({ field }) => (
                     <FormItem><FormLabel>Marital Status*</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                             <SelectContent>
                                 <SelectItem value="SINGLE">Single</SelectItem>
                                 <SelectItem value="MARRIED">Married</SelectItem>
                                 <SelectItem value="WIDOWED">Widowed</SelectItem>
                                 <SelectItem value="DIVORCED">Divorced</SelectItem>
+                                <SelectItem value="DECEASED_DURING_YEAR">Deceased During Year</SelectItem>
                             </SelectContent>
                         </Select>
                     <FormMessage /></FormItem>
                 )} />
                 {maritalStatus === 'MARRIED' && (
+                  <div className="grid grid-cols-2 gap-4">
                      <FormField control={form.control} name="data.marital.spouseHasIncome" render={({ field }) => (
                         <FormItem className="flex items-center gap-2 pt-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} /></FormControl><FormLabel>Spouse has income?</FormLabel><FormMessage /></FormItem>
                     )}/>
+                     <FormField control={form.control} name="data.marital.marriedDuringYear" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2 pt-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} /></FormControl><FormLabel>Married during this tax year?</FormLabel><FormMessage /></FormItem>
+                    )}/>
+                  </div>
                 )}
               </div>
             </section>
@@ -275,22 +282,105 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
             <section>
               <h3 className="text-lg font-medium">Children Allowance</h3>
               <Separator className="my-2" />
-               <div className="grid grid-cols-3 gap-4">
-                 <FormField control={form.control} name="data.children.totalCount" render={({ field }) => (
-                    <FormItem><FormLabel>Total Children</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+              <div className="grid grid-cols-3 gap-4">
+                <FormField control={form.control} name="data.children.totalCount" render={({ field }) => (
+                  <FormItem><FormLabel>Total Children</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="data.children.allowance30kCount" render={({ field }) => (
-                    <FormItem><FormLabel>Born before 2018 (30k)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Born before 2018 (30k)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="data.children.allowance60kCount" render={({ field }) => (
-                    <FormItem><FormLabel>Born 2018+ (60k)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormMessage>
+                  <FormItem><FormLabel>Born 2018+ (60k)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
             </section>
 
-            {/* Other Sections Placeholder */}
-            <p className="text-center text-muted-foreground italic py-4">... Other sections (Parents, Disability, Insurance, Funds, Other Deductions) under construction ...</p>
+            {/* Parents */}
+            <section>
+              <h3 className="text-lg font-medium">Parents Allowance</h3>
+              <Separator className="my-2" />
+               <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Your Parents</h4>
+                    <FormField control={form.control} name="data.parents.self.father" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} /></FormControl><FormLabel>Supporting own Father (age &gt; 60)</FormLabel><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.parents.self.mother" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} /></FormControl><FormLabel>Supporting own Mother (age &gt; 60)</FormLabel><FormMessage /></FormItem>
+                    )}/>
+                  </div>
+                   <div className="space-y-2">
+                    <h4 className="font-semibold text-sm">Spouse's Parents</h4>
+                     <FormField control={form.control} name="data.parents.spouse.father" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} disabled={maritalStatus !== 'MARRIED'} /></FormControl><FormLabel>Supporting spouse's Father (age &gt; 60)</FormLabel><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.parents.spouse.mother" render={({ field }) => (
+                        <FormItem className="flex items-center gap-2"><FormControl><Checkbox checked={field.value ?? false} onCheckedChange={field.onChange} disabled={maritalStatus !== 'MARRIED'} /></FormControl><FormLabel>Supporting spouse's Mother (age &gt; 60)</FormLabel><FormMessage /></FormItem>
+                    )}/>
+                  </div>
+               </div>
+            </section>
+            
+            {/* Disability */}
+            <section>
+                 <h3 className="text-lg font-medium">Disability Allowance</h3>
+                 <Separator className="my-2" />
+                 <FormField control={form.control} name="data.disability.dependentsCount" render={({ field }) => (
+                    <FormItem className="max-w-xs"><FormLabel>Number of disabled dependents</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                )} />
+            </section>
 
+             {/* Insurance and Funds */}
+            <section>
+                 <h3 className="text-lg font-medium">Insurance &amp; Funds</h3>
+                 <Separator className="my-2" />
+                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <FormField control={form.control} name="data.insuranceAndFunds.lifeInsuranceAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Life Insurance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="data.insuranceAndFunds.healthInsuranceAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Health Insurance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.insuranceAndFunds.selfParentsHealthInsuranceAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Parents' Health Insurance</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="data.insuranceAndFunds.providentFundAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Provident Fund</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="data.insuranceAndFunds.rmfAmount" render={({ field }) => (
+                        <FormItem><FormLabel>RMF</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.insuranceAndFunds.ltfAmount" render={({ field }) => (
+                        <FormItem><FormLabel>LTF</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                      <FormField control={form.control} name="data.insuranceAndFunds.governmentPensionFundAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Gov Pension Fund (กบข.)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                      <FormField control={form.control} name="data.insuranceAndFunds.nationalSavingsFundAmount" render={({ field }) => (
+                        <FormItem><FormLabel>National Savings Fund (กอช.)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                 </div>
+            </section>
+            
+             {/* Other Deductions */}
+            <section>
+                 <h3 className="text-lg font-medium">Other Deductions</h3>
+                 <Separator className="my-2" />
+                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                     <FormField control={form.control} name="data.otherDeductions.homeLoanInterestAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Home Loan Interest</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.otherDeductions.socialSecurityAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Social Security (SSO)</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.otherDeductions.educationDonationAmount" render={({ field }) => (
+                        <FormItem><FormLabel>Education/Sport Donation</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                     <FormField control={form.control} name="data.otherDeductions.otherDonationAmount" render={({ field }) => (
+                        <FormItem><FormLabel>General Donation</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? 0} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                 </div>
+            </section>
 
             {/* Verification */}
             <section>
