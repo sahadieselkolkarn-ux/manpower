@@ -75,8 +75,9 @@ const documentSchema = z.object({
   expiryDate: dateStringSchema.optional(),
 });
 
-const formSchema = z.object({
-  orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
+// Base schema for properties common to all employees
+const baseEmployeeSchema = z.object({
+  employeeType: z.enum(['OFFICE', 'FIELD']),
   personalInfo: z.object({
     firstName: z.string().min(1, 'First name is required.'),
     lastName: z.string().min(1, 'Last name is required.'),
@@ -105,6 +106,12 @@ const formSchema = z.object({
   skillTags: z.string().optional(),
   employmentStatus: z.enum(['Active', 'Inactive', 'Terminated']),
   documents: z.array(documentSchema).optional(),
+});
+
+// Schema specific to Office employees, includes orgLevel and user creation fields
+const officeEmployeeSchema = baseEmployeeSchema.extend({
+  employeeType: z.literal('OFFICE'),
+  orgLevel: z.enum(['STAFF', 'MANAGER', 'EXECUTIVE']),
   createUser: z.boolean(),
   userEmail: z.string().email('Invalid email address.').optional().or(z.literal('')),
 }).refine(data => {
@@ -116,6 +123,17 @@ const formSchema = z.object({
     message: 'Email is required to create a user account.',
     path: ['userEmail'],
 });
+
+// Schema for Field employees, does not have orgLevel or user creation
+const fieldEmployeeSchema = baseEmployeeSchema.extend({
+    employeeType: z.literal('FIELD'),
+});
+
+
+const formSchema = z.discriminatedUnion('employeeType', [
+    officeEmployeeSchema,
+    fieldEmployeeSchema,
+]);
 
 
 type EmployeeFormData = z.infer<typeof formSchema>;
@@ -156,7 +174,9 @@ export default function EmployeeForm({
 
   const form = useForm<EmployeeFormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: employeeType === 'OFFICE'
+    ? {
+        employeeType: 'OFFICE',
         orgLevel: 'STAFF',
         personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
         contactInfo: { phone: '', email: ''},
@@ -167,6 +187,16 @@ export default function EmployeeForm({
         documents: [],
         createUser: true,
         userEmail: '',
+    }
+    : {
+        employeeType: 'FIELD',
+        personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+        contactInfo: { phone: '', email: ''},
+        financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+        positionIds: [],
+        skillTags: '',
+        employmentStatus: 'Active',
+        documents: [],
     },
   });
 
@@ -176,7 +206,7 @@ export default function EmployeeForm({
   });
 
   const hasSocialSecurity = form.watch('financeInfo.socialSecurity.has');
-  const shouldCreateUser = form.watch('createUser');
+  const shouldCreateUser = employeeType === 'OFFICE' ? form.watch('createUser') : false;
 
   const availablePositions = useMemo(() => {
     if (employeeType === 'OFFICE') return officePositions;
@@ -192,8 +222,9 @@ export default function EmployeeForm({
     if (open) {
       if (employee) {
         const dob = toDate(employee.personalInfo.dateOfBirth);
-        form.reset({
-          orgLevel: employee.orgLevel || 'STAFF',
+        
+        const defaultData = {
+          employeeType: employee.employeeType || employeeType,
           personalInfo: {
             firstName: employee.personalInfo.firstName || '',
             lastName: employee.personalInfo.lastName || '',
@@ -223,22 +254,49 @@ export default function EmployeeForm({
                 expiryDate: expiryD ? format(expiryD, DATE_FORMAT) : '',
             };
           }) || [],
-          createUser: false, // Don't show for existing employees
-          userEmail: employee.contactInfo?.email || '',
-        });
+        };
+
+        if (employee.employeeType === 'OFFICE') {
+          form.reset({
+            ...defaultData,
+            employeeType: 'OFFICE',
+            orgLevel: employee.orgLevel || 'STAFF',
+            createUser: false, // Don't show for existing employees
+            userEmail: employee.contactInfo?.email || '',
+          });
+        } else {
+           form.reset({
+            ...defaultData,
+            employeeType: 'FIELD',
+           });
+        }
+
       } else {
-        form.reset({
-            orgLevel: 'STAFF',
-            personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
-            contactInfo: { phone: '', email: ''},
-            financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
-            positionIds: [],
-            skillTags: '',
-            employmentStatus: 'Active',
-            documents: [],
-            createUser: true,
-            userEmail: '',
-        });
+        // Reset to default for creating new
+        form.reset(employeeType === 'OFFICE'
+            ? {
+                employeeType: 'OFFICE',
+                orgLevel: 'STAFF',
+                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+                contactInfo: { phone: '', email: ''},
+                financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+                positionIds: [],
+                skillTags: '',
+                employmentStatus: 'Active',
+                documents: [],
+                createUser: true,
+                userEmail: '',
+            }
+            : {
+                employeeType: 'FIELD',
+                personalInfo: { firstName: '', lastName: '', dateOfBirth: '', nationalId: '', address: '' },
+                contactInfo: { phone: '', email: ''},
+                financeInfo: { bankName: '', accountNumber: '', socialSecurity: { has: false, hospitalId: '' } },
+                positionIds: [],
+                skillTags: '',
+                employmentStatus: 'Active',
+                documents: [],
+            });
       }
     }
   }, [open, employee, employeeType, form]);
@@ -264,7 +322,7 @@ export default function EmployeeForm({
     setLoading(true);
 
     try {
-        if (!employee && employeeType === 'OFFICE' && values.createUser && values.userEmail) {
+        if (values.employeeType === 'OFFICE' && !employee && values.createUser && values.userEmail) {
             const usersRef = collection(db, 'users');
             const q = query(usersRef, where('email', '==', values.userEmail));
             const existingUserSnap = await getDocs(q);
@@ -294,15 +352,15 @@ export default function EmployeeForm({
       })).filter(d => d.name);
       
       const dataToSave: any = {
+        ...values,
         employeeType: employeeType,
-        orgLevel: values.orgLevel,
         personalInfo: {
           ...values.personalInfo,
           dateOfBirth: parseAndGetTimestamp(values.personalInfo.dateOfBirth),
         },
         contactInfo: {
             ...values.contactInfo,
-            email: employeeType === 'OFFICE' && values.createUser ? values.userEmail : values.contactInfo.email,
+            email: values.employeeType === 'OFFICE' && values.createUser ? values.userEmail : values.contactInfo.email,
         },
         financeInfo: {
             ...values.financeInfo,
@@ -313,10 +371,16 @@ export default function EmployeeForm({
         },
         positionIds: values.positionIds,
         skillTags: skillTagsArray,
-        employmentStatus: values.employmentStatus,
         documents: documentsWithTimestamps,
         updatedAt: serverTimestamp(),
       };
+      // Remove fields specific to office employees if type is field
+      if (dataToSave.employeeType === 'FIELD') {
+          delete dataToSave.orgLevel;
+          delete dataToSave.createUser;
+          delete dataToSave.userEmail;
+      }
+
 
       if (employee) {
         const employeeRef = doc(db, 'employees', employee.id);
@@ -353,7 +417,7 @@ export default function EmployeeForm({
             createdBy: userProfile.displayName || userProfile.email,
         });
 
-        if (employeeType === 'OFFICE' && values.createUser && values.userEmail) {
+        if (values.employeeType === 'OFFICE' && values.createUser && values.userEmail) {
             const userRef = doc(collection(db, 'users'));
             batch.set(userRef, {
                 uid: userRef.id,
@@ -399,22 +463,24 @@ export default function EmployeeForm({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
             
-            <h3 className="text-lg font-medium">Employment Details</h3>
             {employeeType === 'OFFICE' && (
-              <FormField control={form.control} name="orgLevel" render={({ field }) => (
-                  <FormItem>
-                      <FormLabel>Organizational Level</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
-                          <SelectContent>
-                              <SelectItem value="STAFF">STAFF</SelectItem>
-                              <SelectItem value="MANAGER">MANAGER</SelectItem>
-                              <SelectItem value="EXECUTIVE">EXECUTIVE</SelectItem>
-                          </SelectContent>
-                      </Select>
-                      <FormMessage />
-                  </FormItem>
-              )}/>
+             <>
+                <h3 className="text-lg font-medium">Employment Details</h3>
+                <FormField control={form.control} name="orgLevel" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Organizational Level</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                            <SelectContent>
+                                <SelectItem value="STAFF">STAFF</SelectItem>
+                                <SelectItem value="MANAGER">MANAGER</SelectItem>
+                                <SelectItem value="EXECUTIVE">EXECUTIVE</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                )}/>
+            </>
             )}
             
             <h3 className="text-lg font-medium pt-4">Personal Information</h3>
@@ -504,7 +570,7 @@ export default function EmployeeForm({
                     <FormField control={form.control} name="financeInfo.socialSecurity.hospitalId" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Registered Hospital</FormLabel>
-                             <Select onValueChange={field.onChange} defaultValue={field.value}>
+                             <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select a hospital..." /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     {isLoadingHospitals ? (<SelectItem value="loading" disabled>Loading...</SelectItem>) : (
@@ -550,7 +616,7 @@ export default function EmployeeForm({
             <FormField control={form.control} name="employmentStatus" render={({ field }) => (
                 <FormItem>
                     <FormLabel>Employment Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
                         <SelectContent>
                             <SelectItem value="Active">Active</SelectItem>
@@ -575,7 +641,7 @@ export default function EmployeeForm({
                         </Button>
                         <FormField control={form.control} name={`documents.${index}.type`} render={({ field }) => (
                             <FormItem><FormLabel>Type</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} value={field.value}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select type"/></SelectTrigger></FormControl>
                                     <SelectContent>
                                         <SelectItem value="Passport">Passport</SelectItem>
@@ -589,7 +655,7 @@ export default function EmployeeForm({
                         {docType === 'Certificate' ? (
                             <FormField control={form.control} name={`documents.${index}.certificateTypeId`} render={({ field }) => (
                                 <FormItem><FormLabel>Certificate Name</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl><SelectTrigger><SelectValue placeholder="Select from list..."/></SelectTrigger></FormControl>
                                         <SelectContent>
                                             {availableCertTypes.map(ct => <SelectItem key={ct.id} value={ct.id}>{ct.name}</SelectItem>)}
