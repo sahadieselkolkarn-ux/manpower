@@ -71,12 +71,9 @@ const baseDataSchema = z.object({
 
 export const ly01FormSchema = z.object({
   data: baseDataSchema,
-  declaredDate: dateStringSchema,
-  verifiedBySelf: z.boolean().refine(val => val === true, {
-    message: "You must verify the accuracy of the information."
-  }),
+  declaredDate: dateStringSchema.optional().or(z.literal('')),
+  verifiedBySelf: z.boolean().optional(),
 });
 
 
 export type Ly01FormData = z.infer<typeof ly01FormSchema>;
-

@@ -38,11 +38,71 @@ import { ly01FormSchema, Ly01FormData } from '@/types/ly01.schema';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toDate, formatDate } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
+import { merge } from 'lodash';
 
 
 interface TaxProfileFormProps {
   employee: Employee;
 }
+
+const defaultLy01Data: Ly01FormData = {
+  data: {
+    personal: {
+      taxId: '',
+      address: {
+        building: '',
+        roomNo: '',
+        floor: '',
+        village: '',
+        houseNo: '',
+        moo: '',
+        soi: '',
+        road: '',
+        subDistrict: '',
+        district: '',
+        province: '',
+        postalCode: '',
+      },
+    },
+    marital: {
+      status: 'SINGLE',
+      marriedDuringYear: false,
+      spouseHasIncome: false,
+    },
+    children: {
+      totalCount: 0,
+      allowance30kCount: 0,
+      allowance60kCount: 0,
+    },
+    parents: {
+      self: { father: false, mother: false },
+      spouse: { father: false, mother: false },
+    },
+    disability: {
+      dependentsCount: 0,
+    },
+    insuranceAndFunds: {
+        lifeInsuranceAmount: 0,
+        healthInsuranceAmount: 0,
+        selfParentsHealthInsuranceAmount: 0,
+        spouseParentsHealthInsuranceAmount: 0,
+        providentFundAmount: 0,
+        governmentPensionFundAmount: 0,
+        nationalSavingsFundAmount: 0,
+        rmfAmount: 0,
+        ltfAmount: 0,
+    },
+    otherDeductions: {
+        homeLoanInterestAmount: 0,
+        socialSecurityAmount: 0,
+        educationDonationAmount: 0,
+        otherDonationAmount: 0,
+        otherDonationDescription: '',
+    },
+  },
+  declaredDate: '',
+  verifiedBySelf: false,
+};
 
 
 export function TaxProfileForm({ employee }: TaxProfileFormProps) {
@@ -55,39 +115,23 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
 
   const form = useForm<Ly01FormData>({
     resolver: zodResolver(ly01FormSchema),
-    defaultValues: {
-      data: {
-        personal: {},
-        marital: { status: 'SINGLE', spouseHasIncome: false, marriedDuringYear: false },
-        children: {},
-        parents: { self: {}, spouse: {} },
-        disability: {},
-        insuranceAndFunds: {},
-        otherDeductions: {},
-      },
-      verifiedBySelf: false,
-    },
+    defaultValues: defaultLy01Data,
   });
 
   useEffect(() => {
     if (ly01Profile) {
         const declared = toDate(ly01Profile.declaredDate);
-        form.reset({
-            data: {
-                personal: {
-                    taxId: ly01Profile.data?.personal?.taxId || '',
-                    address: ly01Profile.data?.personal?.address || { houseNo: '', province: '', subDistrict: '', district: '', postalCode: '' },
-                },
-                marital: ly01Profile.data?.marital || { status: 'SINGLE', spouseHasIncome: false, marriedDuringYear: false },
-                children: ly01Profile.data?.children || undefined,
-                parents: ly01Profile.data?.parents || { self: {}, spouse: {} },
-                disability: ly01Profile.data?.disability || undefined,
-                insuranceAndFunds: ly01Profile.data?.insuranceAndFunds || undefined,
-                otherDeductions: ly01Profile.data?.otherDeductions || undefined,
-            },
-            declaredDate: declared ? formatDate(declared) : undefined,
-            verifiedBySelf: ly01Profile.verifiedBySelf || false,
-        });
+        
+        const existingData = {
+          data: ly01Profile.data,
+          declaredDate: declared ? formatDate(declared) : undefined,
+          verifiedBySelf: ly01Profile.verifiedBySelf || false,
+        };
+
+        const mergedData = merge({}, defaultLy01Data, existingData);
+        form.reset(mergedData);
+    } else {
+        form.reset(defaultLy01Data);
     }
   }, [ly01Profile, form]);
   
@@ -117,7 +161,7 @@ export function TaxProfileForm({ employee }: TaxProfileFormProps) {
             data: values.data,
             declaredDate: values.declaredDate ? Timestamp.fromDate(new Date(values.declaredDate)) : serverTimestamp(),
             verifiedBySelf: values.verifiedBySelf,
-            verifiedAt: (values.verifiedBySelf && !ly01Profile.verifiedBySelf) ? serverTimestamp() : ly01Profile.verifiedAt,
+            verifiedAt: (values.verifiedBySelf && !ly0İle.verifiedBySelf) ? serverTimestamp() : ly01Profile.verifiedAt,
             updatedAt: serverTimestamp(),
             updatedBy: userProfile?.displayName || 'System',
           }
