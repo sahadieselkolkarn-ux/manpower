@@ -9,7 +9,7 @@ import { UserProfile, Role } from '@/types/user';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MoreHorizontal, Users, ShieldAlert, LinkIcon, Link2Off } from 'lucide-react';
+import { MoreHorizontal, Users, ShieldAlert, Link as LinkIcon, Link2Off } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -45,8 +45,8 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
     }
   }, [open, user]);
 
-  const handleRoleToggle = (roleCode: string, checked: boolean) => {
-    setSelectedRoles(prev => checked ? [...prev, roleCode] : prev.filter(code => code !== roleCode));
+  const handleRoleToggle = (roleId: string, checked: boolean) => {
+    setSelectedRoles(prev => checked ? [...prev, roleId] : prev.filter(id => id !== roleId));
   };
 
   const handleSave = async () => {
@@ -69,8 +69,6 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
     }
   };
   
-  const roleIdToCodeMap = new Map(roles.map(r => [r.id, r.code]));
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -88,10 +86,10 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
               <div key={role.id} className="flex items-center space-x-2">
                 <Checkbox
                   id={role.id}
-                  checked={selectedRoles.includes(role.code)}
-                  onCheckedChange={(checked) => handleRoleToggle(role.code, !!checked)}
+                  checked={selectedRoles.includes(role.id)}
+                  onCheckedChange={(checked) => handleRoleToggle(role.id, !!checked)}
                 />
-                <Label htmlFor={role.id}>{role.code.replace(/_/g, ' ')}</Label>
+                <Label htmlFor={role.id}>{role.name}</Label>
               </div>
             ))}
           </div>
@@ -119,10 +117,17 @@ function LinkEmployeeModal({ user, open, onOpenChange, onUpdate, allOfficeEmploy
     const handleLink = async () => {
         if (!db || !selectedEmployeeId) return;
         setLoading(true);
+        const batch = writeBatch(db);
         try {
             const userRef = doc(db, 'users', user.uid);
-            await updateDoc(userRef, { employeeId: selectedEmployeeId });
-            toast({ title: 'Success', description: 'User linked to employee.' });
+            batch.update(userRef, { employeeId: selectedEmployeeId });
+
+            const employeeRef = doc(db, 'employees', selectedEmployeeId);
+            batch.update(employeeRef, { userUid: user.uid });
+
+            await batch.commit();
+
+            toast({ title: 'Success', description: 'User linked to employee profile.' });
             onUpdate();
             onOpenChange(false);
         } catch (error) {
@@ -176,6 +181,7 @@ export default function AdminUsersPage() {
 
   const rolesQuery = useMemoFirebase(() => (db ? collection(db, 'roles') : null), [db]);
   const { data: roles, isLoading: isLoadingRoles } = useCollection<Role>(rolesQuery);
+  const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name])), [roles]);
   
   const officeEmployeesQuery = useMemoFirebase(() => (db ? query(collection(db, 'employees'), where('employeeType', '==', 'OFFICE')) : null), [db]);
   const { data: officeEmployees, isLoading: isLoadingEmployees } = useCollection<Employee>(officeEmployeesQuery);
@@ -185,11 +191,18 @@ export default function AdminUsersPage() {
   const { toast } = useToast();
 
   const handleUnlink = async () => {
-    if (!db || !userToUnlink) return;
-
-    const userRef = doc(db, 'users', userToUnlink.uid);
+    if (!db || !userToUnlink || !userToUnlink.employeeId) return;
+    
+    const batch = writeBatch(db);
     try {
-        await updateDoc(userRef, { employeeId: null });
+        const userRef = doc(db, 'users', userToUnlink.uid);
+        batch.update(userRef, { employeeId: null });
+
+        const employeeRef = doc(db, 'employees', userToUnlink.employeeId);
+        batch.update(employeeRef, { userUid: null });
+
+        await batch.commit();
+
         toast({ title: 'Success', description: 'User has been unlinked from employee.' });
         refetchUsers();
     } catch (error) {
@@ -258,8 +271,8 @@ export default function AdminUsersPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell className="flex flex-wrap gap-1">
                       {user.isAdmin && <span className="px-2 py-1 text-xs font-bold bg-destructive text-destructive-foreground rounded-full">ADMIN</span>}
-                      {user.roleIds?.map(roleCode => (
-                        <span key={roleCode} className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-full">{roleCode?.replace(/_/g, ' ')}</span>
+                      {user.roleIds?.map(roleId => (
+                        <span key={roleId} className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-full">{roleMap.get(roleId) || roleId}</span>
                       ))}
                     </TableCell>
                     <TableCell>
@@ -337,6 +350,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-
-

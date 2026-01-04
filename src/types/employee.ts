@@ -1,6 +1,4 @@
 
-
-
 'use client';
 import { type Timestamp } from 'firebase/firestore';
 import { OfficeAttendancePolicy } from './attendance';
@@ -96,6 +94,7 @@ export interface EmploymentTerms {
 export interface Employee {
   id: string;
   employeeCode: string;
+  userUid?: string; // Link to Firebase Auth User UID
   employeeType: "OFFICE" | "FIELD";
   orgLevel?: "STAFF" | "MANAGER" | "EXECUTIVE";
   personalInfo: {
