@@ -1214,7 +1214,7 @@
         "assignedBy"
       ]
     },
-    "Timesheet": {
+    "TimesheetBatch": {
       "title": "Timesheet Batch",
       "description": "A collection of work events for a single employee within a single wave.",
       "type": "object",
@@ -1223,8 +1223,8 @@
         "contractId": { "type": "string" },
         "projectId": { "type": "string" },
         "waveId": { "type": "string" },
-        "periodStartDate": { "type": "string", "format": "date" },
-        "periodEndDate": { "type": "string", "format": "date" },
+        "periodStart": { "type": "string", "format": "date" },
+        "periodEnd": { "type": "string", "format": "date" },
         "status": {
           "type": "string",
           "enum": [
@@ -1233,6 +1233,7 @@
             "FINANCE_PAID"
           ]
         },
+        "templateVersion": { "type": "string" },
         "approvedBy": { "type": "string" },
         "approvedAt": { "type": "string", "format": "date-time" },
         "paidBy": { "type": "string" },
@@ -1245,39 +1246,38 @@
         "status"
       ]
     },
-    "WorkEvent": {
-      "title": "Work Event",
+    "TimesheetLine": {
+      "title": "Timesheet Line",
       "description": "A single day's work event for an employee.",
       "type": "object",
       "properties": {
-        "date": {
-          "type": "string",
-          "format": "date"
-        },
-        "type": {
+        "batchId": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "employeeId": { "type": "string" },
+        "workDate": { "type": "string", "format": "date" },
+        "workType": {
           "type": "string",
           "enum": [
-            "Full Day",
-            "Half Day",
-            "Standby",
-            "Travel",
-            "Leave",
-            ""
+            "NORMAL",
+            "STANDBY",
+            "LEAVE"
           ]
         },
-        "otHours": {
-          "type": "number"
+        "normalHours": { "type": "number" },
+        "otHours": { "type": "number" },
+        "dayCategory": {
+            "type": "string",
+            "enum": ["WORKDAY", "WEEKLY_HOLIDAY", "CONTRACT_HOLIDAY"]
         },
-        "anomalyFlag": {
-          "type": "boolean"
-        },
-        "notes": {
-          "type": "string"
-        }
+        "anomalyFlag": { "type": "boolean" },
+        "notes": { "type": "string" }
       },
       "required": [
-        "date",
-        "type"
+        "batchId",
+        "assignmentId",
+        "employeeId",
+        "workDate",
+        "workType"
       ]
     },
     "Payroll": {
@@ -1640,9 +1640,15 @@
     },
     "/timesheetBatches/{batchId}": {
       "schema": {
-        "$ref": "#/backend/entities/Timesheet"
+        "$ref": "#/backend/entities/TimesheetBatch"
       },
       "description": "A batch of timesheet data for a specific wave and period."
+    },
+    "/timesheetLines/{lineId}": {
+      "schema": {
+        "$ref": "#/backend/entities/TimesheetLine"
+      },
+      "description": "Individual work event entries that belong to a timesheet batch."
     },
     "/payrolls/{payrollId}": {
       "schema": {
@@ -1819,5 +1825,3 @@
     }
   }
 }
-
-    

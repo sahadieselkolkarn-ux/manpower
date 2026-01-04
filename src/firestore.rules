@@ -1,186 +1,201 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isSignedIn() {
-      return request.auth != null;
+    function isSignedIn() { return request.auth != null; }
+    function myUid() { return request.auth.uid; }
+    function myEmail() { return request.auth.token.email; }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(myUid())).data;
+    }
+
+    function securityDoc() {
+      return get(/databases/$(database)/documents/settings/security).data;
+    }
+
+    function securityExists() {
+      return exists(/databases/$(database)/documents/settings/security);
+    }
+
+    function bootstrapIsOpen() {
+      return securityExists()
+        && securityDoc().bootstrap != null
+        && securityDoc().bootstrap.isOpen == true;
+    }
+
+    function isBootstrapAdminAllowlisted() {
+      return bootstrapIsOpen()
+        && (myEmail() in securityDoc().bootstrap.adminEmailsAllowlist);
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(myUid()))
+        && userDoc().isAdmin == true;
+    }
+
+    function hasRoleCode(roleCode) {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(myUid()))
+        && userDoc().roleCodes != null
+        && (roleCode in userDoc().roleCodes);
+    }
+
+    function isHR() {
+      return isAdmin()
+        || hasRoleCode("HR_OFFICER")
+        || hasRoleCode("HR_MANAGER");
+    }
+
+    function isFinance() {
+      return isAdmin()
+        || hasRoleCode("PAYROLL_OFFICER")
+        || hasRoleCode("FINANCE_OFFICER")
+        || hasRoleCode("FINANCE_MANAGER");
+    }
+
+    function isOperation() {
+      return isAdmin()
+        || hasRoleCode("OPERATION_OFFICER")
+        || hasRoleCode("OPERATION_MANAGER");
+    }
+
+    function isInternalStaff() {
+      return isHR() || isFinance() || isOperation() || isAdmin();
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      // Use custom claims for robust and immediate admin verification.
-      // This avoids race conditions with Firestore document reads on login and is required for list operations.
-      return isSignedIn() && request.auth.token.admin == true;
+      return isSignedIn() && myUid() == userId;
     }
 
-    function hasRole(roleCode) {
-        // This logic will be fully implemented later by checking a 'roles' array in custom claims.
-        // For now, it defaults to checking if the user is an admin.
-        return isAdmin();
+    // SETTINGS: bootstrap allowlist lives here
+    match /settings/security {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
-    function isHrManager() {
-        return hasRole('HR_MANAGER') || isAdmin();
-    }
-    
-    function isFinanceManager() {
-        return hasRole('FINANCE_MANAGER') || isAdmin();
-    }
-
-    function isOperationManager() {
-        return hasRole('OPERATION_MANAGER') || isAdmin();
-    }
-
+    // USERS
     match /users/{userId} {
+
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
-      allow update: if (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+
+      // CREATE: user creates own profile
+      // - uid/email must match auth identity
+      // - isAdmin true only for allowlisted bootstrap admin emails
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == myUid()
+        && request.resource.data.email == myEmail()
+        && request.resource.data.status == "ACTIVE"
+        && (
+          (
+            isBootstrapAdminAllowlisted()
+            && request.resource.data.isAdmin == true
+            && request.resource.data.roleCodes != null
+            && ("ADMIN" in request.resource.data.roleCodes)
+          )
+          ||
+          (
+            !isBootstrapAdminAllowlisted()
+            && request.resource.data.isAdmin == false
+            && (
+              request.resource.data.roleCodes == null
+              || request.resource.data.roleCodes.size() == 0
+            )
+          )
+        );
+
+      // UPDATE:
+      // - owner can only update safe fields (displayName, phone, employeeId, updatedAt, optional profile fields)
+      // - owner cannot change isAdmin/roleIds/roleCodes/status/email/uid
+      // - admin can update anything
+      allow update: if isAdmin()
+        || (
+          isOwner(userId)
+          && request.resource.data.isAdmin == resource.data.isAdmin
+          && request.resource.data.roleIds == resource.data.roleIds
+          && request.resource.data.roleCodes == resource.data.roleCodes
+          && request.resource.data.status == resource.data.status
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.uid == resource.data.uid
+        );
+
       allow delete: if isAdmin();
     }
-    
+
+    // ROLES master
     match /roles/{roleId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
 
+    // HR master
+    match /employees/{id} {
+      allow read: if isHR() || isFinance() || isAdmin();
+      allow write: if isHR() || isAdmin();
+    }
+    match /hospitals/{id} { allow read, write: if isHR() || isAdmin(); }
+    match /certificateTypes/{id} { allow read, write: if isHR() || isAdmin(); }
+    match /officePositions/{id} { allow read, write: if isHR() || isAdmin(); }
+    match /manpowerPositions/{id} { allow read, write: if isHR() || isAdmin(); }
+    match /cooldownPolicies/{id} { allow read, write: if isHR() || isAdmin(); }
+
+    // HR ops
+    match /assignments/{id} {
+      allow read, write: if isHR() || isOperation() || isAdmin();
+    }
+
+    // Timesheets
+    match /timesheetBatches/{id} {
+      allow read: if isHR() || isFinance() || isAdmin();
+      allow write: if isHR() || isAdmin();
+    }
+    match /timesheetLines/{id} {
+      allow read: if isHR() || isFinance() || isAdmin();
+      allow create, update: if (isHR() || isAdmin()) && get(/databases/$(database)/documents/timesheetBatches/$(request.resource.data.batchId)).data.status == 'DRAFT';
+      allow delete: if (isHR() || isAdmin()) && get(/databases/$(database)/documents/timesheetBatches/$(resource.data.batchId)).data.status == 'DRAFT';
+    }
+
+    // Finance (placeholders but protected)
+    match /payrolls/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /taxProfiles/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /bankAccounts/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /invoices/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /billsAP/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /paymentsAR/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /paymentsAP/{id} { allow read, write: if isFinance() || isAdmin(); }
+    match /cashMovements/{id} { allow read, write: if isFinance() || isAdmin(); }
+
+    // Operation data (clients tree)
     match /clients/{clientId} {
-      allow read, write: if isOperationManager() || isAdmin();
-      
+      allow read: if isInternalStaff();
+      allow write: if isOperation() || isAdmin();
+
       match /contracts/{contractId} {
-        allow read, write: if isOperationManager() || isAdmin();
+        allow read: if isInternalStaff();
+        allow write: if isOperation() || isAdmin();
 
         match /projects/{projectId} {
-          allow read, write: if isOperationManager() || isAdmin();
+          allow read: if isInternalStaff();
+          allow write: if isOperation() || isAdmin();
 
           match /waves/{waveId} {
-            allow read, write: if isOperationManager() || isAdmin();
-
-            match /assignments/{assignmentId} {
-              allow read, write: if isOperationManager() || isHrManager();
-            }
+            allow read: if isInternalStaff();
+            allow write: if isOperation() || isAdmin();
           }
         }
       }
     }
-    
-    match /timesheetBatches/{batchId} {
-        allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
-    }
 
-    match /timesheetLines/{lineId} {
-      allow read, delete: if isHrManager() || isAdmin();
-      allow create, update: if (isHrManager() || isAdmin()) && get(/databases/$(database)/documents/timesheetBatches/$(request.resource.data.batchId)).data.status == 'DRAFT';
-    }
+    // Optional legacy collection used by code sometimes
+    match /positions/{id} { allow read, write: if isHR() || isAdmin(); }
 
-    match /payrolls/{payrollId} {
-        allow read, write: if isFinanceManager();
-    }
-    match /invoices/{invoiceId} {
-        allow get, list: if isFinanceManager() || isOperationManager();
-        allow create, update: if isFinanceManager();
-    }
-    
-    match /billsAP/{billId} {
-      allow read, list, write: if isFinanceManager() || isAdmin();
-    }
-    match /paymentsAP/{paymentId} {
-      allow read, create: if isFinanceManager() || isAdmin();
-    }
-    match /bankAccounts/{accountId} {
-      allow read, write: if isFinanceManager() || isAdmin();
-    }
-    match /cashMovements/{movementId} {
-      allow read, create: if isFinanceManager() || isAdmin();
-    }
-    match /paymentsAR/{paymentId} {
-      allow read, create: if isFinanceManager() || isAdmin();
-    }
-    
-    match /pnd1Runs/{runId} {
-        allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
-        match /lines/{lineId} {
-            allow read, write: if isHrManager() || isFinanceManager() || isAdmin();
-        }
-    }
+    match /audit-logs/{id} { allow read, write: if isAdmin(); }
 
-    // Rules for separated position collections
-    match /officePositions/{positionId} {
-        allow read, write: if isHrManager() || isAdmin();
+    match /{document=**} {
+      allow read, write: if false;
     }
-    match /manpowerPositions/{positionId} {
-        allow read, write: if isHrManager() || isAdmin();
-    }
-    
-    // Legacy rule for safety, can be removed later
-    match /positions/{positionId} {
-        allow read: if isSignedIn();
-    }
-    
-    match /certificateTypes/{typeId} {
-        allow read: if isSignedIn();
-        allow write: if isHrManager() || isAdmin();
-    }
-
-    match /employees/{employeeId} {
-        allow read: if isHrManager() || isOperationManager() || isAdmin();
-        allow write: if isHrManager() || isAdmin();
-    }
-    
-    match /hospitals/{hospitalId} {
-        allow read: if isHrManager() || isAdmin();
-        allow write: if isHrManager() || isAdmin();
-    }
-    
-    match /audit-logs/{logId} {
-        allow read: if isAdmin();
-        allow create: if isSignedIn();
-    }
-
-    match /settings/{docId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-    }
-    
-    match /companyProfile/{profileId} {
-        allow read: if isSignedIn();
-        allow write: if isAdmin();
-    }
-
-    match /holidayCalendars/{calendarId} {
-        allow read: if isSignedIn();
-        allow write: if isHrManager() || isAdmin();
-    }
-
-    match /attendanceDaily/{dailyId} {
-        allow read, write: if isHrManager() || isAdmin();
-    }
-
-    match /attendanceBatches/{batchId} {
-        allow read, write: if isHrManager() || isAdmin();
-        match /lines/{lineId} {
-          allow read, write: if isHrManager() || isAdmin();
-        }
-    }
-    
-     match /{path=**}/contracts/{contractId} {
-      allow list: if isOperationManager() || isAdmin();
-    }
-     match /{path=**}/projects/{projectId} {
-      allow list: if isOperationManager() || isAdmin();
-    }
-    match /{path=**}/waves/{waveId} {
-      allow list: if isOperationManager() || isAdmin();
-    }
-     match /{path=**}/timesheets/{timesheetId} {
-      allow list: if isHrManager() || isAdmin();
-    }
-    match /{path=**}/assignments/{assignmentId} {
-      allow list: if isSignedIn() && (isHrManager() || isOperationManager() || isAdmin());
-    }
-
   }
 }
