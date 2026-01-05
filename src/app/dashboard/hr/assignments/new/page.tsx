@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
@@ -218,7 +219,13 @@ function NewAssignmentFormComponent() {
                     <Select onValueChange={field.onChange} value={field.value} disabled={!!searchParams.get('waveId')}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Choose a wave..." /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {waves?.map(w => <SelectItem key={w.id} value={w.id}>{w.waveCode}</SelectItem>)}
+                        {isLoadingWaves ? (
+                          <SelectItem value="loading" disabled>Loading...</SelectItem>
+                        ) : waves && waves.length > 0 ? (
+                           waves.map(w => <SelectItem key={w.id} value={w.id}>{w.waveCode}</SelectItem>)
+                        ) : (
+                          <SelectItem value="no-waves" disabled>No waves found.</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
