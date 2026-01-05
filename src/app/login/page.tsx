@@ -3,9 +3,11 @@
 
 import { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase/client';
+import { initializeFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+const { auth } = initializeFirebase();
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
