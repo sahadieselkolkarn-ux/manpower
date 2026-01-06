@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -22,7 +23,7 @@ import FullPageLoader from '@/components/full-page-loader';
 import { Assignment } from '@/types/assignment';
 import { WaveWithProject } from '@/types/wave';
 import { useToast } from '@/hooks/use-toast';
-import { formatDate } from '@/lib/utils';
+import { formatThaiDateFromISO } from '@/lib/date/thaiDate';
 import { useEffectOnce } from 'react-use';
 
 
@@ -37,7 +38,6 @@ export default function AssignmentsMasterListPage() {
     useMemoFirebase(() => db ? query(collection(db, 'assignments'), orderBy('createdAt', 'desc')) : null, [db])
   );
   
-  // Fetch all waves for the filter dropdown.
   const { data: waves, isLoading: isLoadingWaves } = useCollection<WaveWithProject>(
     useMemoFirebase(() => db ? query(collectionGroup(db, 'waves')) : null, [db])
   );
@@ -85,7 +85,7 @@ export default function AssignmentsMasterListPage() {
 
   if (isLoading) return <FullPageLoader />;
   
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds?.includes('HR_MANAGER');
+  const canManage = userProfile?.isAdmin || userProfile?.roleIds?.includes('HR_MANAGER') || userProfile?.roleIds?.includes('OPERATION_MANAGER');
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -162,7 +162,7 @@ export default function AssignmentsMasterListPage() {
                           </Link>
                         ) : a.waveId}
                       </TableCell>
-                      <TableCell>{formatDate(a.startDate)} - {formatDate(a.endDate)}</TableCell>
+                      <TableCell>{formatThaiDateFromISO(a.startDate)} - {formatThaiDateFromISO(a.endDate)}</TableCell>
                       <TableCell><Badge variant={a.status === 'ACTIVE' ? 'default' : 'secondary'}>{a.status}</Badge></TableCell>
                       {canManage && (
                         <TableCell className="text-right">
