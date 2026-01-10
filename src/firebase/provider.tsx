@@ -13,7 +13,7 @@ interface FirebaseProviderProps {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
-  storage: FirebaseStorage;
+  storage?: FirebaseStorage;
 }
 
 // Internal state for user authentication
@@ -41,7 +41,7 @@ export interface FirebaseServicesAndUser {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
-  storage: FirebaseStorage;
+  storage: FirebaseStorage | null; // Can be null if not provided
   user: User | null;
   isUserLoading: boolean;
   userError: Error | null;
@@ -65,7 +65,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   firebaseApp,
   firestore,
   auth,
-  storage,
+  storage, // Now optional
 }) => {
   const [userAuthState, setUserAuthState] = useState<UserAuthState>({
     user: null,
@@ -97,13 +97,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
-    const servicesAvailable = !!(firebaseApp && firestore && auth && storage);
+    // Storage is NOT part of the core services required for the app to function
+    const coreServicesAvailable = !!(firebaseApp && firestore && auth);
     return {
-      areServicesAvailable: servicesAvailable,
-      firebaseApp: servicesAvailable ? firebaseApp : null,
-      firestore: servicesAvailable ? firestore : null,
-      auth: servicesAvailable ? auth : null,
-      storage: servicesAvailable ? storage : null,
+      areServicesAvailable: coreServicesAvailable,
+      firebaseApp: coreServicesAvailable ? firebaseApp : null,
+      firestore: coreServicesAvailable ? firestore : null,
+      auth: coreServicesAvailable ? auth : null,
+      storage: storage || null, // Provide storage if available, otherwise null
       user: userAuthState.user,
       isUserLoading: userAuthState.isUserLoading,
       userError: userAuthState.userError,
@@ -121,6 +122,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 /**
  * Hook to access core Firebase services and user authentication state.
  * Throws error if core services are not available or used outside provider.
+ * Storage is optional here.
  */
 export const useFirebase = (): FirebaseServicesAndUser => {
   const context = useContext(FirebaseContext);
@@ -129,7 +131,8 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
 
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth || !context.storage) {
+  // Core services check does NOT include storage.
+  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
     throw new Error('Firebase core services not available. Check FirebaseProvider props.');
   }
 
@@ -137,7 +140,7 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     firebaseApp: context.firebaseApp,
     firestore: context.firestore,
     auth: context.auth,
-    storage: context.storage,
+    storage: context.storage, // This can be null
     user: context.user,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
@@ -162,9 +165,15 @@ export const useFirebaseApp = (): FirebaseApp => {
   return firebaseApp;
 };
 
-/** Hook to access Firebase Storage instance. */
+/**
+ * Hook to access Firebase Storage instance.
+ * Throws an error if Storage is not available.
+ */
 export const useStorage = (): FirebaseStorage => {
     const { storage } = useFirebase();
+    if (!storage) {
+        throw new Error('Firebase Storage service not available. Ensure it is provided in FirebaseProvider.');
+    }
     return storage;
 }
 
