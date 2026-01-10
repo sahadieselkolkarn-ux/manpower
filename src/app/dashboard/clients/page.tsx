@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
-import { collection } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { type Client } from "@/types/client";
 import { useAuth } from "@/context/AuthContext";
@@ -17,16 +17,30 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { canManageOperation } from "@/lib/authz";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 
 export default function ClientPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const router = useRouter();
 
   const db = useFirestore();
   const { userProfile } = useAuth();
+  const { toast } = useToast();
   
-  const clientsQuery = useMemoFirebase(() => db ? collection(db, 'clients') : null, [db]);
+  const clientsQuery = useMemoFirebase(() => db ? query(collection(db, 'clients'), where('isDeleted', '!=', true)) : null, [db]);
   const { data: clients, isLoading, refetch } = useCollection<Client>(clientsQuery);
   
   const handleAddClient = () => {
@@ -38,6 +52,25 @@ export default function ClientPage() {
     setSelectedClient(client);
     setIsFormOpen(true);
   };
+
+  const handleDeleteClient = async () => {
+    if (!clientToDelete || !userProfile) return;
+    const clientRef = doc(db, 'clients', clientToDelete.id);
+    try {
+      await updateDoc(clientRef, {
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+        deletedBy: userProfile.uid,
+      });
+      toast({ title: 'Success', description: 'Client has been deleted.' });
+      refetch();
+    } catch (error) {
+      console.error("Error deleting client: ", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete client.' });
+    } finally {
+      setClientToDelete(null);
+    }
+  };
   
   const canManage = canManageOperation(userProfile);
 
@@ -46,7 +79,7 @@ export default function ClientPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between space-y-2">
         <h1 className="text-3xl font-bold tracking-tight font-headline">
-          Clients
+          Customers (ลูกค้า)
         </h1>
         {canManage && (
           <Button onClick={handleAddClient}>
@@ -116,7 +149,7 @@ export default function ClientPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClient(client); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600" disabled>
+                          <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setClientToDelete(client); }}>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -143,6 +176,24 @@ export default function ClientPage() {
           client={selectedClient}
           onSuccess={refetch}
         />
+      )}
+       {clientToDelete && (
+        <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to delete this client?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will archive the client '{clientToDelete.name}'. It can be restored later.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
+                        Delete Client
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, PlusCircle, Lock, ShieldAlert } from "lucide-react";
-import { collection, collectionGroup, getDocs } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, doc, updateDoc, serverTimestamp, where, query } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,10 +19,24 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
+import { canManageOperation } from "@/lib/authz";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+
 
 export default function ContractPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<ContractWithClient | null>(null);
+  const [contractToDelete, setContractToDelete] = useState<ContractWithClient | null>(null);
   const [contracts, setContracts] = useState<ContractWithClient[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,8 +45,9 @@ export default function ContractPage() {
 
   const db = useFirestore();
   const { userProfile } = useAuth();
+  const { toast } = useToast();
   
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
+  const canManage = canManageOperation(userProfile);
   
   const fetchData = async () => {
     if (!db) {
@@ -43,11 +58,11 @@ export default function ContractPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const clientSnapshot = await getDocs(collection(db, 'clients'));
+      const clientSnapshot = await getDocs(query(collection(db, 'clients'), where('isDeleted', '!=', true)));
       const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
       setClients(clientList);
 
-      const contractSnapshot = await getDocs(collectionGroup(db, 'contracts'));
+      const contractSnapshot = await getDocs(query(collectionGroup(db, 'contracts'), where('isDeleted', '!=', true)));
       const contractList = contractSnapshot.docs.map(doc => {
         const data = doc.data();
         const parentClient = clientList.find(c => doc.ref.parent.parent?.id === c.id);
@@ -57,7 +72,7 @@ export default function ContractPage() {
           clientName: parentClient?.name || 'Unknown',
           ...data
         } as ContractWithClient;
-      });
+      }).filter(c => c.clientId); // Filter out contracts whose client might be soft-deleted
 
       setContracts(contractList);
     } catch (error: any) {
@@ -85,6 +100,26 @@ export default function ContractPage() {
   const handleSuccess = () => {
     fetchData(); // Refetch data on success
   }
+
+  const handleDeleteContract = async () => {
+    if (!contractToDelete || !userProfile) return;
+    const contractRef = doc(db, 'clients', contractToDelete.clientId, 'contracts', contractToDelete.id);
+    try {
+      await updateDoc(contractRef, {
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+        deletedBy: userProfile.uid,
+        status: 'DELETED',
+      });
+      toast({ title: 'Success', description: 'Contract has been deleted.' });
+      fetchData(); // refetch
+    } catch (error) {
+      console.error("Error deleting contract: ", error);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete contract.' });
+    } finally {
+      setContractToDelete(null);
+    }
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -181,7 +216,7 @@ export default function ContractPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditContract(contract); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600" disabled>
+                          <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setContractToDelete(contract); }}>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -209,6 +244,24 @@ export default function ContractPage() {
           clients={clients}
           onSuccess={handleSuccess}
         />
+      )}
+       {contractToDelete && (
+        <AlertDialog open={!!contractToDelete} onOpenChange={() => setContractToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to delete this contract?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will archive the contract '{contractToDelete.name}'. It can be restored later.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteContract} className="bg-destructive hover:bg-destructive/90">
+                        Delete Contract
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );
