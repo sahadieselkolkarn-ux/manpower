@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
@@ -108,15 +107,37 @@ function NewAssignmentFormComponent() {
     if (!db || !userProfile || !selectedWave) return;
     setLoading(true);
     
-    const pathSegments = selectedWave.ref.path.split('/');
-    const clientId = pathSegments[1];
-    const contractId = pathSegments[3];
-    const projectId = pathSegments[5];
+    // The path is dynamically constructed. We need to find the project this wave belongs to.
+    // In a real app, you might have this data readily available. For now, we query to find it.
+    // This is inefficient but demonstrates the principle.
+    const projectsSnapshot = await getDocs(collectionGroup(db, 'projects'));
+    let projectPathData: { clientId: string; contractId: string; projectId: string } | null = null;
+    
+    for (const projectDoc of projectsSnapshot.docs) {
+        const waveDocRef = doc(db, projectDoc.ref.path, 'waves', selectedWave.id);
+        const waveDocSnap = await getDoc(waveDocRef);
+        if (waveDocSnap.exists()) {
+            const pathSegments = waveDocSnap.ref.path.split('/');
+            projectPathData = {
+                clientId: pathSegments[1],
+                contractId: pathSegments[3],
+                projectId: pathSegments[5],
+            };
+            break;
+        }
+    }
+    
+    if (!projectPathData) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not resolve the project path for the selected wave.' });
+        setLoading(false);
+        return;
+    }
+
+    const { clientId, contractId, projectId } = projectPathData;
 
     // Get dates directly from the selected wave
     const startDateISO = format(selectedWave.planningWorkPeriod.startDate.toDate(), 'yyyy-MM-dd');
     const endDateISO = format(selectedWave.planningWorkPeriod.endDate.toDate(), 'yyyy-MM-dd');
-
 
     try {
       const batch = writeBatch(db);
@@ -138,6 +159,7 @@ function NewAssignmentFormComponent() {
           waveId: values.waveId,
           projectId: projectId,
           clientId: clientId,
+          contractId: contractId,
           employeeId: employee.id,
           employeeCode: employee.employeeCode,
           employeeName: `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`,
@@ -297,3 +319,5 @@ export default function NewAssignmentPage() {
         </Suspense>
     )
 }
+
+    
