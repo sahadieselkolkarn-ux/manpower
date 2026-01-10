@@ -23,25 +23,27 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, pathname]);
 
-  // Safeguard effect to clean up Radix UI side-effects on route change
+  // Global Interaction Guard: Periodically checks and cleans up Radix side-effects.
   React.useEffect(() => {
-    const cleanupRadixState = () => {
-      document.body.style.removeProperty('pointer-events');
-      document.body.style.removeProperty('overflow');
-    };
+    const intervalId = setInterval(() => {
+      // Check if any Radix-based modal is currently open.
+      const hasOpenModal = !!document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+      );
 
-    cleanupRadixState(); // Clean up on initial load and every pathname change
+      // If no modals are open, forcefully remove any lingering styles that could block interaction.
+      if (!hasOpenModal) {
+        document.body.style.removeProperty('pointer-events');
+        document.body.style.removeProperty('overflow');
+        document.documentElement.style.removeProperty('overflow');
+        document.body.removeAttribute('data-scroll-locked');
+        document.documentElement.removeAttribute('data-scroll-locked');
+      }
+    }, 250); // Run this check every 250ms.
 
-    // While not strictly necessary with the CSS fix, this is a good safeguard.
-    // It addresses cases where a dialog might be unmounted before its closing animation completes.
-    const portals = document.querySelectorAll('[data-radix-portal]');
-    portals.forEach(portal => {
-        // A more aggressive cleanup would be `portal.remove()`, but that might break things.
-        // The body style cleanup is safer and more effective.
-    });
-
-
-  }, [pathname]);
+    // Cleanup the interval when the component unmounts.
+    return () => clearInterval(intervalId);
+  }, []); // Empty dependency array ensures this runs only once for the lifetime of the component.
 
 
   if (loading || !user) {
