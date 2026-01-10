@@ -15,6 +15,9 @@ export interface Client {
   address?: string;
   taxId?: string;
   contacts?: Contact[];
+  isDeleted?: boolean;
+  deletedAt?: Timestamp;
+  deletedBy?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;

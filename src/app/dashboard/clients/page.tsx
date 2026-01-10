@@ -40,7 +40,7 @@ export default function ClientPage() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   
-  const clientsQuery = useMemoFirebase(() => db ? query(collection(db, 'clients'), where('isDeleted', '!=', true)) : null, [db]);
+  const clientsQuery = useMemoFirebase(() => db ? query(collection(db, 'clients'), where('isDeleted', '==', false)) : null, [db]);
   const { data: clients, isLoading, refetch } = useCollection<Client>(clientsQuery);
   
   const handleAddClient = () => {
@@ -54,7 +54,7 @@ export default function ClientPage() {
   };
 
   const handleDeleteClient = async () => {
-    if (!clientToDelete || !userProfile) return;
+    if (!clientToDelete || !userProfile || !db) return;
     const clientRef = doc(db, 'clients', clientToDelete.id);
     try {
       await updateDoc(clientRef, {
