@@ -233,12 +233,12 @@ export default function WaveForm({
                 const mm = String(now.getMonth() + 1).padStart(2, '0');
                 const YYMM = `${yy}${mm}`;
 
-                const counterRef = doc(db, 'counters/waveCodes', YYMM);
+                const counterRef = doc(db, 'counters', `waveCodes_${YYMM}`);
                 const counterDoc = await transaction.get(counterRef);
                 const seq = counterDoc.data()?.next ?? 1;
                 const waveCode = `WV-${YYMM}-${String(seq).padStart(3, '0')}`;
                 
-                const codeUniqueRef = doc(db, 'unique/waveCodes', waveCode);
+                const codeUniqueRef = doc(db, 'unique', `waveCodes__${waveCode}`);
                 const codeUniqueDoc = await transaction.get(codeUniqueRef);
                 if(codeUniqueDoc.exists()) {
                     throw new Error(`Generated wave code ${waveCode} already exists. Please try again.`);

@@ -114,12 +114,13 @@ export default function ClientForm({
 
     const nameKey = normalizeKey(values.name);
     const oldNameKey = client ? normalizeKey(client.name) : null;
+    const uniqueClientNameId = (k: string) => `clientNames__${k.replace(/\//g, '_')}`;
 
     try {
       await runTransaction(db, async (transaction) => {
         // Check for name uniqueness if name has changed or it's a new client
         if (nameKey !== oldNameKey) {
-          const uniqueRef = doc(db, `unique/clientNames/${nameKey}`);
+          const uniqueRef = doc(db, 'unique', uniqueClientNameId(nameKey));
           const uniqueDoc = await transaction.get(uniqueRef);
           if (uniqueDoc.exists()) {
             throw new Error(`Client name "${values.name}" is already in use.`);
@@ -135,11 +136,11 @@ export default function ClientForm({
           });
 
           if (nameKey !== oldNameKey && oldNameKey) {
-            const oldUniqueRef = doc(db, `unique/clientNames/${oldNameKey}`);
+            const oldUniqueRef = doc(db, 'unique', uniqueClientNameId(oldNameKey));
             transaction.delete(oldUniqueRef);
           }
            if (nameKey !== oldNameKey) {
-            const newUniqueRef = doc(db, `unique/clientNames/${nameKey}`);
+            const newUniqueRef = doc(db, 'unique', uniqueClientNameId(nameKey));
             transaction.set(newUniqueRef, {
               entityId: client.id,
               createdAt: serverTimestamp(),
@@ -157,7 +158,7 @@ export default function ClientForm({
             createdBy: userProfile.displayName || userProfile.email,
           });
 
-          const uniqueRef = doc(db, `unique/clientNames/${nameKey}`);
+          const uniqueRef = doc(db, 'unique', uniqueClientNameId(nameKey));
           transaction.set(uniqueRef, {
             entityId: clientRef.id,
             createdAt: serverTimestamp(),

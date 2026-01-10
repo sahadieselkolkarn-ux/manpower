@@ -136,15 +136,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // COUNTERS: Used for auto-incrementing codes
-    match /counters/{counterId} {
+    // COUNTERS & UNIQUE: Used for auto-incrementing codes and uniqueness
+    match /counters/{docId} {
         allow read, write: if isInternalStaff();
     }
-
-    // UNIQUE: Used for uniqueness constraints
-    match /unique/{path}/{docId} {
-        allow read, create: if isInternalStaff();
-        allow update, delete: if isAdmin(); // Only admins can alter uniqueness constraints
+    match /unique/{docId} {
+        allow read, write: if isInternalStaff();
     }
 
 

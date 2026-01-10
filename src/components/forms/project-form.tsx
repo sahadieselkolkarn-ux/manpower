@@ -72,9 +72,9 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
     try {
       await runTransaction(db, async (transaction) => {
         // --- Uniqueness Check ---
+        const uniqueKey = `${selectedContract.clientId}_${selectedContract.id}_${nameKey}`;
         if (nameKey !== oldNameKey) {
-          const uniqueKey = `${selectedContract.clientId}_${selectedContract.id}_${nameKey}`;
-          const uniqueRef = doc(db, 'unique/projectNames', uniqueKey);
+          const uniqueRef = doc(db, 'unique', `projectNames__${uniqueKey.replace(/\//g, '_')}`);
           const uniqueDoc = await transaction.get(uniqueRef);
           if (uniqueDoc.exists()) {
             throw new Error(`Project name "${values.name}" already exists in this contract.`);
@@ -93,9 +93,9 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
           if (nameKey !== oldNameKey) {
             const newUniqueKey = `${project.clientId}_${project.contractId}_${nameKey}`;
             const oldUniqueKey = `${project.clientId}_${project.contractId}_${oldNameKey}`;
-            transaction.set(doc(db, 'unique/projectNames', newUniqueKey), { entityId: project.id });
+            transaction.set(doc(db, 'unique', `projectNames__${newUniqueKey.replace(/\//g, '_')}`), { entityId: project.id });
             if (oldNameKey) {
-              transaction.delete(doc(db, 'unique/projectNames', oldUniqueKey));
+              transaction.delete(doc(db, 'unique', `projectNames__${oldUniqueKey.replace(/\//g, '_')}`));
             }
           }
         } else { // --- Create ---
@@ -106,13 +106,13 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
           const mm = String(now.getMonth() + 1).padStart(2, '0');
           const YYMM = `${yy}${mm}`;
           
-          const counterRef = doc(db, 'counters/projectCodes', YYMM);
+          const counterRef = doc(db, 'counters', `projectCodes_${YYMM}`);
           const counterDoc = await transaction.get(counterRef);
           const seq = counterDoc.data()?.next ?? 1;
           const projectCode = `P${YYMM}${String(seq).padStart(3, '0')}`;
           
           // 2. Check Project Code Uniqueness
-          const codeUniqueRef = doc(db, 'unique/projectCodes', projectCode);
+          const codeUniqueRef = doc(db, 'unique', `projectCodes__${projectCode}`);
           const codeUniqueDoc = await transaction.get(codeUniqueRef);
           if(codeUniqueDoc.exists()) {
               throw new Error(`Generated project code ${projectCode} already exists. Please try again.`);
@@ -135,8 +135,7 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
           
           // 4. Update/Set Indexes
           transaction.set(codeUniqueRef, { entityId: newProjectRef.id });
-          const uniqueKey = `${selectedContract.clientId}_${selectedContract.id}_${nameKey}`;
-          transaction.set(doc(db, 'unique/projectNames', uniqueKey), { entityId: newProjectRef.id });
+          transaction.set(doc(db, 'unique', `projectNames__${uniqueKey.replace(/\//g, '_')}`), { entityId: newProjectRef.id });
           transaction.set(counterRef, { next: seq + 1 }, { merge: true });
         }
       });
