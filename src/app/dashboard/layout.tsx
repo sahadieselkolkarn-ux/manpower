@@ -23,6 +23,27 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, router, pathname]);
 
+  // Safeguard effect to clean up Radix UI side-effects on route change
+  React.useEffect(() => {
+    const cleanupRadixState = () => {
+      document.body.style.removeProperty('pointer-events');
+      document.body.style.removeProperty('overflow');
+    };
+
+    cleanupRadixState(); // Clean up on initial load and every pathname change
+
+    // While not strictly necessary with the CSS fix, this is a good safeguard.
+    // It addresses cases where a dialog might be unmounted before its closing animation completes.
+    const portals = document.querySelectorAll('[data-radix-portal]');
+    portals.forEach(portal => {
+        // A more aggressive cleanup would be `portal.remove()`, but that might break things.
+        // The body style cleanup is safer and more effective.
+    });
+
+
+  }, [pathname]);
+
+
   if (loading || !user) {
     return <FullPageLoader />;
   }
