@@ -83,26 +83,26 @@ export default function ClientPage() {
         </h1>
         {canManage && (
           <Button onClick={handleAddClient}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Client
+            <PlusCircle className="mr-2 h-4 w-4" /> Add Customer
           </Button>
         )}
       </div>
       <p className="text-muted-foreground">
-        Manage your clients and their contracts.
+        Manage your customers and their contracts.
       </p>
 
       <Card>
         <CardHeader>
-          <CardTitle>Client List</CardTitle>
+          <CardTitle>Customer List</CardTitle>
           <CardDescription>
-            A list of all clients in your account.
+            A list of all customers in your account.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Client Name</TableHead>
+                <TableHead>Customer Name</TableHead>
                 <TableHead>Short Name</TableHead>
                 <TableHead>Created By</TableHead>
                 <TableHead>Created At</TableHead>
@@ -161,7 +161,7 @@ export default function ClientPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={canManage ? 5: 4} className="h-24 text-center">
-                    No clients found.
+                    No customers found.
                   </TableCell>
                 </TableRow>
               )}
@@ -181,15 +181,15 @@ export default function ClientPage() {
         <AlertDialog open={!!clientToDelete} onOpenChange={() => setClientToDelete(null)}>
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Are you sure you want to delete this client?</AlertDialogTitle>
+                    <AlertDialogTitle>Are you sure you want to delete this customer?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will archive the client '{clientToDelete.name}'. It can be restored later.
+                        This will archive the customer '{clientToDelete.name}'. It can be restored later.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDeleteClient} className="bg-destructive hover:bg-destructive/90">
-                        Delete Client
+                        Delete Customer
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
