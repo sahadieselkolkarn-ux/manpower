@@ -107,9 +107,6 @@ function NewAssignmentFormComponent() {
     if (!db || !userProfile || !selectedWave) return;
     setLoading(true);
     
-    // The path is dynamically constructed. We need to find the project this wave belongs to.
-    // In a real app, you might have this data readily available. For now, we query to find it.
-    // This is inefficient but demonstrates the principle.
     const projectsSnapshot = await getDocs(collectionGroup(db, 'projects'));
     let projectPathData: { clientId: string; contractId: string; projectId: string } | null = null;
     
@@ -135,9 +132,14 @@ function NewAssignmentFormComponent() {
 
     const { clientId, contractId, projectId } = projectPathData;
 
-    // Get dates directly from the selected wave
-    const startDateISO = format(selectedWave.planningWorkPeriod.startDate.toDate(), 'yyyy-MM-dd');
-    const endDateISO = format(selectedWave.planningWorkPeriod.endDate.toDate(), 'yyyy-MM-dd');
+    const startDateResult = parseThaiDateToISO(format(selectedWave.planningWorkPeriod.startDate.toDate(), DATE_FORMAT));
+    const endDateResult = parseThaiDateToISO(format(selectedWave.planningWorkPeriod.endDate.toDate(), DATE_FORMAT));
+
+    if (!startDateResult.ok || !endDateResult.ok) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Invalid wave date format.' });
+        setLoading(false);
+        return;
+    }
 
     try {
       const batch = writeBatch(db);
@@ -145,14 +147,13 @@ function NewAssignmentFormComponent() {
         const employee = manpower?.find(e => e.id === employeeId);
         if (!employee) continue;
 
-        // Use deterministic doc ID to prevent duplicates
         const assignmentId = `${values.waveId}_${employeeId}`;
         const assignmentRef = doc(db, 'assignments', assignmentId);
 
         const existingAssignmentSnap = await getDoc(assignmentRef);
         if (existingAssignmentSnap.exists() && existingAssignmentSnap.data().status === 'ACTIVE') {
             toast({ variant: 'destructive', title: 'Skipped Duplicate', description: `${employee.personalInfo.firstName} is already actively assigned to this wave.` });
-            continue; // Skip this employee
+            continue;
         }
         
         batch.set(assignmentRef, {
@@ -165,14 +166,14 @@ function NewAssignmentFormComponent() {
           employeeName: `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`,
           employeeType: employee.employeeType,
           status: 'ACTIVE',
-          startDate: startDateISO,
-          endDate: endDateISO,
+          startDate: startDateResult.iso,
+          endDate: endDateResult.iso,
           notes: values.notes || '',
           createdAt: serverTimestamp(),
           createdBy: userProfile.uid,
           updatedAt: serverTimestamp(),
           updatedBy: userProfile.uid,
-        }, { merge: true }); // Use merge to reactivate an 'ENDED' assignment
+        }, { merge: true });
       }
 
       await batch.commit();
@@ -210,7 +211,7 @@ function NewAssignmentFormComponent() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>1. Select Wave</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={!!searchParams.get('waveId')}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue placeholder="Choose a wave..." /></SelectTrigger></FormControl>
                       <SelectContent>
                         {isLoadingWaves ? (
@@ -319,5 +320,3 @@ export default function NewAssignmentPage() {
         </Suspense>
     )
 }
-
-    
