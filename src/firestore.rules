@@ -188,5 +188,14 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isSignedIn();
     }
+    
+    // --- DEV MODE CATCH-ALL ---
+    // This rule allows any signed-in user to read/write ANY document that hasn't been matched
+    // by a more specific rule above. This is crucial for development with collectionGroup queries
+    // to prevent permission errors from uncaught document paths.
+    // This is NOT secure for production and should be removed before deployment.
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
   }
 }
