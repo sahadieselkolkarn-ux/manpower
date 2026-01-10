@@ -5,13 +5,12 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addDoc, collection, doc, getDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, serverTimestamp, query, where, orderBy, limit, getDocs, setDoc } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -48,6 +47,7 @@ import { EligibilityStatus, Assignment } from '@/types/assignment';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
+import { Contract } from '@/types/contract';
 
 const formSchema = z.object({
   employeeId: z.string().min(1, 'Please select an employee.'),
@@ -190,6 +190,7 @@ export default function AssignmentForm({
 }: AssignmentFormProps) {
   const [loading, setLoading] = useState(false);
   const [eligibility, setEligibility] = useState<EligibilityResult | null>(null);
+  const [contract, setContract] = useState<Contract | null>(null);
 
   const db = useFirestore();
   const { userProfile } = useAuth();
@@ -200,6 +201,17 @@ export default function AssignmentForm({
 
   const positionsQuery = useMemoFirebase(() => db ? collection(db, 'manpowerPositions') : null, [db]);
   const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
+
+  useEffect(() => {
+    if (db && routeParams) {
+        const contractRef = doc(db, 'clients', routeParams.clientId, 'contracts', routeParams.contractId);
+        getDoc(contractRef).then(snap => {
+            if (snap.exists()) {
+                setContract({id: snap.id, ...snap.data()} as Contract);
+            }
+        });
+    }
+  }, [db, routeParams]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -290,7 +302,7 @@ export default function AssignmentForm({
 
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!userProfile || !db || !eligibility) {
+    if (!userProfile || !db || !eligibility || !contract) {
       toast({ variant: 'destructive', title: 'Error', description: 'Cannot process assignment. System not ready.' });
       return;
     }
@@ -301,21 +313,40 @@ export default function AssignmentForm({
         return;
     }
 
+    const saleRateInfo = contract.saleRates?.find(r => r.positionId === values.positionId);
+    // @ts-ignore
+    const workMode = wave.workMode.toLowerCase();
+    const sellRate = workMode === 'onshore' ? saleRateInfo?.onshoreSellDailyRateExVat : saleRateInfo?.offshoreSellDailyRateExVat;
+
+    if (!sellRate || sellRate <= 0) {
+        toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'Selected position has no valid sale rate (> 0) in the contract for this work mode.'});
+        return;
+    }
+
     setLoading(true);
 
     try {
       const selectedEmployee = employees?.find(e => e.id === values.employeeId);
       const selectedPosition = positions?.find(p => p.id === values.positionId);
       
-      const assignmentData = {
+      const assignmentId = `${wave.id}_${values.employeeId}`;
+      const assignmentRef = doc(db, 'assignments', assignmentId);
+
+      const assignmentData: Omit<Assignment, 'id'> = {
         employeeId: values.employeeId,
         employeeName: `${selectedEmployee?.personalInfo.firstName} ${selectedEmployee?.personalInfo.lastName}`,
+        employeeCode: selectedEmployee?.employeeCode || 'N/A',
+        employeeType: 'FIELD',
         positionId: values.positionId,
-        positionName: selectedPosition?.name,
+        positionName: selectedPosition?.name || 'N/A',
         waveId: routeParams.waveId,
+        projectId: routeParams.projectId,
+        clientId: routeParams.clientId,
         // @ts-ignore
         workMode: wave.workMode,
-        status: 'PENDING',
+        status: 'ACTIVE',
+        startDate: toDate(wave.planningWorkPeriod.startDate)!.toISOString().split('T')[0],
+        endDate: toDate(wave.planningWorkPeriod.endDate)!.toISOString().split('T')[0],
         assignedAt: serverTimestamp(),
         assignedBy: userProfile.displayName || userProfile.email,
         eligibility: {
@@ -327,21 +358,19 @@ export default function AssignmentForm({
         },
         override: {
             overrideFlag: isOverride,
-            overrideReason: values.overrideReason || null,
-            overrideBy: isOverride ? userProfile.displayName : null,
-            overrideAt: isOverride ? serverTimestamp() : null,
+            overrideReason: values.overrideReason || undefined,
+            overrideBy: isOverride ? userProfile.displayName : undefined,
+            overrideAt: isOverride ? serverTimestamp() : undefined,
         },
         policyVersion: eligibility.policyVersion,
         workModePair: eligibility.workModePair,
         appliedRestDays: eligibility.requiredRestDays,
-        costRateAtSnapshot: 0, 
-        sellRateAtSnapshot: 0,
+        sellRateAtSnapshot: sellRate,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      const assignmentCollectionPath = `clients/${routeParams.clientId}/contracts/${routeParams.contractId}/projects/${routeParams.projectId}/waves/${routeParams.waveId}/assignments`;
-      await addDoc(collection(db, assignmentCollectionPath), assignmentData);
+      await setDoc(assignmentRef, assignmentData, { merge: true });
 
       toast({ title: 'Success', description: 'Employee assigned successfully.' });
       onSuccess?.();

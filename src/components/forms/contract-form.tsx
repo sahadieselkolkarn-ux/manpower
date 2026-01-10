@@ -5,7 +5,7 @@ import React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -20,10 +20,13 @@ import { type ContractWithClient } from '@/types/contract';
 import { ManpowerPosition } from '@/types/position';
 import { Trash2 } from 'lucide-react';
 import { Separator } from '../ui/separator';
+import { Textarea } from '../ui/textarea';
 
 const saleRateSchema = z.object({
   positionId: z.string().min(1, "Position is required."),
-  dailyRateExVat: z.coerce.number().min(0, "Rate must be non-negative."),
+  dailyRateExVat: z.coerce.number().optional(), // Legacy
+  onshoreSellDailyRateExVat: z.coerce.number().min(0, "Rate must be non-negative.").optional(),
+  offshoreSellDailyRateExVat: z.coerce.number().min(0, "Rate must be non-negative.").optional(),
 });
 
 const formSchema = z.object({
@@ -37,6 +40,7 @@ const formSchema = z.object({
     weeklyHolidayMultiplier: z.coerce.number().min(0),
     contractHolidayMultiplier: z.coerce.number().min(0),
   }).optional(),
+  changeNote: z.string().optional(),
 });
 
 interface ContractFormProps {
@@ -63,6 +67,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
       clientId: '',
       saleRates: [],
       otRules: { workdayMultiplier: 1.5, weeklyHolidayMultiplier: 2, contractHolidayMultiplier: 3 },
+      changeNote: '',
     },
   });
 
@@ -70,35 +75,45 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
     control: form.control,
     name: "saleRates",
   });
+  
+  const isSaleRatesDirty = form.formState.dirtyFields.saleRates;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!userProfile || !db) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'You must be logged in to perform this action.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to perform this action.' });
       return;
+    }
+    
+    if (contract && isSaleRatesDirty && !values.changeNote) {
+        form.setError("changeNote", { message: "A note is required when changing sale rates." });
+        return;
     }
 
     setLoading(true);
 
     try {
-      const { clientId, ...contractData } = values;
+      const { clientId, changeNote, ...contractData } = values;
       
       if (contract) {
         if (contract.isLocked) {
           throw new Error("Cannot update a locked contract.");
         }
         const contractRef = doc(db, 'clients', contract.clientId, 'contracts', contract.id);
-        await updateDoc(contractRef, {
+        const updatePayload: any = {
             ...contractData,
             updatedAt: serverTimestamp(),
-        });
-        toast({
-          title: 'Success',
-          description: 'Contract updated successfully.',
-        });
+        };
+
+        if (isSaleRatesDirty && changeNote) {
+            updatePayload.pricingChangeLogs = arrayUnion({
+                note: changeNote,
+                by: userProfile.displayName || userProfile.email,
+                at: serverTimestamp(),
+            });
+        }
+        
+        await updateDoc(contractRef, updatePayload);
+        toast({ title: 'Success', description: 'Contract updated successfully.' });
       } else {
         const collectionRef = collection(db, 'clients', clientId, 'contracts');
         await addDoc(collectionRef, {
@@ -111,22 +126,14 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-        toast({
-          title: 'Success',
-          description: 'Contract created successfully.',
-        });
+        toast({ title: 'Success', description: 'Contract created successfully.' });
       }
       onSuccess?.();
       onOpenChange(false);
-      form.reset();
     } catch (error) {
       console.error('Error saving contract:', error);
       const errorMessage = error instanceof Error ? error.message : 'There was a problem with your request. Please try again.';
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: errorMessage,
-      });
+      toast({ variant: 'destructive', title: 'Uh oh! Something went wrong.', description: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -139,6 +146,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
         clientId: contract?.clientId || '',
         saleRates: contract?.saleRates || [],
         otRules: contract?.otRules || { workdayMultiplier: 1.5, weeklyHolidayMultiplier: 2, contractHolidayMultiplier: 3 },
+        changeNote: '',
       });
     }
   }, [open, contract, form]);
@@ -147,7 +155,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{contract ? 'Edit Contract' : 'Add New Contract'}</DialogTitle>
           <DialogDescription>
@@ -156,79 +164,41 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contract Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. 2024 Maintenance Agreement" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="clientId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Client</FormLabel>
+            <FormField control={form.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Contract Name</FormLabel><FormControl><Input placeholder="e.g. 2024 Maintenance Agreement" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+            <FormField control={form.control} name="clientId" render={({ field }) => (
+                <FormItem><FormLabel>Client</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!contract}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a client" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger></FormControl>
+                    <SelectContent>{clients.map((client) => (<SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>))}</SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
-              )}
-            />
+              )}/>
             
             <Separator />
 
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Sale Rates (Daily)</h3>
               {fields.map((field, index) => (
-                <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end border p-4 rounded-md relative">
-                   <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={() => remove(index)} disabled={isLocked}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                <div key={field.id} className="space-y-2 border p-4 rounded-md relative">
+                   <Button type="button" variant="ghost" size="icon" className="absolute top-1 right-1 h-6 w-6" onClick={() => remove(index)} disabled={isLocked}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   <FormField control={form.control} name={`saleRates.${index}.positionId`} render={({ field }) => (
-                      <FormItem className="md:col-span-2">
+                      <FormItem>
                         <FormLabel>Position (ลูกจ้าง)</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLocked}>
-                           <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select manpower position..."/>
-                            </SelectTrigger>
-                          </FormControl>
+                           <FormControl><SelectTrigger><SelectValue placeholder="Select manpower position..."/></SelectTrigger></FormControl>
                           <SelectContent>{isLoadingPositions ? <SelectItem value="loading" disabled>Loading...</SelectItem> : positions?.map(pos => <SelectItem key={pos.id} value={pos.id}>{pos.name}</SelectItem>)}</SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField control={form.control} name={`saleRates.${index}.dailyRateExVat`} render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Daily Rate (ex. VAT)</FormLabel>
-                        <FormControl><Input type="number" {...field} disabled={isLocked}/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                    )}/>
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name={`saleRates.${index}.onshoreSellDailyRateExVat`} render={({ field }) => (<FormItem><FormLabel>Onshore Sell Rate</FormLabel><FormControl><Input type="number" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem>)}/>
+                        <FormField control={form.control} name={`saleRates.${index}.offshoreSellDailyRateExVat`} render={({ field }) => (<FormItem><FormLabel>Offshore Sell Rate</FormLabel><FormControl><Input type="number" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem>)}/>
+                    </div>
                 </div>
               ))}
-               <Button type="button" variant="outline" size="sm" onClick={() => append({ positionId: "", dailyRateExVat: 0 })} disabled={isLocked}>Add Rate</Button>
+               <Button type="button" variant="outline" size="sm" onClick={() => append({ positionId: "", onshoreSellDailyRateExVat: 0, offshoreSellDailyRateExVat: 0 })} disabled={isLocked}>Add Rate</Button>
             </div>
             
             <Separator />
@@ -236,39 +206,22 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
             <div className="space-y-4">
                 <h3 className="text-lg font-medium">OT Multipliers</h3>
                 <div className="grid grid-cols-3 gap-4">
-                     <FormField control={form.control} name="otRules.workdayMultiplier" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Workday</FormLabel>
-                        <FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="otRules.weeklyHolidayMultiplier" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Weekly Holiday</FormLabel>
-                        <FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                     <FormField control={form.control} name="otRules.contractHolidayMultiplier" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Contract Holiday</FormLabel>
-                        <FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                     <FormField control={form.control} name="otRules.workdayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Workday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+                     <FormField control={form.control} name="otRules.weeklyHolidayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Weekly Holiday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+                     <FormField control={form.control} name="otRules.contractHolidayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Contract Holiday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
                 </div>
             </div>
 
+            {isSaleRatesDirty && contract && !isLocked && (
+                <>
+                <Separator />
+                <FormField control={form.control} name="changeNote" render={({ field }) => ( <FormItem><FormLabel className="text-destructive">Reason for Change</FormLabel><FormControl><Textarea placeholder="Explain why the sale rates are being changed." {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                </>
+            )}
+
             <DialogFooter className="pt-4">
-              <DialogClose asChild>
-                <Button type="button" variant="secondary">
-                  Cancel
-                </Button>
-              </DialogClose>
-              <Button type="submit" disabled={loading || isLocked}>
-                {loading ? 'Saving...' : 'Save Contract'}
-              </Button>
+              <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+              <Button type="submit" disabled={loading || isLocked}>{loading ? 'Saving...' : 'Save Contract'}</Button>
             </DialogFooter>
           </form>
         </Form>

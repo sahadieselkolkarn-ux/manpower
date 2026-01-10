@@ -13,6 +13,8 @@ import {
   getDocs,
   writeBatch,
   serverTimestamp,
+  updateDoc,
+  arrayUnion,
 } from "firebase/firestore";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -303,7 +305,7 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
                         <CardDescription>พนักงานทั้งหมดที่ถูกเลือกสำหรับ Wave นี้</CardDescription>
                     </div>
                      {canManage && (
-                      <Button onClick={() => router.push(`/dashboard/hr/assignments/new?waveId=${waveId}`)}>
+                      <Button onClick={() => setIsAssignmentFormOpen(true)}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Assignment
                       </Button>
                     )}

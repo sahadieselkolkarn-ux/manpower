@@ -144,7 +144,6 @@ service cloud.firestore {
         allow read, write: if isInternalStaff();
     }
 
-
     // HR master data: Open for any internal staff for now
     match /employees/{id} { allow read, write: if isInternalStaff(); }
     match /hospitals/{id} { allow read, write: if isInternalStaff(); }
@@ -157,6 +156,7 @@ service cloud.firestore {
     // Timesheets: Open for any internal staff for now
     match /timesheetBatches/{id} { allow read, write: if isInternalStaff(); }
     match /timesheetLines/{id} { allow read, write: if isInternalStaff(); }
+    match /assignments/{id} { allow read, write: if isInternalStaff(); }
 
     // Finance data: Open for any internal staff for now
     match /payrolls/{id} { allow read, write: if isInternalStaff(); }

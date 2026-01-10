@@ -1,3 +1,4 @@
+
 "use client";
 
 import { use, useEffect, useState } from "react";
@@ -221,14 +222,16 @@ export default function ContractDetailsPage({
                     <TableHeader>
                         <TableRow>
                             <TableHead>Position</TableHead>
-                            <TableHead className="text-right">Daily Rate (ex. VAT)</TableHead>
+                            <TableHead className="text-right">Onshore Rate</TableHead>
+                            <TableHead className="text-right">Offshore Rate</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {contract.saleRates?.map(rate => (
                             <TableRow key={rate.positionId}>
                                 <TableCell>{positionMap.get(rate.positionId) || 'Unknown Position'}</TableCell>
-                                <TableCell className="text-right font-mono">{rate.dailyRateExVat.toLocaleString()}</TableCell>
+                                <TableCell className="text-right font-mono">{(rate.onshoreSellDailyRateExVat ?? rate.dailyRateExVat ?? 0).toLocaleString()}</TableCell>
+                                <TableCell className="text-right font-mono">{(rate.offshoreSellDailyRateExVat ?? rate.dailyRateExVat ?? 0).toLocaleString()}</TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

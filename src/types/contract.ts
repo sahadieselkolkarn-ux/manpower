@@ -19,7 +19,9 @@ export interface ContractCommercialItem {
 
 export interface ContractSaleRate {
     positionId: string;
-    dailyRateExVat: number;
+    dailyRateExVat?: number; // Legacy, for fallback
+    onshoreSellDailyRateExVat?: number;
+    offshoreSellDailyRateExVat?: number;
 }
 
 export interface ContractOtRules {
@@ -60,6 +62,7 @@ export interface Contract {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;
+  pricingChangeLogs?: { note: string; at: Timestamp; by: string }[];
 }
 
 export interface ContractWithClient extends Contract {
