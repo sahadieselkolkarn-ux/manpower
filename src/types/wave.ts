@@ -1,11 +1,14 @@
 
+
 import { type Timestamp } from 'firebase/firestore';
 
 export interface ManpowerRequirement {
   positionId: string;
+  positionName?: string; // Snapshot of the position name for display purposes
   count: number;
   requiredCertificateIds?: string[];
   requiredSkillTags?: string[];
+  originalPositionId?: string; // For debugging repaired data
 }
 
 export interface Wave {

@@ -1,6 +1,7 @@
 
 
 
+
 "use client";
 
 import React, { useEffect, useMemo } from "react";
@@ -71,6 +72,7 @@ const dateStringSchema = z.string().refine(val => val ? isValid(parse(val, DATE_
 
 const manpowerRequirementSchema = z.object({
   positionId: z.string().min(1, "Position is required."),
+  positionName: z.string().optional(), // For snapshotting
   count: z.coerce.number().int().min(1, "Count must be at least 1."),
   requiredCertificateIds: z.array(z.string()).optional(),
   requiredSkillTags: z.string().optional(), // Keep as string for form input
@@ -125,7 +127,7 @@ export default function WaveForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const positionsQuery = useMemoFirebase(() => (db ? collection(db, "manpowerPositions") : null), [db]);
+  const positionsQuery = useMemoFirebase(() => (db ? query(collection(db, "manpowerPositions")) : null), [db]);
   const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
 
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, "certificateTypes") : null), [db]);
@@ -136,7 +138,7 @@ export default function WaveForm({
     defaultValues: {
       waveCode: "",
       projectId: routeParams?.projectId || "",
-      manpowerRequirement: [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
+      manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
       planningWorkPeriod: {
           startDate: format(new Date(), DATE_FORMAT),
           endDate: format(new Date(), DATE_FORMAT)
@@ -153,6 +155,9 @@ export default function WaveForm({
     if (!certificateTypes) return [];
     return certificateTypes.map(ct => ({ label: ct.name, value: ct.id }));
   }, [certificateTypes]);
+  
+  const positionMap = useMemo(() => new Map(positions?.map(p => [p.id, p.name])), [positions]);
+
 
   useEffect(() => {
     if (open) {
@@ -162,6 +167,7 @@ export default function WaveForm({
             requirements = wave.manpowerRequirement.map(
               (req) => ({ 
                 positionId: req.positionId, 
+                positionName: req.positionName || positionMap.get(req.positionId) || 'Unknown',
                 count: req.count,
                 requiredCertificateIds: req.requiredCertificateIds || [],
                 requiredSkillTags: req.requiredSkillTags?.join(', ') || ''
@@ -179,7 +185,7 @@ export default function WaveForm({
             startDate: startDate ? formatDate(startDate) : format(new Date(), DATE_FORMAT),
             endDate: endDate ? formatDate(endDate) : format(new Date(), DATE_FORMAT),
           },
-          manpowerRequirement: requirements.length > 0 ? requirements : [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
+          manpowerRequirement: requirements.length > 0 ? requirements : [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
         });
       } else {
         form.reset({
@@ -189,11 +195,11 @@ export default function WaveForm({
             startDate: format(new Date(), DATE_FORMAT),
             endDate: format(new Date(), DATE_FORMAT)
           },
-          manpowerRequirement: [{ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
+          manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
         });
       }
     }
-  }, [open, wave, form, routeParams]);
+  }, [open, wave, form, routeParams, positionMap]);
 
   const onSubmit = async (values: WaveFormData) => {
     if (!userProfile || !db) return;
@@ -225,6 +231,7 @@ export default function WaveForm({
         (item) => {
           return {
             positionId: item.positionId,
+            positionName: positionMap.get(item.positionId) || item.positionName, // Ensure name is fresh on save
             count: item.count,
             requiredCertificateIds: item.requiredCertificateIds || [],
             requiredSkillTags: item.requiredSkillTags ? item.requiredSkillTags.split(',').map(s => s.trim()).filter(Boolean) : [],
@@ -499,7 +506,7 @@ export default function WaveForm({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ positionId: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' })}
+                onClick={() => append({ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' })}
               >
                 Add Requirement
               </Button>

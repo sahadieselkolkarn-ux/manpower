@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { use, useMemo, useState, useEffect } from "react";
@@ -9,6 +10,9 @@ import {
   getDoc,
   query,
   where,
+  getDocs,
+  writeBatch,
+  serverTimestamp,
 } from "firebase/firestore";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -28,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy, Download, FilePlus } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy, Download, FilePlus, Wrench } from "lucide-react";
 import FullPageLoader from "@/components/full-page-loader";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -131,7 +135,38 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
       waveId: waveId,
     });
     router.push(`/dashboard/hr/timesheets/intake?${intakeParams.toString()}`);
-  }
+  };
+
+  const handleRepairLinks = async () => {
+    if (!db || !wave || !wave.manpowerRequirement || !userProfile?.isAdmin) return;
+    
+    const batch = writeBatch(db);
+    let changesMade = 0;
+
+    const manpowerPositionsSnapshot = await getDocs(query(collection(db, 'manpowerPositions')));
+    const allPositionsMap = new Map(manpowerPositionsSnapshot.docs.map(doc => [doc.id, doc.data().name]));
+
+    const updatedRequirements = wave.manpowerRequirement.map(req => {
+        const foundName = allPositionsMap.get(req.positionId);
+        if (foundName && req.positionName !== foundName) {
+            changesMade++;
+            return { ...req, positionName: foundName };
+        } else if (!foundName) {
+            changesMade++;
+            return { ...req, positionName: "ไม่พบตำแหน่ง", originalPositionId: req.positionId };
+        }
+        return req;
+    });
+
+    if (changesMade > 0) {
+        batch.update(waveRef!, { manpowerRequirement: updatedRequirements, updatedAt: serverTimestamp() });
+        await batch.commit();
+        toast({ title: 'Success', description: `${changesMade} position link(s) repaired.` });
+        refetchWave();
+    } else {
+        toast({ title: 'No changes needed', description: 'All position links are already correct.' });
+    }
+  };
 
 
   const isLoading = isLoadingWave || isLoadingAssignments || authLoading || !project || isLoadingPositions || isLoadingCertificateTypes;
@@ -175,6 +210,7 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
           </p>
         </div>
         <div className="flex items-center gap-2">
+            {userProfile?.isAdmin && <Button variant="destructive" size="sm" onClick={handleRepairLinks}><Wrench className="mr-2 h-4 w-4" /> Repair Links</Button>}
             <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
             {canManage && (
               <Button onClick={handleCreateTimesheet} className="bg-blue-600 hover:bg-blue-700">
@@ -235,7 +271,7 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
                         ) : wave.manpowerRequirement && wave.manpowerRequirement.length > 0 ? (
                             wave.manpowerRequirement.map((req, index) => (
                                 <TableRow key={index}>
-                                    <TableCell className="font-medium">{positionMap.get(req.positionId) || req.positionId}</TableCell>
+                                    <TableCell className="font-medium">{req.positionName || positionMap.get(req.positionId) || 'ไม่พบตำแหน่ง'}</TableCell>
                                     <TableCell>
                                         <div className="flex flex-col gap-1">
                                             {req.requiredCertificateIds && req.requiredCertificateIds.map(certId => (
@@ -358,5 +394,3 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
     </div>
   );
 }
-
-    
