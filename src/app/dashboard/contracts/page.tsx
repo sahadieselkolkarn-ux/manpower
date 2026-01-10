@@ -48,6 +48,7 @@ export default function ContractPage() {
   const { toast } = useToast();
   
   const canManage = canManageOperation(userProfile);
+  const canDelete = !!userProfile?.isAdmin;
   
   const fetchData = async () => {
     if (!db) {
@@ -218,9 +219,11 @@ export default function ContractPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditContract(contract); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setContractToDelete(contract); }}>
-                            Delete
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setContractToDelete(contract); }}>
+                                Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

@@ -159,14 +159,18 @@ service cloud.firestore {
     match /paymentsAP/{id} { allow read, write: if isInternalStaff(); }
     match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
 
-    // Operation data (clients tree): Open for any internal staff for now
+    // Operation data (clients tree):
+    // Read and create for all staff, but only admin can delete or soft-delete.
     match /clients/{clientId}/{document=**} {
-        allow read, write: if isInternalStaff();
+      allow read, create: if isInternalStaff();
+      allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
+      allow delete: if isAdmin();
     }
-     match /clients/{clientId} {
-        allow read, write: if isInternalStaff();
+    match /clients/{clientId} {
+      allow read, create: if isInternalStaff();
+      allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
+      allow delete: if isAdmin();
     }
-
 
     // Audit logs: Any signed in user can create, only admin can read
     match /audit-logs/{id} { 

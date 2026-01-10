@@ -73,6 +73,7 @@ export default function ClientPage() {
   };
   
   const canManage = canManageOperation(userProfile);
+  const canDelete = !!userProfile?.isAdmin;
   const visibleClients = clients?.filter(c => !c.isDeleted) || [];
 
 
@@ -150,9 +151,11 @@ export default function ClientPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditClient(client); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setClientToDelete(client); }}>
-                            Delete
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setClientToDelete(client); }}>
+                                Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

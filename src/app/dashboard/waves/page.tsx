@@ -41,6 +41,7 @@ export default function WavesPage() {
   const { toast } = useToast();
   
   const canManage = canManageOperation(userProfile);
+  const canDelete = !!userProfile?.isAdmin;
 
   const fetchData = async () => {
     if (!db) {
@@ -51,25 +52,27 @@ export default function WavesPage() {
     setIsLoading(true);
     try {
       const clientSnapshot = await getDocs(collection(db, 'clients'));
-      const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+      const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)).filter(c => !c.isDeleted);
 
       const contractSnapshot = await getDocs(collectionGroup(db, 'contracts'));
       const contractList = contractSnapshot.docs.map(doc => {
         const data = doc.data();
         const parentClient = clientList.find(c => doc.ref.parent.parent?.id === c.id);
+        if (!parentClient) return null;
         return {
           id: doc.id,
           clientId: parentClient?.id || '',
           clientName: parentClient?.name || 'Unknown',
           ...data
         } as ContractWithClient;
-      });
+      }).filter((c): c is ContractWithClient => c !== null && !c.isDeleted);
 
       const projectSnapshot = await getDocs(collectionGroup(db, 'projects'));
       const projectList = projectSnapshot.docs.map(doc => {
           const data = doc.data();
           const parentContractRef = doc.ref.parent.parent;
           const parentContract = contractList.find(c => c.id === parentContractRef?.id);
+          if (!parentContract) return null;
           return {
               id: doc.id,
               ...data,
@@ -78,7 +81,7 @@ export default function WavesPage() {
               clientId: parentContract?.clientId || '',
               clientName: parentContract?.clientName || 'Unknown',
           } as ProjectWithContract;
-      });
+      }).filter((p): p is ProjectWithContract => p !== null && !p.isDeleted);
       setProjects(projectList);
 
       const waveSnapshot = await getDocs(collectionGroup(db, 'waves'));
@@ -244,9 +247,11 @@ export default function WavesPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditWave(wave); }}>
                             Edit
                           </DropdownMenuItem>
-                           <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setWaveToDelete(wave); }}>
-                            Delete
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setWaveToDelete(wave); }}>
+                                Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

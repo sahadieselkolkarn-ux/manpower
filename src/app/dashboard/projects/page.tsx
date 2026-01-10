@@ -39,6 +39,7 @@ export default function ProjectPage() {
   const { toast } = useToast();
   
   const canManage = canManageOperation(userProfile);
+  const canDelete = !!userProfile?.isAdmin;
 
   const fetchData = async () => {
     if (!db) {
@@ -50,20 +51,21 @@ export default function ProjectPage() {
     try {
       // Fetch all clients to map names
       const clientSnapshot = await getDocs(collection(db, 'clients'));
-      const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+      const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)).filter(c => !c.isDeleted);
 
       // Fetch all contracts to map names
       const contractSnapshot = await getDocs(collectionGroup(db, 'contracts'));
       const contractList = contractSnapshot.docs.map(doc => {
         const data = doc.data();
         const parentClient = clientList.find(c => doc.ref.parent.parent?.id === c.id);
+        if (!parentClient) return null; // Filter out contracts whose client is soft-deleted
         return {
           id: doc.id,
           clientId: parentClient?.id || '',
           clientName: parentClient?.name || 'Unknown',
           ...data
         } as ContractWithClient;
-      });
+      }).filter((c): c is ContractWithClient => c !== null && !c.isDeleted);
       setContracts(contractList);
 
       // Fetch all projects
@@ -72,6 +74,7 @@ export default function ProjectPage() {
           const data = doc.data();
           const parentContractRef = doc.ref.parent.parent;
           const parentContract = contractList.find(c => c.id === parentContractRef?.id);
+          if (!parentContract) return null; // Filter out projects whose contract is soft-deleted
           return {
               id: doc.id,
               ...data,
@@ -80,7 +83,7 @@ export default function ProjectPage() {
               clientId: parentContract?.clientId || '',
               clientName: parentContract?.clientName || 'Unknown',
           } as ProjectWithContract;
-      });
+      }).filter((p): p is ProjectWithContract => p !== null);
 
       setProjects(projectList);
 
@@ -219,9 +222,11 @@ export default function ProjectPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditProject(project); }}>
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setProjectToDelete(project); }}>
-                            Delete
-                          </DropdownMenuItem>
+                          {canDelete && (
+                            <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setProjectToDelete(project); }}>
+                                Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
