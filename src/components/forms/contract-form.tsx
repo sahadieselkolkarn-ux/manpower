@@ -5,7 +5,7 @@ import React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addDoc, collection, doc, serverTimestamp, updateDoc, arrayUnion } from 'firebase/firestore';
+import { addDoc, collection, doc, serverTimestamp, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -117,7 +117,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
             updatePayload.pricingChangeLogs = arrayUnion({
                 note: changeNote,
                 by: userProfile.displayName || userProfile.email,
-                at: serverTimestamp(),
+                at: Timestamp.now(),
             });
         }
         
@@ -216,7 +216,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
                                 type="number"
                                 disabled={isLocked}
                                 value={field.value ?? 0}
-                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
                               />
                             </FormControl>
                             <FormMessage />
@@ -230,7 +230,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
                                 type="number"
                                 disabled={isLocked}
                                 value={field.value ?? 0}
-                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                                onChange={(e) => field.onChange(Number(e.target.value))}
                               />
                             </FormControl>
                             <FormMessage />
