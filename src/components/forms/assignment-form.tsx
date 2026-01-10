@@ -47,7 +47,9 @@ import { EligibilityStatus, Assignment } from '@/types/assignment';
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
-import { Contract } from '@/types/contract';
+import { Contract, ContractSaleRate } from '@/types/contract';
+import { Timestamp } from 'firebase/firestore';
+
 
 const formSchema = z.object({
   employeeId: z.string().min(1, 'Please select an employee.'),
@@ -313,13 +315,30 @@ export default function AssignmentForm({
         return;
     }
 
+    const workMode = String((wave as any).workMode || '').trim().toLowerCase();
     const saleRateInfo = contract.saleRates?.find(r => r.positionId === values.positionId);
-    // @ts-ignore
-    const workMode = wave.workMode.toLowerCase();
-    const sellRate = workMode === 'onshore' ? saleRateInfo?.onshoreSellDailyRateExVat : saleRateInfo?.offshoreSellDailyRateExVat;
 
-    if (!sellRate || sellRate <= 0) {
-        toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'Selected position has no valid sale rate (> 0) in the contract for this work mode.'});
+    const getSellRate = (rateInfo: ContractSaleRate | undefined) => {
+        if (!rateInfo) return 0;
+        const legacyRate = Number(rateInfo.dailyRateExVat ?? 0);
+        if (workMode === 'onshore') {
+            return Number(rateInfo.onshoreSellDailyRateExVat ?? legacyRate);
+        }
+        if (workMode === 'offshore') {
+            return Number(rateInfo.offshoreSellDailyRateExVat ?? legacyRate);
+        }
+        return legacyRate; // Fallback if workMode is somehow invalid
+    };
+
+    const sellRate = getSellRate(saleRateInfo);
+
+    if (!saleRateInfo) {
+      toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'ตำแหน่งนี้ยังไม่ได้กำหนดราคาในสัญญา' });
+      return;
+    }
+    
+    if (!Number.isFinite(sellRate) || sellRate <= 0) {
+        toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'ราคาขายของตำแหน่งนี้สำหรับโหมดงาน (Onshore/Offshore) เป็น 0 กรุณาแก้ที่สัญญา' });
         return;
     }
 
@@ -342,12 +361,13 @@ export default function AssignmentForm({
         waveId: routeParams.waveId,
         projectId: routeParams.projectId,
         clientId: routeParams.clientId,
+        contractId: routeParams.contractId,
         // @ts-ignore
         workMode: wave.workMode,
         status: 'ACTIVE',
         startDate: toDate(wave.planningWorkPeriod.startDate)!.toISOString().split('T')[0],
         endDate: toDate(wave.planningWorkPeriod.endDate)!.toISOString().split('T')[0],
-        assignedAt: serverTimestamp(),
+        assignedAt: serverTimestamp() as Timestamp,
         assignedBy: userProfile.displayName || userProfile.email,
         eligibility: {
           passportStatus: eligibility.passportStatus,
@@ -360,14 +380,14 @@ export default function AssignmentForm({
             overrideFlag: isOverride,
             overrideReason: values.overrideReason || undefined,
             overrideBy: isOverride ? userProfile.displayName : undefined,
-            overrideAt: isOverride ? serverTimestamp() : undefined,
+            overrideAt: isOverride ? serverTimestamp() as Timestamp : undefined,
         },
         policyVersion: eligibility.policyVersion,
         workModePair: eligibility.workModePair,
         appliedRestDays: eligibility.requiredRestDays,
         sellRateAtSnapshot: sellRate,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp() as Timestamp,
+        updatedAt: serverTimestamp() as Timestamp,
       };
 
       await setDoc(assignmentRef, assignmentData, { merge: true });
