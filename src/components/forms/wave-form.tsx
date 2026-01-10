@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -48,7 +48,7 @@ import {
 } from "@/components/ui/select";
 
 import { Trash2 } from "lucide-react";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { type Wave, WaveWithProject, ManpowerRequirement } from "@/types/wave";
@@ -57,6 +57,8 @@ import { ProjectWithContract, Project } from "@/types/project";
 import { toDate, DATE_FORMAT, formatDate } from "@/lib/utils";
 import { CertificateType } from "@/types/certificate-type";
 import { MultiSelect } from "../ui/multi-select";
+import { type Contract, type ContractSaleRate } from "@/types/contract";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 
 const dateStringSchema = z.string().refine(val => val ? isValid(parse(val, DATE_FORMAT, new Date())) : false, {
@@ -107,6 +109,14 @@ interface WaveFormProps {
   };
 }
 
+const getSellRateExVat = (rate: ContractSaleRate, workMode: 'Onshore' | 'Offshore') => {
+    if (workMode === 'Onshore') {
+        return rate.onshoreSellDailyRateExVat ?? rate.dailyRateExVat ?? 0;
+    }
+    return rate.offshoreSellDailyRateExVat ?? rate.dailyRateExVat ?? 0;
+};
+
+
 export default function WaveForm({
   open,
   onOpenChange,
@@ -137,6 +147,16 @@ export default function WaveForm({
       }
     },
   });
+  
+  const selectedProjectId = form.watch('projectId');
+  const selectedProject = useMemo(() => projects.find(p => p.id === selectedProjectId), [projects, selectedProjectId]);
+
+  const contractRef = useMemoFirebase(() => {
+    if (!db || !selectedProject) return null;
+    return doc(db, 'clients', selectedProject.clientId, 'contracts', selectedProject.contractId);
+  }, [db, selectedProject]);
+  
+  const { data: contract, isLoading: isLoadingContract } = useDoc<Contract>(contractRef);
 
   const { fields, append, remove } = useFieldArray({
     control: form.control,
@@ -149,6 +169,21 @@ export default function WaveForm({
   }, [certificateTypes]);
   
   const positionMap = useMemo(() => new Map(positions?.map(p => [p.id, p.name])), [positions]);
+  
+  const allowedPositionIds = useMemo(() => {
+    if (!contract || !selectedProject) return new Set<string>();
+    return new Set(
+        (contract.saleRates || [])
+        .filter(rate => getSellRateExVat(rate, selectedProject.workMode) > 0)
+        .map(rate => rate.positionId)
+    );
+  }, [contract, selectedProject]);
+
+  const filteredPositions = useMemo(() => {
+    if (!positions) return [];
+    if (!contract || !selectedProject) return [];
+    return positions.filter(p => allowedPositionIds.has(p.id));
+  }, [positions, allowedPositionIds, contract, selectedProject]);
 
 
   useEffect(() => {
@@ -192,7 +227,21 @@ export default function WaveForm({
   }, [open, wave, form, routeParams, positionMap]);
 
   const onSubmit = async (values: WaveFormData) => {
-    if (!userProfile || !db) return;
+    if (!userProfile || !db || !contract) {
+        toast({ variant: "destructive", title: "Error", description: "Contract data is not loaded yet." });
+        return;
+    }
+    
+    // Final validation before submitting
+    for (const req of values.manpowerRequirement) {
+        if (!allowedPositionIds.has(req.positionId)) {
+            const posName = positionMap.get(req.positionId) || req.positionId;
+            toast({ variant: "destructive", title: "Invalid Position", description: `Position "${posName}" does not have a valid sale rate (> 0) in the contract for this work mode.` });
+            return;
+        }
+    }
+
+
     setLoading(true);
 
     try {
@@ -376,99 +425,117 @@ export default function WaveForm({
 
             <div className="space-y-4">
               <FormLabel>Manpower Requirement</FormLabel>
-              {fields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className="space-y-4 border p-4 rounded-md relative"
-                >
-                   <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => remove(index)}
-                      className="absolute top-2 right-2 h-6 w-6"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  <div className="grid grid-cols-3 gap-4">
-                     <FormField
-                        control={form.control}
-                        name={`manpowerRequirement.${index}.positionId`}
-                        render={({ field }) => (
-                        <FormItem className="col-span-2">
-                            <FormLabel>Position (ลูกจ้าง)</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                                <SelectTrigger>
-                                <SelectValue placeholder="Select position..." />
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                                {isLoadingPositions ? <SelectItem value="loading" disabled>Loading...</SelectItem> : positions?.map((pos) => (
-                                <SelectItem key={pos.id} value={pos.id}>
-                                    {pos.name}
-                                </SelectItem>
-                                ))}
-                            </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
+              {!selectedProject || isLoadingContract ? (
+                  <Alert variant="default">
+                    <AlertTitle>Select a Project</AlertTitle>
+                    <AlertDescription>Please select a project to see available positions based on the contract.</AlertDescription>
+                  </Alert>
+              ) : filteredPositions.length === 0 ? (
+                 <Alert variant="destructive">
+                    <AlertTitle>No Billable Positions Found</AlertTitle>
+                    <AlertDescription>
+                        There are no manpower positions with a valid sale rate (&gt; 0) in the contract for this project's work mode ({selectedProject?.workMode}).
+                        Please update the contract first.
+                    </AlertDescription>
+                  </Alert>
+              ) : (
+                fields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className="space-y-4 border p-4 rounded-md relative"
+                  >
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        className="absolute top-2 right-2 h-6 w-6"
+                        >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                          control={form.control}
+                          name={`manpowerRequirement.${index}.positionId`}
+                          render={({ field }) => (
+                          <FormItem className="col-span-2">
+                              <FormLabel>Position (ลูกจ้าง)</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                  <SelectTrigger>
+                                  <SelectValue placeholder="Select billable position..." />
+                                  </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                  {filteredPositions.map((pos) => (
+                                  <SelectItem key={pos.id} value={pos.id}>
+                                      {pos.name}
+                                  </SelectItem>
+                                  ))}
+                              </SelectContent>
+                              </Select>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name={`manpowerRequirement.${index}.count`}
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Count</FormLabel>
+                              <FormControl>
+                              <Input type="number" placeholder="Count" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                    </div>
                     <FormField
-                        control={form.control}
-                        name={`manpowerRequirement.${index}.count`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Count</FormLabel>
-                            <FormControl>
-                            <Input type="number" placeholder="Count" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
+                          control={form.control}
+                          name={`manpowerRequirement.${index}.requiredCertificateIds`}
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Required Certificates (Optional)</FormLabel>
+                              <MultiSelect
+                                  options={certificateOptions}
+                                  selected={field.value || []}
+                                  onChange={field.onChange}
+                                  placeholder="Select certificates..."
+                                  disabled={isLoadingCertTypes}
+                              />
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
+                      <FormField
+                          control={form.control}
+                          name={`manpowerRequirement.${index}.requiredSkillTags`}
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Required Skills (Optional)</FormLabel>
+                              <FormControl>
+                              <Input placeholder="e.g. 6G, TIG, English" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
                   </div>
-                   <FormField
-                        control={form.control}
-                        name={`manpowerRequirement.${index}.requiredCertificateIds`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Required Certificates (Optional)</FormLabel>
-                            <MultiSelect
-                                options={certificateOptions}
-                                selected={field.value || []}
-                                onChange={field.onChange}
-                                placeholder="Select certificates..."
-                                disabled={isLoadingCertTypes}
-                            />
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                     <FormField
-                        control={form.control}
-                        name={`manpowerRequirement.${index}.requiredSkillTags`}
-                        render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Required Skills (Optional)</FormLabel>
-                            <FormControl>
-                            <Input placeholder="e.g. 6G, TIG, English" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                        )}
-                    />
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => append({ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' })}
-              >
-                Add Requirement
-              </Button>
+                ))
+              )}
+              
+              {selectedProject && filteredPositions.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' })}
+                >
+                  Add Requirement
+                </Button>
+              )}
               <FormMessage>{form.formState.errors.manpowerRequirement?.message || form.formState.errors.manpowerRequirement?.root?.message}</FormMessage>
             </div>
 
