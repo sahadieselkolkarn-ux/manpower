@@ -92,7 +92,16 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
     setLoading(true);
 
     try {
-      const { clientId, changeNote, ...contractData } = values;
+      const { clientId, changeNote, ...rawContractData } = values;
+
+      const contractData = {
+          ...rawContractData,
+          saleRates: (rawContractData.saleRates ?? []).map(r => ({
+              positionId: r.positionId,
+              onshoreSellDailyRateExVat: r.onshoreSellDailyRateExVat ?? 0,
+              offshoreSellDailyRateExVat: r.offshoreSellDailyRateExVat ?? 0,
+          }))
+      };
       
       if (contract) {
         if (contract.isLocked) {
@@ -141,10 +150,16 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
 
   React.useEffect(() => {
     if (open) {
+      const normalizedSaleRates = (contract?.saleRates ?? []).map((r) => ({
+        positionId: r.positionId,
+        onshoreSellDailyRateExVat: r.onshoreSellDailyRateExVat ?? r.dailyRateExVat ?? 0,
+        offshoreSellDailyRateExVat: r.offshoreSellDailyRateExVat ?? r.dailyRateExVat ?? 0,
+      }));
+
       form.reset({
         name: contract?.name || '',
         clientId: contract?.clientId || '',
-        saleRates: contract?.saleRates || [],
+        saleRates: normalizedSaleRates,
         otRules: contract?.otRules || { workdayMultiplier: 1.5, weeklyHolidayMultiplier: 2, contractHolidayMultiplier: 3 },
         changeNote: '',
       });
@@ -193,8 +208,34 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
                       </FormItem>
                     )}/>
                     <div className="grid grid-cols-2 gap-4">
-                        <FormField control={form.control} name={`saleRates.${index}.onshoreSellDailyRateExVat`} render={({ field }) => (<FormItem><FormLabel>Onshore Sell Rate</FormLabel><FormControl><Input type="number" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem>)}/>
-                        <FormField control={form.control} name={`saleRates.${index}.offshoreSellDailyRateExVat`} render={({ field }) => (<FormItem><FormLabel>Offshore Sell Rate</FormLabel><FormControl><Input type="number" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem>)}/>
+                        <FormField control={form.control} name={`saleRates.${index}.onshoreSellDailyRateExVat`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Onshore Sell Rate</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                disabled={isLocked}
+                                value={field.value ?? 0}
+                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}/>
+                        <FormField control={form.control} name={`saleRates.${index}.offshoreSellDailyRateExVat`} render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Offshore Sell Rate</FormLabel>
+                            <FormControl>
+                               <Input
+                                type="number"
+                                disabled={isLocked}
+                                value={field.value ?? 0}
+                                onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}/>
                     </div>
                 </div>
               ))}
