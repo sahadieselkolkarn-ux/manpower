@@ -11,6 +11,7 @@ export interface Assignment {
   waveId: string;
   projectId: string; // Snapshot
   clientId: string;  // Snapshot
+  contractId: string; // Snapshot
   
   employeeId: string;
   employeeCode: string; // Snapshot
@@ -19,12 +20,16 @@ export interface Assignment {
 
   positionId: string;
   positionName: string; // Snapshot
+  workMode: 'Onshore' | 'Offshore'; // Snapshot
   
   status: 'PENDING' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
   
   startDate: string; // ISO "YYYY-MM-DD"
   endDate: string;   // ISO "YYYY-MM-DD"
   notes?: string;
+
+  assignedAt: Timestamp;
+  assignedBy: string;
 
   eligibility?: {
     passportStatus: EligibilityStatus;
@@ -50,9 +55,7 @@ export interface Assignment {
   
   // Audit fields
   createdAt: Timestamp;
-  createdBy: string;
   updatedAt?: Timestamp;
-  updatedBy?: string;
   endedAt?: Timestamp;
   endedBy?: string;
 }

@@ -318,25 +318,20 @@ export default function AssignmentForm({
     const workMode = String((wave as any).workMode || '').trim().toLowerCase();
     const saleRateInfo = contract.saleRates?.find(r => r.positionId === values.positionId);
 
-    const getSellRate = (rateInfo: ContractSaleRate | undefined) => {
-        if (!rateInfo) return 0;
-        const legacyRate = Number(rateInfo.dailyRateExVat ?? 0);
-        if (workMode === 'onshore') {
-            return Number(rateInfo.onshoreSellDailyRateExVat ?? legacyRate);
-        }
-        if (workMode === 'offshore') {
-            return Number(rateInfo.offshoreSellDailyRateExVat ?? legacyRate);
-        }
-        return legacyRate; // Fallback if workMode is somehow invalid
-    };
-
-    const sellRate = getSellRate(saleRateInfo);
-
     if (!saleRateInfo) {
-      toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'ตำแหน่งนี้ยังไม่ได้กำหนดราคาในสัญญา' });
-      return;
+        toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'ตำแหน่งนี้ยังไม่ได้กำหนดราคาในสัญญา' });
+        return;
     }
     
+    const getSellRate = (rateInfo: ContractSaleRate, mode: string) => {
+        const legacy = Number(rateInfo.dailyRateExVat ?? 0);
+        if (mode === 'onshore') return Number(rateInfo.onshoreSellDailyRateExVat ?? legacy);
+        if (mode === 'offshore') return Number(rateInfo.offshoreSellDailyRateExVat ?? legacy);
+        return legacy;
+    };
+
+    const sellRate = getSellRate(saleRateInfo, workMode);
+
     if (!Number.isFinite(sellRate) || sellRate <= 0) {
         toast({ variant: 'destructive', title: 'Assignment Blocked', description: 'ราคาขายของตำแหน่งนี้สำหรับโหมดงาน (Onshore/Offshore) เป็น 0 กรุณาแก้ที่สัญญา' });
         return;
