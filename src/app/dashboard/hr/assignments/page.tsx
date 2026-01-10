@@ -25,6 +25,7 @@ import { WaveWithProject } from '@/types/wave';
 import { useToast } from '@/hooks/use-toast';
 import { formatThaiDateFromISO } from '@/lib/date/thaiDate';
 import { useEffectOnce } from 'react-use';
+import { canManageHR, canManageOperation } from '@/lib/authz';
 
 
 export default function AssignmentsMasterListPage() {
@@ -85,7 +86,7 @@ export default function AssignmentsMasterListPage() {
 
   if (isLoading) return <FullPageLoader />;
   
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds?.includes('HR_MANAGER') || userProfile?.roleIds?.includes('OPERATION_MANAGER');
+  const canManage = canManageHR(userProfile) || canManageOperation(userProfile);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">

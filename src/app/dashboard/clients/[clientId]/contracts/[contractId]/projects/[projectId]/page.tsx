@@ -35,6 +35,7 @@ import { type Contract } from "@/types/contract";
 import { type Project } from "@/types/project";
 import { type Wave } from "@/types/wave";
 import WaveForm from "@/components/forms/wave-form";
+import { canManageOperation } from "@/lib/authz";
 
 
 export default function ProjectDetailsPage({
@@ -76,7 +77,7 @@ export default function ProjectDetailsPage({
   } = useDoc<Project>(projectRef);
   
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = canManageOperation(userProfile);
 
   const fetchData = async () => {
     if (!db || !clientId || !contractId || !projectId) return;

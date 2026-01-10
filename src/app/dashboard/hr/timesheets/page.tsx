@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { formatDate } from '@/lib/utils';
+import { canManageHR } from '@/lib/authz';
 
 export default function TimesheetsListPage() {
   const db = useFirestore();
@@ -43,7 +44,7 @@ export default function TimesheetsListPage() {
 
   const isLoading = authLoading || isLoadingBatches;
 
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+  const canManage = canManageHR(userProfile);
 
   if (isLoading) {
     return <FullPageLoader />;

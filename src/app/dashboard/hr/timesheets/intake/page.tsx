@@ -27,6 +27,7 @@ import WaveSelector, { WaveSelectorData } from '@/components/selectors/wave-sele
 import { type Wave } from '@/types/wave';
 import FullPageLoader from '@/components/full-page-loader';
 import { DATE_FORMAT } from '@/lib/utils';
+import { canManageHR } from '@/lib/authz';
 
 const dateSchema = z.preprocess((arg) => {
   if (typeof arg === 'string' && arg) {
@@ -98,7 +99,7 @@ export default function TimesheetIntakePage() {
     }
   };
 
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+  const canManage = canManageHR(userProfile);
 
   if (authLoading) {
     return <FullPageLoader />;

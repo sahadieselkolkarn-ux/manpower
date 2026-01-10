@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
+import { canManageOperation } from "@/lib/authz";
 
 export default function ClientPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -38,7 +39,7 @@ export default function ClientPage() {
     setIsFormOpen(true);
   };
   
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
+  const canManage = canManageOperation(userProfile);
 
 
   return (

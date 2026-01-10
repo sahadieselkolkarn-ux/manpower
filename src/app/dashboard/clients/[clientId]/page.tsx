@@ -37,6 +37,7 @@ import { type ProjectWithContract } from "@/types/project";
 import ContractForm from "@/components/forms/contract-form";
 import { ContractWithClient } from "@/types/contract";
 import ProjectForm from "@/components/forms/project-form";
+import { canManageOperation } from "@/lib/authz";
 
 export default function ClientDetailsPage({ params }: { params: Promise<{ clientId: string }> }) {
   const resolvedParams = use(params);
@@ -64,7 +65,7 @@ export default function ClientDetailsPage({ params }: { params: Promise<{ client
     error: clientError,
   } = useDoc<Client>(clientRef);
 
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = canManageOperation(userProfile);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const fetchData = async () => {

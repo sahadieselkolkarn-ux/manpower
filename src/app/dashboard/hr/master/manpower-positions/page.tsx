@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import FullPageLoader from '@/components/full-page-loader';
 import { type ManpowerPosition } from '@/types/position';
 import PositionForm from '@/components/forms/position-form';
+import { canManageHR } from '@/lib/authz';
 
 export default function ManpowerPositionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -26,7 +27,7 @@ export default function ManpowerPositionsPage() {
   const manpowerPositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'manpowerPositions')) : null), [db]);
   const { data: manpowerPositions, isLoading: isLoadingManpower, refetch: refetchManpower } = useCollection<ManpowerPosition>(manpowerPositionsQuery);
 
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+  const canManage = canManageHR(userProfile);
 
   const handleCreate = () => {
     setSelectedPosition(null);

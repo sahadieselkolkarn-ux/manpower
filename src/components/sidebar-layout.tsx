@@ -68,6 +68,7 @@ import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { type Role } from "@/types/user";
 import { useRoles } from "@/context/RolesContext";
+import { hasAnyRole } from "@/lib/authz";
 
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
@@ -91,24 +92,17 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
     return <main>{children}</main>;
   }
 
-
   const isAdmin = userProfile?.isAdmin;
-  
-  const userRoleCodes = React.useMemo(() => {
-    if (!userProfile || !userProfile.roleIds) return new Set<string>();
-    return new Set(userProfile.roleIds.map(id => rolesById.get(id)?.code).filter(Boolean));
-  }, [userProfile, rolesById]);
 
-
-  const canViewOperation = isAdmin || userRoleCodes.has("OPERATION_MANAGER") || userRoleCodes.has("OPERATION_OFFICER");
-  const canViewHR = isAdmin || userRoleCodes.has("HR_MANAGER") || userRoleCodes.has("HR_OFFICER");
-  const canViewFinance = isAdmin || userRoleCodes.has("FINANCE_MANAGER") || userRoleCodes.has("FINANCE_OFFICER") || userRoleCodes.has("PAYROLL_OFFICER");
+  const canViewOperation = hasAnyRole(userProfile, "OPERATION_MANAGER", "OPERATION_OFFICER");
+  const canViewHR = hasAnyRole(userProfile, "HR_MANAGER", "HR_OFFICER");
+  const canViewFinance = hasAnyRole(userProfile, "FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER");
   
   const roleDisplayNames = React.useMemo(() => {
       if (isLoadingRoles || !userProfile?.roleIds) return 'Loading Roles...';
       if (isAdmin) return 'Administrator';
-      return userProfile.roleIds
-        .map(id => rolesById.get(id)?.code || id)
+      return userProfile.roleCodes
+        .map(code => code.replace(/_/g, ' '))
         .join(', ');
   }, [userProfile, rolesById, isLoadingRoles, isAdmin]);
 
@@ -142,7 +136,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/clients")}>
                     <Link href="/dashboard/clients">
                       <Building />
-                      <span>Clients</span>
+                      <span>Customers (ลูกค้า)</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

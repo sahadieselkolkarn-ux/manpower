@@ -40,6 +40,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { useCollection } from "@/firebase";
 import { ManpowerPosition } from "@/types/position";
+import { canManageOperation } from "@/lib/authz";
 
 export default function ContractDetailsPage({
   params,
@@ -83,7 +84,7 @@ export default function ContractDetailsPage({
   const positionMap = new Map(positions?.map(p => [p.id, p.name]));
   
   const [isDataLoading, setIsDataLoading] = useState(true);
-  const canManage = userProfile?.isAdmin || userProfile?.roleIds.includes("OPERATION_MANAGER");
+  const canManage = canManageOperation(userProfile);
 
   const fetchData = async () => {
     if (!db || !clientId || !contractId) return;

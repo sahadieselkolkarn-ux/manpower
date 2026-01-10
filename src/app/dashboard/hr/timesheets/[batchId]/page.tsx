@@ -15,6 +15,7 @@ import TimesheetLinesTab from './_components/TimesheetLinesTab';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import FinancePaidForm from './_components/FinancePaidForm';
+import { canManageFinance, canManageHR } from '@/lib/authz';
 
 function getStatusInfo(status: TimesheetBatch['status']) {
     switch (status) {
@@ -45,8 +46,8 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
 
     const isLoading = authLoading || isLoadingBatch;
     
-    const canManageHR = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
-    const canManageFinance = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('FINANCE_MANAGER');
+    const canApproveHR = canManageHR(userProfile);
+    const canPayFinance = canManageFinance(userProfile);
     
     const isLocked = batch?.status === 'HR_APPROVED' || batch?.status === 'FINANCE_PAID';
 
@@ -77,7 +78,7 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
         return <FullPageLoader />;
     }
 
-    if (!canManageHR && !canManageFinance) {
+    if (!canApproveHR && !canPayFinance) {
         return (
             <div className="flex flex-1 items-center justify-center">
                 <Card className="m-4 text-center">
@@ -120,7 +121,7 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
                             </Badge>
                             <div className="space-x-2">
                             <Button variant="outline" size="sm"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
-                            {canManageHR && batch.status === 'DRAFT' && (
+                            {canApproveHR && batch.status === 'DRAFT' && (
                                 <AlertDialog>
                                     <AlertDialogTrigger asChild>
                                         <Button size="sm" className="bg-green-600 hover:bg-green-700">
@@ -141,7 +142,7 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
                                     </AlertDialogContent>
                                 </AlertDialog>
                             )}
-                            {canManageFinance && batch.status === 'HR_APPROVED' && (
+                            {canPayFinance && batch.status === 'HR_APPROVED' && (
                                 <Button size="sm" variant="secondary" onClick={() => setIsPaidFormOpen(true)}>
                                     <Banknote className="mr-2 h-4 w-4"/> Mark as Paid
                                 </Button>
@@ -154,7 +155,7 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
 
             <TimesheetLinesTab batch={batch} isLocked={isLocked} />
 
-            {canManageFinance && batch && (
+            {canPayFinance && batch && (
                 <FinancePaidForm 
                     open={isPaidFormOpen}
                     onOpenChange={setIsPaidFormOpen}

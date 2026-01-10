@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import FullPageLoader from '@/components/full-page-loader';
 import { type OfficePosition } from '@/types/position';
 import PositionForm from '@/components/forms/position-form';
+import { canManageHR } from '@/lib/authz';
 
 export default function OfficePositionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -26,7 +27,7 @@ export default function OfficePositionsPage() {
   const officePositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'officePositions')) : null), [db]);
   const { data: officePositions, isLoading: isLoadingOffice, refetch: refetchOffice } = useCollection<OfficePosition>(officePositionsQuery);
 
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+  const canManage = canManageHR(userProfile);
 
   const handleCreate = () => {
     setSelectedPosition(null);
