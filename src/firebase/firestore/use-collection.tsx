@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -32,6 +33,7 @@ export interface UseCollectionResult<T> {
 */
 export interface InternalQuery extends Query<DocumentData> {
   _query: {
+    collectionGroup?: string;
     path: {
       canonicalString(): string;
       toString(): string;
@@ -40,13 +42,21 @@ export interface InternalQuery extends Query<DocumentData> {
 }
 
 function getPathFromRefOrQuery(refOrQuery: CollectionReference | Query): string | null {
+    const internalQuery = refOrQuery as unknown as InternalQuery;
+
     if (refOrQuery.type === 'collection') {
         return (refOrQuery as CollectionReference).path;
     }
-    const internalQuery = refOrQuery as unknown as InternalQuery;
+    
+    // Handle collectionGroup queries, which may not have a standard path.
+    if (internalQuery._query?.collectionGroup) {
+        return `collectionGroup:${internalQuery._query.collectionGroup}`;
+    }
+
     if (internalQuery._query?.path) {
         return internalQuery._query.path.canonicalString();
     }
+
     return null;
 }
 
@@ -87,15 +97,21 @@ export function useCollection<T = any>(
       return;
     }
 
-    // Secondary guard: Extract path and check if it's valid. This prevents root queries.
-    const path = getPathFromRefOrQuery(memoizedTargetRefOrQuery);
-    if (!path || path === '/') {
-        // Path is invalid or points to root. Do not proceed.
+    // Secondary guard: Extract path.
+    let path = getPathFromRefOrQuery(memoizedTargetRefOrQuery);
+
+    // If path is still null or an explicit root query, do not proceed.
+    // This allows collectionGroup queries (which have a non-null, non-root path like "collectionGroup:waves") to pass.
+    if (path === '/') {
         setData(null);
         setIsLoading(false);
-        // Optionally set an error to indicate a bad path
-        // setError(new Error('Invalid Firestore path provided to useCollection.'));
+        setError(new Error('Invalid Firestore path provided to useCollection (root queries are not supported).'));
         return;
+    }
+    
+    // For logging/debugging, ensure path is never null for the error handler.
+    if (path === null) {
+      path = '(unknown)';
     }
 
 
@@ -117,7 +133,7 @@ export function useCollection<T = any>(
       (error: FirestoreError) => {
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path, // Use the path we already validated
+          path: path!, // Use the path we already validated/set
         })
 
         setError(contextualError)
