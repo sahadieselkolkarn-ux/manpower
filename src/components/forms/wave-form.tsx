@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 "use client";
 
 import React, { useEffect, useMemo } from "react";
@@ -22,7 +16,7 @@ import {
   where,
   getDocs,
   collectionGroup,
-  getDoc,
+  runTransaction,
 } from "firebase/firestore";
 import { format, parse, isValid } from "date-fns";
 
@@ -61,10 +55,7 @@ import { type Wave, WaveWithProject, ManpowerRequirement } from "@/types/wave";
 import { type ManpowerPosition } from "@/types/position";
 import { ProjectWithContract, Project } from "@/types/project";
 import { toDate, DATE_FORMAT, formatDate } from "@/lib/utils";
-import { Contract } from "@/types/contract";
-import { Client } from "@/types/client";
 import { CertificateType } from "@/types/certificate-type";
-import { Checkbox } from "../ui/checkbox";
 import { MultiSelect } from "../ui/multi-select";
 
 
@@ -75,14 +66,13 @@ const dateStringSchema = z.string().refine(val => val ? isValid(parse(val, DATE_
 
 const manpowerRequirementSchema = z.object({
   positionId: z.string().min(1, "Position is required."),
-  positionName: z.string().optional(), // For snapshotting
+  positionName: z.string().optional(),
   count: z.coerce.number().int().min(1, "Count must be at least 1."),
   requiredCertificateIds: z.array(z.string()).optional(),
-  requiredSkillTags: z.string().optional(), // Keep as string for form input
+  requiredSkillTags: z.string().optional(),
 });
 
 const formSchema = z.object({
-  waveCode: z.string().min(1, "Wave code is required."),
   projectId: z.string().min(1, "Project is required."),
   planningWorkPeriod: z.object({
     startDate: dateStringSchema,
@@ -139,7 +129,6 @@ export default function WaveForm({
   const form = useForm<WaveFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      waveCode: "",
       projectId: routeParams?.projectId || "",
       manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
       planningWorkPeriod: {
@@ -182,7 +171,6 @@ export default function WaveForm({
         const endDate = toDate(wave.planningWorkPeriod.endDate);
 
         form.reset({
-          waveCode: wave.waveCode,
           projectId: wave.projectId,
           planningWorkPeriod: {
             startDate: startDate ? formatDate(startDate) : format(new Date(), DATE_FORMAT),
@@ -192,7 +180,6 @@ export default function WaveForm({
         });
       } else {
         form.reset({
-          waveCode: "",
           projectId: routeParams?.projectId || "",
           planningWorkPeriod: {
             startDate: format(new Date(), DATE_FORMAT),
@@ -209,115 +196,81 @@ export default function WaveForm({
     setLoading(true);
 
     try {
-        const projectsSnapshot = await getDocs(collectionGroup(db, 'projects'));
-        let isDuplicate = false;
-        for (const projectDoc of projectsSnapshot.docs) {
-            const waveCollectionRef = collection(projectDoc.ref, 'waves');
-            const q = query(waveCollectionRef, where('waveCode', '==', values.waveCode));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                if (wave && querySnapshot.docs[0].id === wave.id) {
-                    continue;
-                }
-                isDuplicate = true;
-                break;
-            }
+        let finalRouteParams: { clientId: string, contractId: string, projectId: string };
+        if (routeParams) finalRouteParams = routeParams;
+        else if (wave) finalRouteParams = { clientId: wave.clientId, contractId: wave.contractId, projectId: wave.projectId };
+        else {
+             const proj = projects.find(p => p.id === values.projectId);
+             if (!proj) throw new Error("Project details not found.");
+             finalRouteParams = { clientId: proj.clientId, contractId: proj.contractId, projectId: proj.id };
         }
 
-        if (isDuplicate) {
-            form.setError('waveCode', { message: 'Wave code is already in use.' });
-            setLoading(false);
-            return;
-        }
-
-      const manpowerRequirementObject = values.manpowerRequirement.map(
-        (item) => {
-          return {
+        const manpowerRequirementObject = values.manpowerRequirement.map(item => ({
             positionId: item.positionId,
-            positionName: positionMap.get(item.positionId) || item.positionName, // Ensure name is fresh on save
+            positionName: positionMap.get(item.positionId) || item.positionName,
             count: item.count,
             requiredCertificateIds: item.requiredCertificateIds || [],
             requiredSkillTags: item.requiredSkillTags ? item.requiredSkillTags.split(',').map(s => s.trim()).filter(Boolean) : [],
-          };
+        }));
+
+        const startDate = parse(values.planningWorkPeriod.startDate, DATE_FORMAT, new Date());
+        const endDate = parse(values.planningWorkPeriod.endDate, DATE_FORMAT, new Date());
+
+        if (wave) { // --- Update ---
+            const waveCollectionPath = `clients/${finalRouteParams.clientId}/contracts/${finalRouteParams.contractId}/projects/${finalRouteParams.projectId}/waves`;
+            const waveRef = doc(db, waveCollectionPath, wave.id);
+            await updateDoc(waveRef, {
+                planningWorkPeriod: { startDate: Timestamp.fromDate(startDate), endDate: Timestamp.fromDate(endDate) },
+                manpowerRequirement: manpowerRequirementObject,
+                updatedAt: serverTimestamp(),
+            });
+            toast({ title: "Success", description: "Wave updated successfully." });
+        } else { // --- Create ---
+            await runTransaction(db, async (transaction) => {
+                const now = new Date();
+                const beYear = now.getFullYear() + 543;
+                const yy = String(beYear).slice(-2);
+                const mm = String(now.getMonth() + 1).padStart(2, '0');
+                const YYMM = `${yy}${mm}`;
+
+                const counterRef = doc(db, 'counters/waveCodes', YYMM);
+                const counterDoc = await transaction.get(counterRef);
+                const seq = counterDoc.data()?.next ?? 1;
+                const waveCode = `WV-${YYMM}-${String(seq).padStart(3, '0')}`;
+                
+                const codeUniqueRef = doc(db, 'unique/waveCodes', waveCode);
+                const codeUniqueDoc = await transaction.get(codeUniqueRef);
+                if(codeUniqueDoc.exists()) {
+                    throw new Error(`Generated wave code ${waveCode} already exists. Please try again.`);
+                }
+                
+                const waveCollectionPath = `clients/${finalRouteParams.clientId}/contracts/${finalRouteParams.contractId}/projects/${finalRouteParams.projectId}/waves`;
+                const newWaveRef = doc(collection(db, waveCollectionPath));
+
+                transaction.set(newWaveRef, {
+                    waveCode,
+                    planningWorkPeriod: { startDate: Timestamp.fromDate(startDate), endDate: Timestamp.fromDate(endDate) },
+                    manpowerRequirement: manpowerRequirementObject,
+                    status: 'planned',
+                    isDeleted: false,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    createdBy: userProfile.displayName || userProfile.email,
+                });
+                
+                transaction.set(codeUniqueRef, { entityId: newWaveRef.id });
+                transaction.set(counterRef, { next: seq + 1 }, { merge: true });
+            });
+            toast({ title: "Success", description: "Wave created successfully with auto-generated code." });
         }
-      );
       
-       let finalRouteParams: { clientId: string, contractId: string, projectId: string };
-
-        if (routeParams) {
-            finalRouteParams = routeParams;
-        } else if (wave) {
-             finalRouteParams = {
-                clientId: wave.clientId,
-                contractId: wave.contractId,
-                projectId: wave.projectId,
-            };
-        } else {
-             const allProjectsSnapshot = await getDocs(collectionGroup(db, 'projects'));
-             let projectDocSnap;
-             for (const doc of allProjectsSnapshot.docs) {
-                 if (doc.id === values.projectId) {
-                     projectDocSnap = doc;
-                     break;
-                 }
-             }
-
-            if (!projectDocSnap || !projectDocSnap.exists()) {
-                throw new Error("Project details not found to save the wave.");
-            }
-            
-            const pathSegments = projectDocSnap.ref.path.split('/');
-            if(pathSegments.length < 6) {
-                 throw new Error("Could not determine client/contract path for the project.");
-            }
-              finalRouteParams = {
-                  clientId: pathSegments[1],
-                  contractId: pathSegments[3],
-                  projectId: pathSegments[5]
-              };
-        }
-
-      const startDate = parse(values.planningWorkPeriod.startDate, DATE_FORMAT, new Date());
-      const endDate = parse(values.planningWorkPeriod.endDate, DATE_FORMAT, new Date());
-
-      const dataToSave: any = {
-        waveCode: values.waveCode,
-        planningWorkPeriod: {
-          startDate: Timestamp.fromDate(startDate),
-          endDate: Timestamp.fromDate(endDate),
-        },
-        manpowerRequirement: manpowerRequirementObject,
-        updatedAt: serverTimestamp(),
-      };
-      
-      const waveCollectionPath = `clients/${finalRouteParams.clientId}/contracts/${finalRouteParams.contractId}/projects/${finalRouteParams.projectId}/waves`;
-
-      if (wave) {
-        const waveRef = doc(db, waveCollectionPath, wave.id);
-        await updateDoc(waveRef, {
-            ...dataToSave,
-        });
-        toast({ title: "Success", description: "Wave updated successfully." });
-      } else {
-        await addDoc(collection(db, waveCollectionPath), {
-          ...dataToSave,
-          status: 'planned',
-          isDeleted: false,
-          createdAt: serverTimestamp(),
-          createdBy: userProfile.displayName || userProfile.email,
-        });
-        toast({ title: "Success", description: "Wave created successfully." });
-      }
       onSuccess?.();
       onOpenChange(false);
+
     } catch (error) {
       console.error("Error saving wave:", error);
       const errorMessage = error instanceof Error ? error.message : "There was a problem saving the wave data.";
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: errorMessage,
-      });
+      toast({ variant: "destructive", title: "Uh oh! Something went wrong.", description: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -337,19 +290,21 @@ export default function WaveForm({
             onSubmit={form.handleSubmit(onSubmit)}
             className="space-y-6 max-h-[70vh] overflow-y-auto p-1"
           >
-            <FormField
-              control={form.control}
-              name="waveCode"
-              render={({ field }) => (
+            {wave ? (
                 <FormItem>
-                  <FormLabel>Wave Code (Unique)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., CHEV-OCT24-SHUTDOWN" {...field} />
-                  </FormControl>
-                  <FormMessage />
+                    <FormLabel>Wave Code (Unique)</FormLabel>
+                    <FormControl>
+                        <Input value={wave.waveCode} readOnly disabled />
+                    </FormControl>
                 </FormItem>
-              )}
-            />
+            ) : (
+                 <FormItem>
+                    <FormLabel>Wave Code (Unique)</FormLabel>
+                    <FormControl>
+                        <Input value="Auto-generated on save" readOnly disabled />
+                    </FormControl>
+                </FormItem>
+            )}
             
             {projects.length > 0 && (
                 <FormField

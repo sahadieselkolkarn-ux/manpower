@@ -49,39 +49,36 @@ export default function ProjectPage() {
 
     setIsLoading(true);
     try {
-      // Fetch all clients to map names
       const clientSnapshot = await getDocs(collection(db, 'clients'));
       const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)).filter(c => !c.isDeleted);
 
-      // Fetch all contracts to map names
       const contractSnapshot = await getDocs(collectionGroup(db, 'contracts'));
       const contractList = contractSnapshot.docs.map(doc => {
         const data = doc.data();
         const parentClient = clientList.find(c => doc.ref.parent.parent?.id === c.id);
-        if (!parentClient) return null; // Filter out contracts whose client is soft-deleted
+        if (!parentClient) return null;
         return {
           id: doc.id,
-          clientId: parentClient?.id || '',
-          clientName: parentClient?.name || 'Unknown',
+          clientId: parentClient.id,
+          clientName: parentClient.name,
           ...data
         } as ContractWithClient;
       }).filter((c): c is ContractWithClient => c !== null && !c.isDeleted);
       setContracts(contractList);
 
-      // Fetch all projects
       const projectSnapshot = await getDocs(collectionGroup(db, 'projects'));
       const projectList = projectSnapshot.docs.map(doc => {
           const data = doc.data();
           const parentContractRef = doc.ref.parent.parent;
           const parentContract = contractList.find(c => c.id === parentContractRef?.id);
-          if (!parentContract) return null; // Filter out projects whose contract is soft-deleted
+          if (!parentContract) return null;
           return {
               id: doc.id,
               ...data,
-              contractId: parentContract?.id || '',
-              contractName: parentContract?.name || 'Unknown',
-              clientId: parentContract?.clientId || '',
-              clientName: parentContract?.clientName || 'Unknown',
+              contractId: parentContract.id,
+              contractName: parentContract.name,
+              clientId: parentContract.clientId,
+              clientName: parentContract.clientName,
           } as ProjectWithContract;
       }).filter((p): p is ProjectWithContract => p !== null);
 
@@ -161,6 +158,7 @@ export default function ProjectPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Project Code</TableHead>
                 <TableHead>Project Name</TableHead>
                 <TableHead>Contract</TableHead>
                 <TableHead>Client</TableHead>
@@ -173,6 +171,7 @@ export default function ProjectPage() {
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
+                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-24" /></TableCell>
@@ -184,6 +183,7 @@ export default function ProjectPage() {
               ) : visibleProjects.length > 0 ? (
                 visibleProjects.map((project) => (
                   <TableRow key={project.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`)}>
+                    <TableCell className="font-mono">{project.projectCode}</TableCell>
                     <TableCell className="font-medium">
                        <Link href={`/dashboard/clients/${project.clientId}/contracts/${project.contractId}/projects/${project.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
                         {project.name}
@@ -235,7 +235,7 @@ export default function ProjectPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={canManage ? 6 : 5} className="h-24 text-center">
+                  <TableCell colSpan={canManage ? 7 : 6} className="h-24 text-center">
                     No projects found.
                   </TableCell>
                 </TableRow>

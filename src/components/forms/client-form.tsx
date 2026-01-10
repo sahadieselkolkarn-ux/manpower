@@ -6,11 +6,11 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  addDoc,
   collection,
   doc,
   serverTimestamp,
-  updateDoc,
+  runTransaction,
+  writeBatch,
 } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,8 @@ import { Client, Contact } from '@/types/client';
 import { Textarea } from '../ui/textarea';
 import { Trash2 } from 'lucide-react';
 import { Separator } from '../ui/separator';
+import { normalizeKey } from '@/lib/normalize';
+
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Contact name is required.'),
@@ -105,53 +107,81 @@ export default function ClientForm({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!userProfile || !db) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'You must be logged in to perform this action.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Authentication not found.' });
       return;
     }
-
     setLoading(true);
 
+    const nameKey = normalizeKey(values.name);
+    const oldNameKey = client ? normalizeKey(client.name) : null;
+
     try {
-      if (client) {
-        // Update existing client
-        const clientRef = doc(db, 'clients', client.id);
-        await updateDoc(clientRef, {
-          ...values,
-          updatedAt: serverTimestamp(),
-        });
-        toast({
-          title: 'Success',
-          description: 'Client updated successfully.',
-        });
-      } else {
-        // Create new client
-        await addDoc(collection(db, 'clients'), {
-          ...values,
-          isDeleted: false,
-          createdBy: userProfile.displayName || userProfile.email,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        toast({
-          title: 'Success',
-          description: 'Client created successfully.',
-        });
-      }
+      await runTransaction(db, async (transaction) => {
+        // Check for name uniqueness if name has changed or it's a new client
+        if (nameKey !== oldNameKey) {
+          const uniqueRef = doc(db, `unique/clientNames/${nameKey}`);
+          const uniqueDoc = await transaction.get(uniqueRef);
+          if (uniqueDoc.exists()) {
+            throw new Error(`Client name "${values.name}" is already in use.`);
+          }
+        }
+        
+        if (client) { // Update existing client
+          const clientRef = doc(db, 'clients', client.id);
+          transaction.update(clientRef, {
+            ...values,
+            nameKey,
+            updatedAt: serverTimestamp(),
+          });
+
+          if (nameKey !== oldNameKey && oldNameKey) {
+            const oldUniqueRef = doc(db, `unique/clientNames/${oldNameKey}`);
+            transaction.delete(oldUniqueRef);
+          }
+           if (nameKey !== oldNameKey) {
+            const newUniqueRef = doc(db, `unique/clientNames/${nameKey}`);
+            transaction.set(newUniqueRef, {
+              entityId: client.id,
+              createdAt: serverTimestamp(),
+              createdBy: userProfile.uid,
+            });
+          }
+        } else { // Create new client
+          const clientRef = doc(collection(db, 'clients'));
+          transaction.set(clientRef, {
+            ...values,
+            nameKey,
+            isDeleted: false,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            createdBy: userProfile.displayName || userProfile.email,
+          });
+
+          const uniqueRef = doc(db, `unique/clientNames/${nameKey}`);
+          transaction.set(uniqueRef, {
+            entityId: clientRef.id,
+            createdAt: serverTimestamp(),
+            createdBy: userProfile.uid,
+          });
+        }
+      });
+
+      toast({
+        title: 'Success',
+        description: `Client ${client ? 'updated' : 'created'} successfully.`,
+      });
       onSuccess?.();
       onOpenChange(false);
       form.reset();
+
     } catch (error) {
       console.error('Error saving client:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description:
-          'There was a problem with your request. Please try again.',
-      });
+      const errorMessage = error instanceof Error ? error.message : 'There was a problem with your request.';
+      if (errorMessage.includes('already in use')) {
+        form.setError('name', { message: errorMessage });
+      } else {
+        toast({ variant: 'destructive', title: 'Uh oh! Something went wrong.', description: errorMessage });
+      }
     } finally {
       setLoading(false);
     }

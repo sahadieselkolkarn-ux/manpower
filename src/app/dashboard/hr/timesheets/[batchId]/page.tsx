@@ -1,13 +1,15 @@
+
 'use client';
 
 import { use, useState } from 'react';
-import { doc, DocumentReference, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { doc, DocumentReference, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useFirestore, useDoc, useMemoFirebase, useStorage } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ShieldAlert, CheckCircle, Banknote, FileCheck, CircleDashed, Download } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, CheckCircle, Banknote, FileCheck, CircleDashed, Download, Upload } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TimesheetBatch } from '@/types/timesheet';
@@ -16,6 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast';
 import FinancePaidForm from './_components/FinancePaidForm';
 import { canManageFinance, canManageHR } from '@/lib/authz';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 
 function getStatusInfo(status: TimesheetBatch['status']) {
     switch (status) {
@@ -30,6 +34,94 @@ function getStatusInfo(status: TimesheetBatch['status']) {
     }
 }
 
+
+function PdfUploadSection({ batch, refetch }: { batch: TimesheetBatch, refetch: () => void }) {
+    const storage = useStorage();
+    const db = useFirestore();
+    const { toast } = useToast();
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setUploadProgress(0);
+
+        const storagePath = `timesheets/${batch.id}/${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, storagePath);
+
+        try {
+            // In a real app, you would use uploadBytesResumable to get progress
+            // For simplicity, we simulate progress here.
+            await uploadBytes(storageRef, file);
+            
+            // This is a simplified progress simulation
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 20;
+                setUploadProgress(progress);
+                if (progress >= 100) {
+                    clearInterval(interval);
+                }
+            }, 100);
+
+
+            const batchRef = doc(db, 'timesheetBatches', batch.id);
+            await updateDoc(batchRef, {
+                sourceFiles: arrayUnion({
+                    name: file.name,
+                    fileRef: storagePath,
+                    uploadedAt: serverTimestamp(),
+                }),
+                updatedAt: serverTimestamp(),
+            });
+
+            toast({ title: 'Success', description: 'PDF uploaded and linked to the batch.' });
+            refetch();
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            toast({ variant: 'destructive', title: 'Upload Failed', description: 'Could not upload the file.' });
+        } finally {
+            setIsUploading(false);
+            setUploadProgress(0);
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Source Documents</CardTitle>
+                <CardDescription>Upload and manage client-provided timesheet documents.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                        <Input id="pdf-upload" type="file" accept="application/pdf" onChange={handleFileChange} disabled={isUploading} className="flex-1"/>
+                        <Button asChild>
+                            <label htmlFor="pdf-upload" className="cursor-pointer">
+                                <Upload className="mr-2 h-4 w-4"/> Upload PDF
+                            </label>
+                        </Button>
+                    </div>
+                    {isUploading && <Progress value={uploadProgress} className="w-full" />}
+                    
+                    {batch.sourceFiles && batch.sourceFiles.length > 0 && (
+                        <div className="space-y-2 pt-4">
+                            <h4 className="font-medium text-sm">Attached Files:</h4>
+                            <ul className="list-disc list-inside text-sm">
+                                {batch.sourceFiles.map((file, index) => (
+                                    <li key={index}>{file.name}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function TimesheetBatchDetailsPage({ params }: { params: Promise<{ batchId: string }> }) {
     const { batchId } = use(params);
@@ -153,7 +245,14 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
                 </CardHeader>
             </Card>
 
-            <TimesheetLinesTab batch={batch} isLocked={isLocked} />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <TimesheetLinesTab batch={batch} isLocked={isLocked} />
+                </div>
+                <div>
+                    <PdfUploadSection batch={batch} refetch={refetch} />
+                </div>
+            </div>
 
             {canPayFinance && batch && (
                 <FinancePaidForm 

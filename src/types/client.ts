@@ -11,6 +11,7 @@ export interface Contact {
 export interface Client {
   id: string;
   name: string;
+  nameKey?: string;
   shortName?: string;
   address?: string;
   taxId?: string;

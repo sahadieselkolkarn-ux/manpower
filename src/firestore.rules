@@ -136,6 +136,18 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // COUNTERS: Used for auto-incrementing codes
+    match /counters/{counterId} {
+        allow read, write: if isInternalStaff();
+    }
+
+    // UNIQUE: Used for uniqueness constraints
+    match /unique/{path}/{docId} {
+        allow read, create: if isInternalStaff();
+        allow update, delete: if isAdmin(); // Only admins can alter uniqueness constraints
+    }
+
+
     // HR master data: Open for any internal staff for now
     match /employees/{id} { allow read, write: if isInternalStaff(); }
     match /hospitals/{id} { allow read, write: if isInternalStaff(); }
@@ -160,7 +172,9 @@ service cloud.firestore {
     match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
 
     // Operation data (clients tree):
-    // Read and create for all staff, but only admin can delete or soft-delete.
+    // Read and create for all staff.
+    // Update only allowed if NOT a soft-delete, unless user is an admin.
+    // Hard delete only for admin.
     match /clients/{clientId}/{document=**} {
       allow read, create: if isInternalStaff();
       allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
