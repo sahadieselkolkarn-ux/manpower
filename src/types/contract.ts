@@ -1,3 +1,4 @@
+
 'use client';
 
 import { type Timestamp } from 'firebase/firestore';
@@ -43,9 +44,12 @@ export interface Contract {
   id: string;
   name: string;
   clientId: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'DELETED';
   isLocked: boolean;
   lockedAt?: Timestamp;
+  isDeleted?: boolean;
+  deletedAt?: Timestamp;
+  deletedBy?: string;
   saleRates?: ContractSaleRate[];
   otRules?: ContractOtRules;
   holidayCalendar?: {

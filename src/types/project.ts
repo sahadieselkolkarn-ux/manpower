@@ -1,3 +1,4 @@
+
 import { type Timestamp } from 'firebase/firestore';
 
 export interface Project {
@@ -6,6 +7,9 @@ export interface Project {
   workMode: 'Onshore' | 'Offshore';
   status: 'active' | 'inactive';
   note?: string;
+  isDeleted?: boolean;
+  deletedAt?: Timestamp;
+  deletedBy?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string;

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -89,6 +90,7 @@ export default function ProjectForm({ open, onOpenChange, project, contracts, on
         await addDoc(collectionRef, {
             ...projectData,
             status: 'active',
+            isDeleted: false,
             createdBy: userProfile.displayName || userProfile.email,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),

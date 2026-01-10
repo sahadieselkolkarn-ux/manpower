@@ -40,7 +40,7 @@ export default function ClientPage() {
   const { userProfile } = useAuth();
   const { toast } = useToast();
   
-  const clientsQuery = useMemoFirebase(() => db ? query(collection(db, 'clients'), where('isDeleted', '==', false)) : null, [db]);
+  const clientsQuery = useMemoFirebase(() => db ? query(collection(db, 'clients')) : null, [db]);
   const { data: clients, isLoading, refetch } = useCollection<Client>(clientsQuery);
   
   const handleAddClient = () => {
@@ -62,17 +62,18 @@ export default function ClientPage() {
         deletedAt: serverTimestamp(),
         deletedBy: userProfile.uid,
       });
-      toast({ title: 'Success', description: 'Client has been deleted.' });
+      toast({ title: 'Success', description: 'Customer has been deleted.' });
       refetch();
     } catch (error) {
       console.error("Error deleting client: ", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete client.' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete customer.' });
     } finally {
       setClientToDelete(null);
     }
   };
   
   const canManage = canManageOperation(userProfile);
+  const visibleClients = clients?.filter(c => !c.isDeleted) || [];
 
 
   return (
@@ -120,8 +121,8 @@ export default function ClientPage() {
                     {canManage && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
-              ) : clients && clients.length > 0 ? (
-                clients.map((client) => (
+              ) : visibleClients.length > 0 ? (
+                visibleClients.map((client) => (
                   <TableRow key={client.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${client.id}`)}>
                     <TableCell className="font-medium">
                        <Link href={`/dashboard/clients/${client.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
@@ -183,7 +184,7 @@ export default function ClientPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure you want to delete this customer?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will archive the customer '{clientToDelete.name}'. It can be restored later.
+                        This will archive the customer '{clientToDelete.name}'. It can be restored later by an administrator.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

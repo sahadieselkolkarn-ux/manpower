@@ -62,7 +62,7 @@ export default function ContractPage() {
       const clientList = clientSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
       setClients(clientList);
 
-      const contractSnapshot = await getDocs(query(collectionGroup(db, 'contracts'), where('isDeleted', '!=', true)));
+      const contractSnapshot = await getDocs(collectionGroup(db, 'contracts'));
       const contractList = contractSnapshot.docs.map(doc => {
         const data = doc.data();
         const parentClient = clientList.find(c => doc.ref.parent.parent?.id === c.id);
@@ -102,7 +102,7 @@ export default function ContractPage() {
   }
 
   const handleDeleteContract = async () => {
-    if (!contractToDelete || !userProfile) return;
+    if (!contractToDelete || !userProfile || !db) return;
     const contractRef = doc(db, 'clients', contractToDelete.clientId, 'contracts', contractToDelete.id);
     try {
       await updateDoc(contractRef, {
@@ -120,6 +120,8 @@ export default function ContractPage() {
       setContractToDelete(null);
     }
   };
+  
+  const visibleContracts = contracts.filter(c => !c.isDeleted);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -180,8 +182,8 @@ export default function ContractPage() {
                     {canManage && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
-              ) : contracts.length > 0 ? (
-                contracts.map((contract) => (
+              ) : visibleContracts.length > 0 ? (
+                visibleContracts.map((contract) => (
                   <TableRow key={contract.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`)}>
                     <TableCell className="font-medium">
                        <Link href={`/dashboard/clients/${contract.clientId}/contracts/${contract.id}`} className="hover:underline text-primary flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -251,7 +253,7 @@ export default function ContractPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Are you sure you want to delete this contract?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        This will archive the contract '{contractToDelete.name}'. It can be restored later.
+                        This will archive the contract '{contractToDelete.name}'. It can be restored later by an administrator.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

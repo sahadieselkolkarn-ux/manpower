@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, PlusCircle, UserCheck } from "lucide-react";
-import { collection, collectionGroup, getDocs } from "firebase/firestore";
+import { collection, collectionGroup, getDocs, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,11 +22,15 @@ import { Badge } from "@/components/ui/badge";
 import WaveForm from "@/components/forms/wave-form";
 import { useRouter } from "next/navigation";
 import { formatDate } from "@/lib/utils";
+import { canManageOperation } from "@/lib/authz";
+import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 
 export default function WavesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedWave, setSelectedWave] = useState<WaveWithProject | null>(null);
+  const [waveToDelete, setWaveToDelete] = useState<WaveWithProject | null>(null);
   const [waves, setWaves] = useState<WaveWithProject[]>([]);
   const [projects, setProjects] = useState<ProjectWithContract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,8 +38,9 @@ export default function WavesPage() {
 
   const db = useFirestore();
   const { userProfile } = useAuth();
+  const { toast } = useToast();
   
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes("OPERATION_MANAGER");
+  const canManage = canManageOperation(userProfile);
 
   const fetchData = async () => {
     if (!db) {
@@ -123,9 +128,32 @@ export default function WavesPage() {
     setIsFormOpen(true);
   };
 
+  const handleDeleteWave = async () => {
+    if (!waveToDelete || !userProfile || !db) return;
+
+    const waveRef = doc(db, `clients/${waveToDelete.clientId}/contracts/${waveToDelete.contractId}/projects/${waveToDelete.projectId}/waves`, waveToDelete.id);
+    try {
+        await updateDoc(waveRef, {
+            isDeleted: true,
+            deletedAt: serverTimestamp(),
+            deletedBy: userProfile.uid
+        });
+        toast({ title: 'Success', description: 'Wave has been deleted.' });
+        fetchData();
+    } catch (error) {
+        console.error("Error deleting wave:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete wave.' });
+    } finally {
+        setWaveToDelete(null);
+    }
+  };
+
+
   const handleSuccess = () => {
     fetchData();
   }
+  
+  const visibleWaves = waves.filter(w => !w.isDeleted);
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -174,8 +202,8 @@ export default function WavesPage() {
                     {canManage && <TableCell className="text-right"><Skeleton className="h-5 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
-              ) : waves.length > 0 ? (
-                waves.map((wave) => (
+              ) : visibleWaves.length > 0 ? (
+                visibleWaves.map((wave) => (
                   <TableRow key={wave.id}>
                     <TableCell className="font-medium">
                        <Link href={`/dashboard/clients/${wave.clientId}/contracts/${wave.contractId}/projects/${wave.projectId}/waves/${wave.id}`} className="hover:underline text-primary" onClick={(e) => e.stopPropagation()}>
@@ -216,7 +244,7 @@ export default function WavesPage() {
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditWave(wave); }}>
                             Edit
                           </DropdownMenuItem>
-                           <DropdownMenuItem className="text-red-600" disabled>
+                           <DropdownMenuItem className="text-red-600" onClick={(e) => { e.stopPropagation(); setWaveToDelete(wave); }}>
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -241,9 +269,28 @@ export default function WavesPage() {
           open={isFormOpen}
           onOpenChange={setIsFormOpen}
           wave={selectedWave}
-          projects={projects}
+          projects={projects.filter(p => !p.isDeleted)}
           onSuccess={handleSuccess}
         />
+      )}
+
+      {waveToDelete && (
+         <AlertDialog open={!!waveToDelete} onOpenChange={() => setWaveToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to delete this wave?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will archive the wave '{waveToDelete.waveCode}'. It can be restored later by an administrator. This will not delete its assignments.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteWave} className="bg-destructive hover:bg-destructive/90">
+                        Delete Wave
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       )}
     </div>
   );

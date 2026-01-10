@@ -105,6 +105,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
           ...contractData,
           status: 'active',
           isLocked: false,
+          isDeleted: false,
           holidayCalendar: { timezone: 'Asia/Bangkok', dates: [] },
           createdBy: userProfile.displayName || userProfile.email,
           createdAt: serverTimestamp(),

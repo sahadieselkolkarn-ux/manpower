@@ -131,6 +131,7 @@ export default function ClientForm({
         // Create new client
         await addDoc(collection(db, 'clients'), {
           ...values,
+          isDeleted: false,
           createdBy: userProfile.displayName || userProfile.email,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),

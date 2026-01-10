@@ -16,6 +16,9 @@ export interface Wave {
   waveCode: string;
   projectId: string;
   status: 'planned' | 'active' | 'closed';
+  isDeleted?: boolean;
+  deletedAt?: Timestamp;
+  deletedBy?: string;
   manpowerRequirement: ManpowerRequirement[]; 
   planningWorkPeriod: {
     startDate: Timestamp;
@@ -36,5 +39,3 @@ export interface WaveWithProject extends Wave {
     clientId: string;
     workMode: 'Onshore' | 'Offshore';
 }
-
-    
