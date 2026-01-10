@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { use, useMemo, useState, useEffect } from "react";
@@ -8,6 +7,8 @@ import {
   DocumentReference,
   collection,
   getDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { useFirestore, useDoc, useMemoFirebase, useCollection } from "@/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -27,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy, Download } from "lucide-react";
+import { ArrowLeft, MoreHorizontal, PlusCircle, Users, Award, Tag, Pencil, Copy, Download, FilePlus } from "lucide-react";
 import FullPageLoader from "@/components/full-page-loader";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -36,10 +37,13 @@ import { type Assignment } from "@/types/assignment";
 import { type Project } from "@/types/project";
 import AssignmentForm from "@/components/forms/assignment-form";
 import { Skeleton } from "@/components/ui/skeleton";
-import { type Position } from "@/types/position";
+import { type ManpowerPosition } from "@/types/position";
 import { CertificateType } from "@/types/certificate-type";
 import WaveForm from "@/components/forms/wave-form";
 import { useToast } from "@/hooks/use-toast";
+import { canManageOperation } from "@/lib/authz";
+import { useRouter } from "next/navigation";
+
 
 export default function WaveDetailsPage({ params }: { params: Promise<{ clientId: string, contractId: string, projectId: string, waveId: string }> }) {
   const resolvedParams = use(params);
@@ -48,12 +52,13 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
   const db = useFirestore();
   const { userProfile, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   
   const [isAssignmentFormOpen, setIsAssignmentFormOpen] = useState(false);
   const [isWaveFormOpen, setIsWaveFormOpen] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
 
-  const canManage = userProfile?.role === 'admin' || userProfile?.role === 'operationManager';
+  const canManage = canManageOperation(userProfile);
 
   const waveRef = useMemoFirebase(
     () =>
@@ -74,17 +79,17 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
   );
   
   const assignmentsQuery = useMemoFirebase(
-      () => waveRef ? collection(waveRef, 'assignments') : null,
-      [waveRef]
+      () => db ? query(collection(db, 'assignments'), where('waveId', '==', waveId)) : null,
+      [db, waveId]
   );
   
-  const positionsQuery = useMemoFirebase(() => (db ? collection(db, 'positions') : null), [db]);
+  const positionsQuery = useMemoFirebase(() => (db ? collection(db, 'manpowerPositions') : null), [db]);
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
 
 
   const { data: wave, isLoading: isLoadingWave, error: waveError, refetch: refetchWave } = useDoc<Wave>(waveRef);
   const { data: assignments, isLoading: isLoadingAssignments, error: assignmentsError, refetch: refetchAssignments } = useCollection<Assignment>(assignmentsQuery);
-  const { data: positions, isLoading: isLoadingPositions } = useCollection<Position>(positionsQuery);
+  const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
   const { data: certificateTypes, isLoading: isLoadingCertificateTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
   const positionMap = useMemo(() => new Map(positions?.map(p => [p.id, p.name])), [positions]);
@@ -117,6 +122,17 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
     });
   };
 
+  const handleCreateTimesheet = () => {
+    if (!wave) return;
+    const intakeParams = new URLSearchParams({
+      clientId: clientId,
+      contractId: contractId,
+      projectId: projectId,
+      waveId: waveId,
+    });
+    router.push(`/dashboard/hr/timesheets/intake?${intakeParams.toString()}`);
+  }
+
 
   const isLoading = isLoadingWave || isLoadingAssignments || authLoading || !project || isLoadingPositions || isLoadingCertificateTypes;
 
@@ -143,6 +159,7 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
   }
   
   const totalRequired = Array.isArray(wave.manpowerRequirement) ? wave.manpowerRequirement.reduce((sum, req) => sum + req.count, 0) : 0;
+  const activeAssignments = assignments?.filter(a => a.status === 'ACTIVE') || [];
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -154,11 +171,16 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
           </Link>
           <h1 className="text-3xl font-bold tracking-tight font-headline">Wave: {wave.waveCode}</h1>
           <p className="text-muted-foreground">
-            Manage assignments and requirements for this work period.
+            จัดการข้อมูลคนลงงานและเอกสารสำหรับรอบงานนี้
           </p>
         </div>
         <div className="flex items-center gap-2">
             <Button variant="outline"><Download className="mr-2 h-4 w-4" /> Export PDF</Button>
+            {canManage && (
+              <Button onClick={handleCreateTimesheet} className="bg-blue-600 hover:bg-blue-700">
+                <FilePlus className="mr-2 h-4 w-4" /> Create Timesheet Batch
+              </Button>
+            )}
         </div>
       </header>
 
@@ -173,15 +195,14 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
            <CardHeader className="pb-2">
             <CardDescription>Actual Period</CardDescription>
             <CardTitle className="text-lg text-muted-foreground italic">
-              {/* Placeholder for actual dates */}
               Not Started
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Manpower Assigned</CardDescription>
-             <CardTitle className="text-lg">{assignments?.length || 0} / {totalRequired}</CardTitle>
+            <CardDescription>Manpower Assigned (Active)</CardDescription>
+             <CardTitle className="text-lg">{activeAssignments.length} / {totalRequired}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -190,12 +211,12 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
         <Card>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5"/>Manpower Requirements</CardTitle>
-                  <CardDescription>Required positions and counts for this wave.</CardDescription>
+                  <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5"/>ตำแหน่งที่ต้องการ (Manpower Requirements)</CardTitle>
+                  <CardDescription>ตำแหน่งและจำนวนคนที่ต้องการสำหรับ Wave นี้</CardDescription>
                 </div>
                  {canManage && (
                   <Button variant="outline" size="sm" onClick={() => setIsWaveFormOpen(true)}>
-                    <Pencil className="mr-2 h-4 w-4" /> Edit Requirements
+                    <Pencil className="mr-2 h-4 w-4" /> แก้ไข
                   </Button>
                 )}
             </CardHeader>
@@ -242,11 +263,11 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                     <div>
-                        <CardTitle>Assignments</CardTitle>
-                        <CardDescription>List of all employees assigned to this wave.</CardDescription>
+                        <CardTitle>รายชื่อที่ลงแล้ว (Assignments)</CardTitle>
+                        <CardDescription>พนักงานทั้งหมดที่ถูกเลือกสำหรับ Wave นี้</CardDescription>
                     </div>
                      {canManage && (
-                      <Button onClick={() => setIsAssignmentFormOpen(true)}>
+                      <Button onClick={() => router.push(`/dashboard/hr/assignments/new?waveId=${waveId}`)}>
                         <PlusCircle className="mr-2 h-4 w-4" /> Add Assignment
                       </Button>
                     )}
@@ -275,15 +296,15 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
                                 assignments.map(assignment => (
                                     <TableRow key={assignment.id}>
                                         <TableCell className="font-medium">{assignment.employeeName || 'N/A'}</TableCell>
-                                        <TableCell>{assignment.positionName || 'N/A'}</TableCell>
-                                        <TableCell><Badge variant="outline">{assignment.status}</Badge></TableCell>
+                                        <TableCell>{positionMap.get(assignment.positionId) || 'N/A'}</TableCell>
+                                        <TableCell><Badge variant={assignment.status === 'ACTIVE' ? 'default' : 'secondary'}>{assignment.status}</Badge></TableCell>
                                         {canManage && <TableCell className="text-right"><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></TableCell>}
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={canManage ? 4 : 3} className="h-24 text-center">
-                                        No employees assigned to this wave yet.
+                                        ยังไม่มีพนักงานใน Wave นี้
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -337,3 +358,5 @@ export default function WaveDetailsPage({ params }: { params: Promise<{ clientId
     </div>
   );
 }
+
+    
