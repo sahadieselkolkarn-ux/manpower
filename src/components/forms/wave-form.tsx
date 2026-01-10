@@ -4,6 +4,7 @@
 
 
 
+
 "use client";
 
 import React, { useEffect, useMemo } from "react";
@@ -132,7 +133,7 @@ export default function WaveForm({
   const positionsQuery = useMemoFirebase(() => (db ? query(collection(db, "manpowerPositions")) : null), [db]);
   const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
 
-  const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, "certificateTypes")) : null), [db]);
+  const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, "certificateTypes") : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
   const form = useForm<WaveFormData>({
