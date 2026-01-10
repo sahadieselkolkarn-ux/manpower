@@ -1,63 +1,56 @@
-# ManpowerFlow (OPEC Project)
+# Manpower OPEC (App: ManpowerFlow)
 
-**ManpowerFlow** is an integrated web application designed to streamline manpower management for the oil & gas service industry, covering the entire lifecycle from operational planning to financial accounting. This system, developed under the project codename "OPEC" (Operations-HR-Accounting), serves as a single source of truth for all manpower-related activities.
+ระบบบริหารกำลังคน (Onshore/Offshore) ครอบคลุมตั้งแต่ Operation planning → Assignment → Timesheet/Attendance → Payroll → Billing/Accounting → Compliance & Admin
 
-Built with Next.js, Firebase, and Tailwind CSS, ManpowerFlow provides a role-based interface to manage complex workflows efficiently.
+> ชื่อที่แสดงใน UI ปัจจุบันคือ “ManpowerFlow”
 
----
+## Modules
+Operation
+- Customers (ลูกค้า)
+- Contracts
+- Projects
+- Waves (Planning Work Period + Manpower Requirement)
+- Assignments
 
-## 1. Project Scope & Modules
+HR & Manpower
+- Office Employees / Manpower Employees
+- Timesheets / Attendance
+- P.N.D.1 Runs / L.Y.01 Forms
+- Compliance Alerts
+- HR Settings: Holidays, Policies, Office Position, Manpower Position, Certificate Types, Hospitals
 
-The system is organized into four core modules, accessible based on user roles:
+Accounting
+- Pending Processing
+- Billing: Billing Runs, Invoices
+- Core Accounting: A/R, A/P, Cash, Payroll
 
-| Module      | Key Responsibilities                                                                       |
-|-------------|--------------------------------------------------------------------------------------------|
-| **Operation** | Manages the core business flow: Customers, Contracts, Projects, Waves, and Assignments.    |
-| **HR**      | Manages employee lifecycle, timesheets, compliance, and master data like positions.        |
-| **Accounting**| Handles billing, payroll, accounts receivable (A/R), accounts payable (A/P), and cash flow. |
-| **Admin**     | Governs system-wide settings, user management, roles, permissions, and audit logs.         |
+Admin
+- Users / Roles / Permissions
+- System: Company Profile
+- Cooldown Policy / Employee History / Audit Logs
 
----
+## Roles & Access Control
+- Roles ถูกกำหนดเป็น Role Codes และ seed เข้า Firestore collection `/roles`
+- User profile อยู่ใน `/users` โดยใช้ document id = Firebase Auth UID
+- ผู้ใช้ผูก role ผ่าน `roleIds` (อ้างอิง document id ของ role) และมี `roleCodes` เพื่อแสดงผล/กรณี bootstrap admin
 
-## 2. RBAC (Role-Based Access Control)
+ดูรายการ role codes ที่ระบบใช้งานจริงได้ที่ `src/lib/roles.ts`
 
-Access to modules and actions is strictly controlled by a user's assigned roles. The system is built around these core functional roles:
+## Data Model
+ดูโครงสร้าง entity และ Firestore shape ที่ `docs/backend.json`
 
-- `ADMIN`: Full system access.
-- `OPERATION_MANAGER` / `OPERATION_OFFICER`: Manages operational data.
-- `HR_MANAGER` / `HR_OFFICER`: Manages employee and timesheet data.
-- `FINANCE_MANAGER` / `FINANCE_OFFICER` / `PAYROLL_OFFICER`: Manages financial data.
-- `MANAGEMENT_MANAGER`: General oversight role.
+## Local Development
+ต้องมี Node.js + npm
 
-For detailed permission mappings, refer to `src/lib/rbac/permissions.ts`.
+ติดตั้ง dependencies:
+- `npm install`
 
----
+รัน dev server:
+- `npm run dev`
 
-## 3. Data Model
+หมายเหตุ: dev script ใช้ `next dev --turbopack -p 9002`
 
-The core data architecture is defined in `docs/backend.json`, which serves as the blueprint for all Firestore collections and data entities used in the application. This file is the single source of truth for our data schema.
-
----
-
-## 4. Local Development
-
-To run the project locally, follow these steps:
-
-1.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-
-2.  **Run the development server:**
-    The app runs on port `9002`.
-    ```bash
-    npm run dev
-    ```
-
----
-
-## 5. Documentation Index
-
-- **[Final Scope & System Flow](./docs/opec-final.md)**: A comprehensive overview of the system's intended workflow and features.
-- **[System Blueprint](./docs/blueprint.md)**: Detailed breakdown of modules, roles, and navigation.
-- **[Data Model (backend.json)](./docs/backend.json)**: The authoritative schema for all Firestore collections and entities.
+## Docs
+- `docs/blueprint.md` (Project blueprint)
+- `docs/backend.json` (Entity/Data model)
+- `docs/opec-final.md` (Final scope summary for Manpower OPEC)
