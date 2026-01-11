@@ -1,8 +1,9 @@
 
+
 'use client';
 
-import React, { useState } from 'react';
-import { collection, query, orderBy, doc, deleteDoc } from 'firebase/firestore';
+import React, { useState, useMemo } from 'react';
+import { collection, query, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/user';
@@ -26,6 +27,56 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+
+function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | null; onEdit: (role: Role) => void; onDelete: (role: Role) => void; canManage: boolean; }) {
+    return (
+        <Table>
+            <TableHeader><TableRow>
+                <TableHead>Role Name</TableHead>
+                <TableHead>Role Code</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Description</TableHead>
+                {canManage && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow></TableHeader>
+            <TableBody>
+                {!roles ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                        <TableRow key={i}><TableCell colSpan={canManage ? 5 : 4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                    ))
+                ) : roles.length > 0 ? (
+                    roles.map(role => (
+                        <TableRow key={role.id}>
+                            <TableCell className="font-medium">{role.name}</TableCell>
+                            <TableCell className="font-mono">{role.code}</TableCell>
+                            <TableCell><Badge variant="outline">{role.department}</Badge></TableCell>
+                            <TableCell>{role.description}</TableCell>
+                            {canManage && (
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                            <DropdownMenuItem onClick={() => onEdit(role)}>Edit</DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="text-destructive"
+                                                onClick={() => onDelete(role)}
+                                                disabled={role.code === 'ADMIN'}
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            )}
+                        </TableRow>
+                    ))
+                ) : (
+                    <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">No roles found.</TableCell></TableRow>
+                )}
+            </TableBody>
+        </Table>
+    );
+}
 
 export default function AdminRolesPage() {
   const db = useFirestore();
@@ -56,7 +107,12 @@ export default function AdminRolesPage() {
   };
 
   const handleDelete = async () => {
-    if (!roleToDelete || !db || roleToDelete.code === 'ADMIN') return;
+    if (!roleToDelete || !db || !isAdmin) return;
+    if (roleToDelete.code === 'ADMIN') {
+        toast({ variant: 'destructive', title: "Action Forbidden", description: "The ADMIN role cannot be deleted."});
+        return;
+    }
+
     try {
         await deleteDoc(doc(db, 'roles', roleToDelete.id));
         toast({ title: "Success", description: `Role "${roleToDelete.name}" has been deleted.` });
@@ -109,56 +165,17 @@ export default function AdminRolesPage() {
         </Card>
       )}
 
-      <Card>
-          <CardHeader>
-              <CardTitle>All Roles</CardTitle>
-              <CardDescription>System and custom roles available in the application.</CardDescription>
-          </CardHeader>
-          <CardContent>
-              <Table>
-                  <TableHeader><TableRow>
-                      <TableHead>Role Name</TableHead>
-                      <TableHead>Role Code</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                  </TableRow></TableHeader>
-                  <TableBody>
-                      {isLoadingRoles && !roles ? (
-                          Array.from({ length: 5 }).map((_, i) => (
-                              <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
-                          ))
-                      ) : roles && roles.length > 0 ? (
-                          roles.map(role => (
-                              <TableRow key={role.id}>
-                                  <TableCell className="font-medium">{role.name}</TableCell>
-                                  <TableCell className="font-mono">{role.code}</TableCell>
-                                  <TableCell><Badge variant="outline">{role.department}</Badge></TableCell>
-                                  <TableCell>{role.description}</TableCell>
-                                  <TableCell className="text-right">
-                                      <DropdownMenu>
-                                          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                          <DropdownMenuContent>
-                                              <DropdownMenuItem onClick={() => handleEdit(role)}>Edit</DropdownMenuItem>
-                                              <DropdownMenuItem 
-                                                className="text-destructive" 
-                                                onClick={() => setRoleToDelete(role)}
-                                                disabled={role.code === 'ADMIN'}
-                                              >
-                                                <Trash2 className="mr-2 h-4 w-4"/> Delete
-                                              </DropdownMenuItem>
-                                          </DropdownMenuContent>
-                                      </DropdownMenu>
-                                  </TableCell>
-                              </TableRow>
-                          ))
-                      ) : (
-                           <TableRow><TableCell colSpan={5} className="h-24 text-center">No roles found.</TableCell></TableRow>
-                      )}
-                  </TableBody>
-              </Table>
-          </CardContent>
-      </Card>
+      {!rolesError && (
+        <Card>
+            <CardHeader>
+                <CardTitle>All Roles</CardTitle>
+                <CardDescription>System and custom roles available in the application.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <RolesTable roles={roles} onEdit={handleEdit} onDelete={setRoleToDelete} canManage={isAdmin} />
+            </CardContent>
+        </Card>
+      )}
       
       {isFormOpen && (
         <RoleForm open={isFormOpen} onOpenChange={setIsFormOpen} role={selectedRole} onSuccess={refetch} />
@@ -184,3 +201,4 @@ export default function AdminRolesPage() {
     </div>
   );
 }
+
