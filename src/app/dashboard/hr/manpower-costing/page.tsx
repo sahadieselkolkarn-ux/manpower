@@ -1,4 +1,4 @@
-// This is a new file: src/app/dashboard/hr/manpower-costing/page.tsx
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -8,6 +8,8 @@ import {
   query,
   collectionGroup,
   where,
+  updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -39,12 +41,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import FullPageLoader from '@/components/full-page-loader';
-import { DollarSign, ShieldAlert } from 'lucide-react';
+import { DollarSign, ShieldAlert, Edit } from 'lucide-react';
 import { Client } from '@/types/client';
-import { Contract } from '@/types/contract';
+import { Contract, ContractOtRules } from '@/types/contract';
 import { ManpowerPosition } from '@/types/position';
-import { ManpowerCosting, OtPayRules } from '@/types/manpower-costing';
+import { ManpowerCosting } from '@/types/manpower-costing';
 import ManpowerCostingForm from '@/components/forms/manpower-costing-form';
+import PayrollOtRulesForm from '@/components/forms/payroll-ot-rules-form';
 
 interface CostingRowData {
   positionId: string;
@@ -53,7 +56,6 @@ interface CostingRowData {
   offshoreSell: number;
   onshoreCost?: number;
   offshoreCost?: number;
-  otPayRules?: OtPayRules;
   effectiveFrom?: string;
   note?: string;
 }
@@ -65,7 +67,8 @@ export default function ManpowerCostingPage() {
 
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedContractId, setSelectedContractId] = useState<string>('');
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isCostingFormOpen, setIsCostingFormOpen] = useState(false);
+  const [isOtFormOpen, setIsOtFormOpen] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState<CostingRowData | null>(
     null
   );
@@ -96,7 +99,7 @@ export default function ManpowerCostingPage() {
         : null,
     [db, selectedClientId, selectedContractId]
   );
-  const { data: contract, isLoading: isLoadingContract } = useDoc<Contract>(
+  const { data: contract, isLoading: isLoadingContract, refetch: refetchContract } = useDoc<Contract>(
     contractRef
   );
   
@@ -124,16 +127,25 @@ export default function ManpowerCostingPage() {
         offshoreSell: rate.offshoreSellDailyRateExVat ?? rate.dailyRateExVat ?? 0,
         onshoreCost: costing?.onshoreLaborCostDaily,
         offshoreCost: costing?.offshoreLaborCostDaily,
-        otPayRules: costing?.otPayRules,
         effectiveFrom: costing?.effectiveFrom?.toDate().toLocaleDateString(),
         note: costing?.note,
       };
     });
   }, [contract, positionMap, costings]);
+  
+  const payrollOtRules = contract?.payrollOtRules ?? {
+      workdayMultiplier: 1.5,
+      weeklyHolidayMultiplier: 2,
+      contractHolidayMultiplier: 3,
+  };
 
-  const handleEdit = (positionData: CostingRowData) => {
+  const handleEditCosting = (positionData: CostingRowData) => {
     setSelectedPosition(positionData);
-    setIsFormOpen(true);
+    setIsCostingFormOpen(true);
+  };
+  
+  const handleEditOtRules = () => {
+    setIsOtFormOpen(true);
   };
   
   const isLoading = authLoading || isLoadingClients || isLoadingContracts || isLoadingPositions;
@@ -222,81 +234,102 @@ export default function ManpowerCostingPage() {
       </Card>
 
       {selectedContractId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Costing Table for: {contract?.name}</CardTitle>
-            <CardDescription>
-              Sell rates are read-only from contract. Cost and OT rules are HR-managed for payroll.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Position</TableHead>
-                  <TableHead>Onshore Sell</TableHead>
-                  <TableHead>Offshore Sell</TableHead>
-                  <TableHead className="bg-muted">Onshore Cost</TableHead>
-                  <TableHead className="bg-muted">Offshore Cost</TableHead>
-                  <TableHead className="bg-muted">OT (WD/WH/CH)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoadingContract || isLoadingCostings ? (
-                    Array.from({length: 3}).map((_, i) => (
-                        <TableRow key={i}>
-                            <TableCell colSpan={7}><Skeleton className="h-6 w-full" /></TableCell>
-                        </TableRow>
-                    ))
-                ) : tableData.length > 0 ? (
-                  tableData.map((row) => {
-                    const ot = row.otPayRules;
-                    return (
-                        <TableRow key={row.positionId}>
-                        <TableCell className="font-medium">
-                            {row.positionName}
-                        </TableCell>
-                        <TableCell className="font-mono">{row.onshoreSell.toLocaleString()}</TableCell>
-                        <TableCell className="font-mono">{row.offshoreSell.toLocaleString()}</TableCell>
-                        <TableCell className="font-mono bg-muted">{row.onshoreCost?.toLocaleString() ?? '-'}</TableCell>
-                        <TableCell className="font-mono bg-muted">{row.offshoreCost?.toLocaleString() ?? '-'}</TableCell>
-                        <TableCell className="font-mono bg-muted text-xs">
-                          {ot ? `${ot.workdayMultiplier}x / ${ot.weeklyHolidayMultiplier}x / ${ot.contractHolidayMultiplier}x` : '-'}
-                        </TableCell>
-                        <TableCell className="text-right">
-                            <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(row)}
-                            >
-                            Edit
-                            </Button>
-                        </TableCell>
-                        </TableRow>
-                    );
-                   })
-                ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Costing Table for: {contract?.name}</CardTitle>
+              <CardDescription>
+                Sell rates are read-only. Cost rates are editable per position for payroll calculation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No billable positions (sale rates) found in this
-                      contract.
-                    </TableCell>
+                    <TableHead>Position</TableHead>
+                    <TableHead>Onshore Sell</TableHead>
+                    <TableHead>Onshore Cost</TableHead>
+                    <TableHead>Offshore Sell</TableHead>
+                    <TableHead>Offshore Cost</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingContract || isLoadingCostings ? (
+                      Array.from({length: 3}).map((_, i) => (
+                          <TableRow key={i}>
+                              <TableCell colSpan={6}><Skeleton className="h-6 w-full" /></TableCell>
+                          </TableRow>
+                      ))
+                  ) : tableData.length > 0 ? (
+                    tableData.map((row) => (
+                          <TableRow key={row.positionId}>
+                          <TableCell className="font-medium">
+                              {row.positionName}
+                          </TableCell>
+                          <TableCell className="font-mono">{row.onshoreSell.toLocaleString()}</TableCell>
+                          <TableCell className="font-mono bg-muted">{row.onshoreCost?.toLocaleString() ?? '-'}</TableCell>
+                           <TableCell className="font-mono">{row.offshoreSell.toLocaleString()}</TableCell>
+                          <TableCell className="font-mono bg-muted">{row.offshoreCost?.toLocaleString() ?? '-'}</TableCell>
+                          <TableCell className="text-right">
+                              <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditCosting(row)}
+                              >
+                              Edit Cost
+                              </Button>
+                          </TableCell>
+                          </TableRow>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={6} className="h-24 text-center">
+                        No billable positions (sale rates) found in this
+                        contract.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-center">
+                        <CardTitle>Payroll OT Rules</CardTitle>
+                        <Button variant="outline" size="sm" onClick={handleEditOtRules}><Edit className="mr-2 h-4 w-4"/>Edit</Button>
+                    </div>
+                    <CardDescription>OT multipliers for paying employees under this contract.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-3 gap-4 text-center">
+                    <div><p className="text-sm text-muted-foreground">Workday</p><p className="text-2xl font-bold">{payrollOtRules.workdayMultiplier}x</p></div>
+                    <div><p className="text-sm text-muted-foreground">Weekly Hol.</p><p className="text-2xl font-bold">{payrollOtRules.weeklyHolidayMultiplier}x</p></div>
+                    <div><p className="text-sm text-muted-foreground">Contract Hol.</p><p className="text-2xl font-bold">{payrollOtRules.contractHolidayMultiplier}x</p></div>
+                </CardContent>
+            </Card>
+          </div>
+        </div>
       )}
       
-      {isFormOpen && selectedPosition && contractRef && (
+      {isCostingFormOpen && selectedPosition && contractRef && (
         <ManpowerCostingForm
-            open={isFormOpen}
-            onOpenChange={setIsFormOpen}
+            open={isCostingFormOpen}
+            onOpenChange={setIsCostingFormOpen}
             contractRef={contractRef}
             positionData={selectedPosition}
             onSuccess={refetchCostings}
+        />
+      )}
+      {isOtFormOpen && contractRef && contract && (
+        <PayrollOtRulesForm
+            open={isOtFormOpen}
+            onOpenChange={setIsOtFormOpen}
+            contractRef={contractRef}
+            currentRules={contract.payrollOtRules}
+            onSuccess={refetchContract}
         />
       )}
     </div>

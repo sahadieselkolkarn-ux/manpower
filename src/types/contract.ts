@@ -53,7 +53,8 @@ export interface Contract {
   deletedAt?: Timestamp;
   deletedBy?: string;
   saleRates?: ContractSaleRate[];
-  otRules?: ContractOtRules;
+  otRules?: ContractOtRules; // For Sales/Billing
+  payrollOtRules?: ContractOtRules; // For HR/Payroll
   holidayCalendar?: {
       timezone: 'Asia/Bangkok';
       dates: string[]; // YYYY-MM-DD format

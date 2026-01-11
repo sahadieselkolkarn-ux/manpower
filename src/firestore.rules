@@ -16,9 +16,21 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(myUid()))
         && userDoc().isAdmin == true;
     }
+
+    function isRole(role) {
+      return isSignedIn() && userDoc().roleCodes.hasAny([role]);
+    }
+    
+    function isAnyRole(roles) {
+       return isSignedIn() && userDoc().roleCodes.hasAny(roles);
+    }
     
     function isInternalStaff() {
       return isSignedIn();
+    }
+    
+    function canManageHR() {
+       return isAnyRole(['HR_MANAGER', 'HR_OFFICER', 'MANAGEMENT_MANAGER']) || isAdmin();
     }
 
     function isOwner(userId) {
@@ -35,6 +47,11 @@ service cloud.firestore {
     match /companyProfile/PRIMARY {
       allow read: if isSignedIn();
       allow write: if isAdmin();
+    }
+    
+    match /systemSettings/overtimeCalculation {
+       allow read: if isSignedIn();
+       allow write: if isAdmin();
     }
 
     match /users/{userId} {
@@ -60,8 +77,20 @@ service cloud.firestore {
     match /roles/{roleId} {
       allow get, list: if isInternalStaff();
       allow create: if isAdmin();
-      // Only allow update/delete if the role is NOT protected
       allow update, delete: if isAdmin() && resource.data.isProtected != true;
+    }
+    
+    match /clients/{clientId}/contracts/{contractId} {
+        allow update: if canManageHR() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payrollOtRules', 'updatedAt']);
+        // Allow other updates via DEV catch-all for now
+    }
+    
+    match /clients/{clientId}/contracts/{contractId}/manpowerCosting/{positionId} {
+        allow read, write: if canManageHR();
+    }
+    
+    match /clients/{clientId}/contracts/{contractId}/manpowerCostingHistory/{docId} {
+        allow read, write: if canManageHR();
     }
     
     match /audit-logs/{id} { 
