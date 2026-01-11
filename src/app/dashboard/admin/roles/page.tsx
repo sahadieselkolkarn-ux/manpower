@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, query, orderBy, doc, deleteDoc, getDocs, limit, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, getDoc, getDocs, limit, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/user';

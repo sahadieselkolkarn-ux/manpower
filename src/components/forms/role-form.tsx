@@ -117,15 +117,11 @@ export default function RoleForm({
       if (role) {
         // Update existing role
         const roleRef = doc(db, 'roles', role.id);
-        const dataToUpdate = {
-            name: values.name,
-            department: values.department,
-            level: values.level,
-            description: values.description,
-            isSystem: values.isSystem,
+        const { code, ...dataToUpdate } = values; // Exclude code from update payload
+        await updateDoc(roleRef, {
+            ...dataToUpdate,
             updatedAt: serverTimestamp(),
-        };
-        await updateDoc(roleRef, dataToUpdate);
+        });
         toast({ title: 'Success', description: 'Role updated.' });
       } else {
         // Create new role
