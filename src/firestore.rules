@@ -71,7 +71,10 @@ service cloud.firestore {
     }
 
     match /roles/{roleId} {
+      // Allow any signed-in user to read roles (both single and list).
       allow get, list: if isSignedIn();
+    
+      // Only admins can create, update, or delete roles.
       allow create, update, delete: if isAdmin();
     }
     

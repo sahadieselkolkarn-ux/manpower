@@ -1,3 +1,4 @@
+
 import { type Timestamp } from "firebase/firestore";
 
 export type Department = "HR" | "OPERATION" | "FINANCE" | "MANAGEMENT" | "ADMIN" | "CUSTOM";
@@ -22,7 +23,7 @@ export interface Role {
     level: RoleLevel;
     description: string;
     isSystem: boolean;
-    isProtected?: boolean;
+    isProtected?: boolean; // True for standard roles that shouldn't be deleted/edited by UI
 }
 
 export interface UserProfile {
