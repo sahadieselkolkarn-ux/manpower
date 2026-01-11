@@ -11,6 +11,7 @@ import {
   serverTimestamp,
   Timestamp,
   DocumentReference,
+  collection,
 } from 'firebase/firestore';
 import { parse, isValid } from 'date-fns';
 
@@ -118,7 +119,9 @@ export default function ManpowerCostingForm({
     setLoading(true);
 
     const costingDocRef = doc(contractRef, 'manpowerCosting', positionData.positionId);
-    const historyDocRef = doc(collection(contractRef, 'manpowerCostingHistory'));
+    const historyColRef = collection(contractRef, 'manpowerCostingHistory');
+    const historyDocRef = doc(historyColRef);
+
     const effectiveFromDate = parse(values.effectiveFrom, DATE_FORMAT, new Date());
     
     const batch = writeBatch(db);
