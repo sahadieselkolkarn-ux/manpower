@@ -2,6 +2,7 @@
 'use client';
 import { collection, doc, getDocs, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { ROLES_SEED_DATA } from './roles';
+import { Firestore } from 'firebase/firestore';
 
 /**
  * Ensures that the standard roles defined in the application are present in the Firestore database.
@@ -10,7 +11,7 @@ import { ROLES_SEED_DATA } from './roles';
  * @param db The Firestore instance.
  * @returns A promise that resolves when the operation is complete.
  */
-export async function ensureStandardRolesSeeded(db: any) {
+export async function ensureStandardRolesSeeded(db: Firestore) {
   if (!db) {
     console.error("ensureStandardRolesSeeded: Firestore instance is not available.");
     return;

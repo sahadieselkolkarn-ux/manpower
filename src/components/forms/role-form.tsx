@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -70,7 +71,7 @@ export default function RoleForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const isEditingSystemRole = role?.isSystem === true;
+  const isEditingSystemRole = role?.isProtected === true;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -116,7 +117,8 @@ export default function RoleForm({
         // Create new role
         await addDoc(collection(db, 'roles'), {
           ...values,
-          isSystem: false, // Custom roles are never system roles
+          isSystem: false,
+          isProtected: false,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });

@@ -1,7 +1,7 @@
 import { Role } from "@/types/user";
 
 // This data should be seeded into the /roles collection in Firestore.
-export const ROLES_SEED_DATA: Omit<Role, 'id'>[] = [
+export const ROLES_SEED_DATA: Omit<Role, 'id' | 'isProtected'>[] = [
   {
     code: "ADMIN",
     name: "System Administrator",

@@ -16,13 +16,13 @@ export type RoleCode =
 
 export interface Role {
     id: string;
-    name: string; // Made non-optional
+    name: string;
     code: RoleCode;
     department: Department;
     level: RoleLevel;
     description: string;
-    isSystem: boolean; // True for standard roles, false for custom ones
-    isProtected?: boolean; // True for standard roles that cannot be modified
+    isSystem: boolean;
+    isProtected?: boolean;
 }
 
 export interface UserProfile {
