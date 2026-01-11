@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, query, orderBy, doc, deleteDoc, getDoc, getDocs, limit } from 'firebase/firestore';
+import { collection, query, orderBy, doc, deleteDoc, getDocs, limit, getDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/user';
@@ -27,7 +27,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { canManageHR } from '@/lib/authz';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
@@ -105,11 +104,10 @@ export default function AdminRolesPage() {
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
 
-
   const rolesQuery = useMemoFirebase(() => {
     if (!db || authLoading || !userProfile) return null;
     return query(collection(db, 'roles'), orderBy('department'), orderBy('code'));
-  }, [db, authLoading, userProfile?.uid]);
+  }, [db, authLoading, userProfile]);
 
   const { data: roles, isLoading: isLoadingRoles, refetch, error: rolesError } = useCollection<Role>(rolesQuery);
 
@@ -143,7 +141,7 @@ export default function AdminRolesPage() {
         setRoleToDelete(null);
     }
   }
-
+  
   const handleTestAccess = async () => {
       if (!db) return;
       let results: string[] = [];
@@ -161,7 +159,7 @@ export default function AdminRolesPage() {
       }
       setTestResult(results.join(' / '));
   }
-  
+
   const isLoading = authLoading || (isLoadingRoles && !roles);
 
   if (isLoading && !rolesError) {
@@ -198,7 +196,7 @@ export default function AdminRolesPage() {
         <Card className="bg-destructive/10">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert/> Permission Error</CardTitle>
-            <CardDescription className="text-destructive">Could not load roles. This is often a temporary issue during authentication or a misconfiguration of Firestore rules.</CardDescription>
+            <CardDescription className="text-destructive">Could not load roles. This might be a temporary permission issue or misconfigured Firestore rules.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={refetch}>Retry</Button>

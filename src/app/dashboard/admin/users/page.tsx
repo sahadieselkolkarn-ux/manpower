@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, updateDoc, writeBatch, serverTimestamp, query } from 'firebase/firestore';
+import { collection, doc, updateDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { UserProfile, Role, RoleCode } from '@/types/user';
@@ -36,12 +37,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
 
-function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { user: UserProfile, roles: Role[], open: boolean, onOpenChange: (open: boolean) => void, onUpdate: () => void }) {
+function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate, currentUserProfile }: { user: UserProfile, roles: Role[], open: boolean, onOpenChange: (open: boolean) => void, onUpdate: () => void, currentUserProfile: UserProfile | null }) {
   const [isAdmin, setIsAdmin] = useState(user.isAdmin);
   const [selectedRoleIds, setSelectedRoleIds] = useState<string[]>(user.roleIds || []);
   const [loading, setLoading] = useState(false);
   const db = useFirestore();
   const { toast } = useToast();
+  
+  const isSuperAdmin = currentUserProfile?.email === 'sahadieselkolkarn@gmail.com';
 
   React.useEffect(() => {
     if (open) {
@@ -93,10 +96,12 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
           <DialogDescription>{user.email}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          <div className="flex items-center space-x-2">
-            <Switch id="isAdmin" checked={isAdmin} onCheckedChange={setIsAdmin} />
-            <Label htmlFor="isAdmin">Is Admin (Full System Access)</Label>
-          </div>
+          {isSuperAdmin && (
+            <div className="flex items-center space-x-2">
+              <Switch id="isAdmin" checked={isAdmin} onCheckedChange={setIsAdmin} />
+              <Label htmlFor="isAdmin">Is Admin (Full System Access)</Label>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             {roles.filter(r => r.code !== 'ADMIN').map(role => (
               <div key={role.id} className="flex items-center space-x-2">
@@ -191,13 +196,13 @@ export default function AdminUsersPage() {
   const [userToEdit, setUserToEdit] = useState<UserProfile | null>(null);
   const [userToLink, setUserToLink] = useState<UserProfile | null>(null);
 
-  const usersQuery = useMemoFirebase(() => (db ? collection(db, 'users') : null), [db]);
+  const usersQuery = useMemoFirebase(() => (db && !authLoading && currentUserProfile) ? query(collection(db, 'users'), orderBy('createdAt', 'desc')) : null, [db, authLoading, currentUserProfile]);
   const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
 
   const rolesQuery = useMemoFirebase(() => {
     if (!db || authLoading || !currentUserProfile) return null;
-    return collection(db, 'roles');
-  }, [db, authLoading, currentUserProfile?.uid]);
+    return query(collection(db, 'roles'), orderBy('department'), orderBy('code'));
+  }, [db, authLoading, currentUserProfile]);
   const { data: roles, isLoading: isLoadingRoles } = useCollection<Role>(rolesQuery);
   const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name ?? r.code])), [roles]);
   const rolesByCode = useMemo(() => new Map(roles?.map(r => [r.code, r])), [roles]);
@@ -389,6 +394,7 @@ export default function AdminUsersPage() {
           open={!!userToEdit}
           onOpenChange={() => setUserToEdit(null)}
           onUpdate={refetchUsers}
+          currentUserProfile={currentUserProfile}
         />
       )}
 
