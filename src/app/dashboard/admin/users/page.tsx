@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -99,7 +98,7 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
             <Label htmlFor="isAdmin">Is Admin (Full System Access)</Label>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            {roles.filter(r => !r.isSystem).map(role => (
+            {roles.filter(r => r.code !== 'ADMIN').map(role => (
               <div key={role.id} className="flex items-center space-x-2">
                 <Checkbox
                   id={role.id}

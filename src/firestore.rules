@@ -11,67 +11,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(myUid())).data;
     }
 
-    function securityDoc() {
-      return get(/databases/$(database)/documents/settings/security).data;
-    }
-
-    function securityExists() {
-      return exists(/databases/$(database)/documents/settings/security);
-    }
-
-    function bootstrapIsOpen() {
-      return securityExists()
-        && securityDoc().bootstrap != null
-        && securityDoc().bootstrap.isOpen == true;
-    }
-
-    function isBootstrapAdminAllowlisted() {
-      return bootstrapIsOpen()
-        && (myEmail() in securityDoc().bootstrap.adminEmailsAllowlist);
-    }
-
     function isAdmin() {
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(myUid()))
         && userDoc().isAdmin == true;
     }
-
-    function hasRoleCode(roleCode) {
-      return isSignedIn()
-        && exists(/databases/$(database)/documents/users/$(myUid()))
-        && userDoc().roleCodes != null
-        && (roleCode in userDoc().roleCodes);
-    }
     
-    function isHR() {
-      return isAdmin()
-        || hasRoleCode("HR_OFFICER")
-        || hasRoleCode("HR_MANAGER");
-    }
-    
-    function isHRManager() {
-       return isAdmin() || hasRoleCode("HR_MANAGER");
-    }
-
-    function isFinance() {
-      return isAdmin()
-        || hasRoleCode("PAYROLL_OFFICER")
-        || hasRoleCode("FINANCE_OFFICER")
-        || hasRoleCode("FINANCE_MANAGER");
-    }
-
-    function isOperation() {
-      return isAdmin()
-        || hasRoleCode("OPERATION_OFFICER")
-        || hasRoleCode("OPERATION_MANAGER");
-    }
-
     function isInternalStaff() {
       return isSignedIn();
-    }
-    
-    function isManagement() {
-       return isAdmin() || hasRoleCode("MANAGEMENT_MANAGER");
     }
 
     function isOwner(userId) {
@@ -111,67 +58,18 @@ service cloud.firestore {
     }
 
     match /roles/{roleId} {
-      allow read: if isSignedIn();
+      allow read: if isInternalStaff();
       allow create: if isAdmin();
-      allow update: if isAdmin() && resource.data.isSystem == false;
-      allow delete: if isAdmin() && resource.data.isSystem == false;
-    }
-
-    match /counters/{docId} {
-        allow read, write: if isInternalStaff();
-    }
-    match /unique/{docId} {
-        allow read, write: if isInternalStaff();
-    }
-
-    match /employees/{id} { allow read, write: if isInternalStaff(); }
-    match /hospitals/{id} { allow read, write: if isInternalStaff(); }
-    match /certificateTypes/{id} { allow read, write: if isInternalStaff(); }
-    match /officePositions/{id} { allow read, write: if isInternalStaff(); }
-    match /manpowerPositions/{id} { allow read, write: if isInternalStaff(); }
-    match /cooldownPolicies/{id} { allow read, write: if isInternalStaff(); }
-    match /positions/{id} { allow read, write: if isInternalStaff(); } // Legacy
-
-    match /timesheetBatches/{id} { allow read, write: if isInternalStaff(); }
-    match /timesheetLines/{id} { allow read, write: if isInternalStaff(); }
-    match /assignments/{id} { allow read, write: if isInternalStaff(); }
-
-    match /payrolls/{id} { allow read, write: if isInternalStaff(); }
-    match /taxProfiles/{id} { allow read, write: if isInternalStaff(); }
-    match /bankAccounts/{id} { allow read, write: if isInternalStaff(); }
-    match /invoices/{id} { allow read, write: if isInternalStaff(); }
-    match /billsAP/{id} { allow read, write: if isInternalStaff(); }
-    match /paymentsAR/{id} { allow read, write: if isInternalStaff(); }
-    match /paymentsAP/{id} { allow read, write: if isInternalStaff(); }
-    match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
-
-    match /clients/{clientId} {
-      allow read, create: if isInternalStaff();
-      allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
-      allow delete: if isAdmin();
+      // Only allow update/delete if the role is NOT protected
+      allow update, delete: if isAdmin() && resource.data.isProtected != true;
     }
     
-    match /clients/{clientId}/contracts/{contractId} {
-       allow read, create, update, delete: if isInternalStaff();
-    }
-    
-    // TODO: REMOVE DEV CATCH-ALL BEFORE PRODUCTION
-    match /clients/{clientId}/contracts/{contractId}/manpowerCosting/{positionId} {
-        allow read, write: if isHR() || isFinance() || isManagement() || isAdmin();
-    }
-    match /clients/{clientId}/contracts/{contractId}/manpowerCostingHistory/{historyId} {
-        allow read, write: if isHR() || isFinance() || isManagement() || isAdmin();
-    }
-    
-    match /clients/{clientId}/contracts/{contractId}/{document=**} {
-      allow read, write: if isInternalStaff();
-    }
-
     match /audit-logs/{id} { 
       allow read: if isAdmin();
       allow create: if isSignedIn();
     }
     
+    // DEV CATCH-ALL: prevent permission-denied from unknown collections breaking queries (esp. collectionGroup)
     match /{document=**} {
       allow read, write: if isSignedIn();
     }

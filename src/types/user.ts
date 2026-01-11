@@ -22,6 +22,7 @@ export interface Role {
     level: RoleLevel;
     description: string;
     isSystem: boolean; // True for standard roles, false for custom ones
+    isProtected?: boolean; // True for standard roles that cannot be modified
 }
 
 export interface UserProfile {
