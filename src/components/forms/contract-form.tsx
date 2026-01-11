@@ -40,6 +40,10 @@ const formSchema = z.object({
     weeklyHolidayMultiplier: z.coerce.number().min(0),
     contractHolidayMultiplier: z.coerce.number().min(0),
   }).optional(),
+  billDayRules: z.object({
+      weeklyHolidayDayMultiplier: z.coerce.number().min(0),
+      contractHolidayDayMultiplier: z.coerce.number().min(0),
+  }).optional(),
   changeNote: z.string().optional(),
 });
 
@@ -67,6 +71,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
       clientId: '',
       saleRates: [],
       otRules: { workdayMultiplier: 1.5, weeklyHolidayMultiplier: 2, contractHolidayMultiplier: 3 },
+      billDayRules: { weeklyHolidayDayMultiplier: 1, contractHolidayDayMultiplier: 1 },
       changeNote: '',
     },
   });
@@ -76,7 +81,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
     name: "saleRates",
   });
   
-  const isSaleRatesDirty = form.formState.dirtyFields.saleRates;
+  const isFormDirty = form.formState.isDirty;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!userProfile || !db) {
@@ -84,8 +89,8 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
       return;
     }
     
-    if (contract && isSaleRatesDirty && !values.changeNote) {
-        form.setError("changeNote", { message: "A note is required when changing sale rates." });
+    if (contract && isFormDirty && !values.changeNote) {
+        form.setError("changeNote", { message: "A note is required when changing contract terms." });
         return;
     }
 
@@ -113,7 +118,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
             updatedAt: serverTimestamp(),
         };
 
-        if (isSaleRatesDirty && changeNote) {
+        if (isFormDirty && changeNote) {
             updatePayload.pricingChangeLogs = arrayUnion({
                 note: changeNote,
                 by: userProfile.displayName || userProfile.email,
@@ -161,6 +166,7 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
         clientId: contract?.clientId || '',
         saleRates: normalizedSaleRates,
         otRules: contract?.otRules || { workdayMultiplier: 1.5, weeklyHolidayMultiplier: 2, contractHolidayMultiplier: 3 },
+        billDayRules: contract?.billDayRules || { weeklyHolidayDayMultiplier: 1, contractHolidayDayMultiplier: 1 },
         changeNote: '',
       });
     }
@@ -243,20 +249,28 @@ export default function ContractForm({ open, onOpenChange, contract, clients, on
             </div>
             
             <Separator />
-
-            <div className="space-y-4">
-                <h3 className="text-lg font-medium">OT Multipliers</h3>
-                <div className="grid grid-cols-3 gap-4">
-                     <FormField control={form.control} name="otRules.workdayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Workday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
-                     <FormField control={form.control} name="otRules.weeklyHolidayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Weekly Holiday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
-                     <FormField control={form.control} name="otRules.contractHolidayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Contract Holiday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+            
+             <div className="space-y-4">
+                <h3 className="text-lg font-medium">Daily Pay Multipliers (Billing)</h3>
+                <div className="grid grid-cols-2 gap-4">
+                     <FormField control={form.control} name="billDayRules.weeklyHolidayDayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Weekend</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+                     <FormField control={form.control} name="billDayRules.contractHolidayDayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Contract Holiday</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
                 </div>
             </div>
 
-            {isSaleRatesDirty && contract && !isLocked && (
+            <div className="space-y-4">
+                <h3 className="text-lg font-medium">Hourly OT Multipliers (Billing)</h3>
+                <div className="grid grid-cols-3 gap-4">
+                     <FormField control={form.control} name="otRules.workdayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Workday OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+                     <FormField control={form.control} name="otRules.weeklyHolidayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Weekend OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+                     <FormField control={form.control} name="otRules.contractHolidayMultiplier" render={({ field }) => ( <FormItem><FormLabel>Holiday OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} disabled={isLocked}/></FormControl><FormMessage /></FormItem> )}/>
+                </div>
+            </div>
+
+            {isFormDirty && contract && !isLocked && (
                 <>
                 <Separator />
-                <FormField control={form.control} name="changeNote" render={({ field }) => ( <FormItem><FormLabel className="text-destructive">Reason for Change</FormLabel><FormControl><Textarea placeholder="Explain why the sale rates are being changed." {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                <FormField control={form.control} name="changeNote" render={({ field }) => ( <FormItem><FormLabel className="text-destructive">Reason for Change</FormLabel><FormControl><Textarea placeholder="Explain why the contract terms are being changed." {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 </>
             )}
 

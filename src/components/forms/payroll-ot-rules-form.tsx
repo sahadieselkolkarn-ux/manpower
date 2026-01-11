@@ -34,19 +34,27 @@ import {
 import { useFirestore } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { ContractOtRules } from '@/types/contract';
+import { ContractOtRules, ContractDayPayRules } from '@/types/contract';
+import { Separator } from '../ui/separator';
 
 const formSchema = z.object({
-  workdayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
-  weeklyHolidayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
-  contractHolidayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+  payrollOtRules: z.object({
+    workdayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+    weeklyHolidayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+    contractHolidayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+  }),
+  payrollDayRules: z.object({
+    weeklyHolidayDayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+    contractHolidayDayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+  })
 });
 
 interface PayrollOtRulesFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contractRef: DocumentReference;
-  currentRules?: ContractOtRules;
+  currentOtRules?: ContractOtRules;
+  currentDayRules?: ContractDayPayRules;
   onSuccess: () => void;
 }
 
@@ -54,7 +62,8 @@ export default function PayrollOtRulesForm({
   open,
   onOpenChange,
   contractRef,
-  currentRules,
+  currentOtRules,
+  currentDayRules,
   onSuccess,
 }: PayrollOtRulesFormProps) {
   const [loading, setLoading] = React.useState(false);
@@ -62,22 +71,28 @@ export default function PayrollOtRulesForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const defaultValues: ContractOtRules = {
-    workdayMultiplier: 1.5,
-    weeklyHolidayMultiplier: 2,
-    contractHolidayMultiplier: 3,
+  const defaultValues = {
+    payrollOtRules: currentOtRules ?? {
+      workdayMultiplier: 1.5,
+      weeklyHolidayMultiplier: 2,
+      contractHolidayMultiplier: 3,
+    },
+    payrollDayRules: currentDayRules ?? {
+      weeklyHolidayDayMultiplier: 1,
+      contractHolidayDayMultiplier: 1,
+    }
   };
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: currentRules ?? defaultValues,
+    defaultValues,
   });
 
   React.useEffect(() => {
     if (open) {
-      form.reset(currentRules ?? defaultValues);
+      form.reset(defaultValues);
     }
-  }, [open, currentRules, form]);
+  }, [open, currentOtRules, currentDayRules, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!userProfile || !db) return;
@@ -85,10 +100,11 @@ export default function PayrollOtRulesForm({
 
     try {
       await updateDoc(contractRef, {
-        payrollOtRules: values,
+        payrollOtRules: values.payrollOtRules,
+        payrollDayRules: values.payrollDayRules,
         updatedAt: serverTimestamp(),
       });
-      toast({ title: 'Success', description: 'Payroll OT Rules updated.' });
+      toast({ title: 'Success', description: 'Payroll OT & Day Pay Rules updated.' });
       onSuccess();
       onOpenChange(false);
     } catch (error) {
@@ -105,25 +121,40 @@ export default function PayrollOtRulesForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit Payroll OT Rules</DialogTitle>
+          <DialogTitle>Edit Payroll OT & Day Pay Rules</DialogTitle>
           <DialogDescription>
             These multipliers are used for calculating employee pay (cost-side).
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <div className="grid grid-cols-3 gap-4">
-                <FormField control={form.control} name="workdayMultiplier" render={({ field }) => (
-                    <FormItem><FormLabel>Workday</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
-                )}/>
-                <FormField control={form.control} name="weeklyHolidayMultiplier" render={({ field }) => (
-                    <FormItem><FormLabel>Weekly Hol.</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
-                )}/>
-                <FormField control={form.control} name="contractHolidayMultiplier" render={({ field }) => (
-                    <FormItem><FormLabel>Contract Hol.</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
-                )}/>
+             <div className="space-y-2">
+                <h4 className="font-medium text-sm">Daily Pay Multipliers (Full Day)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="payrollDayRules.weeklyHolidayDayMultiplier" render={({ field }) => (
+                        <FormItem><FormLabel>Weekend</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="payrollDayRules.contractHolidayDayMultiplier" render={({ field }) => (
+                        <FormItem><FormLabel>Holiday</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                </div>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+                 <h4 className="font-medium text-sm">Hourly OT Multipliers</h4>
+                <div className="grid grid-cols-3 gap-4">
+                    <FormField control={form.control} name="payrollOtRules.workdayMultiplier" render={({ field }) => (
+                        <FormItem><FormLabel>Workday OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="payrollOtRules.weeklyHolidayMultiplier" render={({ field }) => (
+                        <FormItem><FormLabel>Weekend OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="payrollOtRules.contractHolidayMultiplier" render={({ field }) => (
+                        <FormItem><FormLabel>Holiday OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormMessage>
+                    )}/>
+                </div>
             </div>
             
             <DialogFooter className="pt-4">

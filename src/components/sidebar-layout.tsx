@@ -44,7 +44,8 @@ import {
   AlertCircle,
   Banknote,
   Send,
-  UserRoundCog
+  UserRoundCog,
+  Timer
 } from "lucide-react";
 
 import {
@@ -245,7 +246,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                 </SidebarMenuItem>
                  <Collapsible>
                     <CollapsibleTrigger asChild className="w-full">
-                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/hr/holidays") || pathname.startsWith("/dashboard/hr/policies") || pathname.startsWith("/dashboard/hr/master")}>
+                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/hr/holidays") || pathname.startsWith("/dashboard/hr/policies") || pathname.startsWith("/dashboard/hr/master") || pathname.startsWith("/dashboard/hr/settings")}>
                             <Settings />
                             <span>HR Settings</span>
                        </SidebarMenuButton>
@@ -259,6 +260,11 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                          <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/policies")}>
                                 <Link href="/dashboard/hr/policies/attendance"><FileCog /><span>Policies</span></Link>
+                            </SidebarMenuButton>
+                         </SidebarMenuItem>
+                         <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/settings/overtime")}>
+                                <Link href="/dashboard/hr/settings/overtime"><Timer /><span>OT Settings</span></Link>
                             </SidebarMenuButton>
                          </SidebarMenuItem>
                          <SidebarMenuItem>

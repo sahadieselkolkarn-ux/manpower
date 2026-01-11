@@ -24,10 +24,15 @@ export interface ContractSaleRate {
     offshoreSellDailyRateExVat?: number;
 }
 
+export interface ContractDayPayRules {
+  weeklyHolidayDayMultiplier: number;
+  contractHolidayDayMultiplier: number;
+}
+
 export interface ContractOtRules {
     workdayMultiplier: number;
-    weeklyHolidayMultiplier: number;
-    contractHolidayMultiplier: number;
+    weeklyHolidayMultiplier: number; // Note: This is for hourly OT on a weekend
+    contractHolidayMultiplier: number; // Note: This is for hourly OT on a calendar holiday
 }
 
 export interface ContractHoliday {
@@ -53,8 +58,15 @@ export interface Contract {
   deletedAt?: Timestamp;
   deletedBy?: string;
   saleRates?: ContractSaleRate[];
-  otRules?: ContractOtRules; // For Sales/Billing
-  payrollOtRules?: ContractOtRules; // For HR/Payroll
+  
+  // For Billing (Operation)
+  otRules?: ContractOtRules; 
+  billDayRules?: ContractDayPayRules;
+
+  // For Payroll (HR)
+  payrollOtRules?: ContractOtRules; 
+  payrollDayRules?: ContractDayPayRules;
+
   holidayCalendar?: {
       timezone: 'Asia/Bangkok';
       dates: string[]; // YYYY-MM-DD format
