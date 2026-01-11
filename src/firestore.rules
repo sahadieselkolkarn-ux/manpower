@@ -16,10 +16,6 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/users/$(myUid()))
         && userDoc().isAdmin == true;
     }
-
-    function isRole(role) {
-      return isSignedIn() && userDoc().roleCodes.hasAny([role]);
-    }
     
     function isAnyRole(roles) {
        return isSignedIn() && userDoc().roleCodes.hasAny(roles);
@@ -48,6 +44,11 @@ service cloud.firestore {
     match /hrSettings/{docId} {
         allow read: if isSignedIn();
         allow write: if canManageHR();
+    }
+    
+    match /systemSettings/{docId} {
+      allow read: if isSignedIn();
+      allow write: if canManageHR() || isAdmin();
     }
 
     match /users/{userId} {
@@ -79,7 +80,7 @@ service cloud.firestore {
     }
     
     match /clients/{clientId}/contracts/{contractId} {
-        allow update: if canManageHR() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payrollOtRules', 'payrollDayRules', 'updatedAt']);
+        allow update: if (canManageHR() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['payrollOtRules', 'payrollDayRules', 'updatedAt'])) || isAdmin();
         // Allow other updates via DEV catch-all for now
     }
     

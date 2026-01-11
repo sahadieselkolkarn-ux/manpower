@@ -137,7 +137,6 @@ export default function RoleForm({
 
         await setDoc(roleRef, {
           ...values,
-          isProtected: false, // Custom roles are never protected
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });

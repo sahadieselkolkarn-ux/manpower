@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 
 /**
  * An invisible component that listens for globally emitted 'permission-error' events.
- * It shows a toast for transient read errors and throws other errors.
+ * It shows a toast for transient read errors and other errors, without crashing the app.
  */
 export function FirebaseErrorListener() {
   const { toast } = useToast();
@@ -21,7 +21,7 @@ export function FirebaseErrorListener() {
         console.warn('Transient Firestore Permission Error:', error.message);
         toast({
           title: 'Permission Issue',
-          description: `Could not fetch some data. This can happen during page load. Try refreshing if issues persist.`,
+          description: `Could not fetch some data. This can happen during page load. Retrying automatically.`,
           variant: 'default',
         });
       } else {
@@ -34,8 +34,6 @@ export function FirebaseErrorListener() {
           variant: 'destructive',
           duration: 10000,
         });
-        // In a production app, you might want to log this to a monitoring service.
-        // Sentry.captureException(error);
       }
     };
 
@@ -50,5 +48,3 @@ export function FirebaseErrorListener() {
   // This component renders nothing.
   return null;
 }
-
-    
