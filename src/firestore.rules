@@ -58,7 +58,7 @@ service cloud.firestore {
     }
 
     match /roles/{roleId} {
-      allow read: if isInternalStaff();
+      allow read, list: if isInternalStaff();
       allow create: if isAdmin();
       // Only allow update/delete if the role is NOT protected
       allow update, delete: if isAdmin() && resource.data.isProtected != true;
