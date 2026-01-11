@@ -312,7 +312,7 @@ export default function AdminUsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoadingUsers ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
@@ -406,5 +406,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
-    

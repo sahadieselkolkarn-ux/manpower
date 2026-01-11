@@ -47,7 +47,7 @@ export default function AdminRolesPage() {
   const { data: roles, isLoading: isLoadingRoles, refetch, error: rolesError } = useCollection<Role>(rolesQuery);
 
   useEffect(() => {
-    if (db && userProfile?.isAdmin && !isLoadingRoles && roles && !seedCalledRef.current) {
+    if (db && userProfile?.isAdmin && !isLoadingRoles && roles && !seedCalledRef.current && !rolesError) {
         seedCalledRef.current = true;
         if (roles.length === 0) {
             ensureStandardRolesSeeded(db).then(() => {
@@ -56,7 +56,7 @@ export default function AdminRolesPage() {
             });
         }
     }
-  }, [db, userProfile, isLoadingRoles, roles, refetch, toast]);
+  }, [db, userProfile, isLoadingRoles, roles, refetch, toast, rolesError]);
 
   const isAdmin = userProfile?.isAdmin;
 
@@ -86,9 +86,9 @@ export default function AdminRolesPage() {
   
   const standardRoles = roles?.filter(r => r.isProtected);
   const customRoles = roles?.filter(r => !r.isProtected);
-  const isLoading = authLoading || isLoadingRoles;
+  const isLoading = authLoading || (isLoadingRoles && !roles);
 
-  if (isLoading && !rolesError) {
+  if (isLoading) {
     return <FullPageLoader />;
   }
   
@@ -117,7 +117,7 @@ export default function AdminRolesPage() {
         <Card className="bg-destructive/10">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert/> Permission Error</CardTitle>
-            <CardDescription className="text-destructive">Could not load roles. Please try again.</CardDescription>
+            <CardDescription className="text-destructive">Could not load roles. Please ensure you have the correct permissions and try again.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={refetch}>Retry</Button>
@@ -141,8 +141,10 @@ export default function AdminRolesPage() {
                         <TableHead>Description</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                        {isLoading ? (
-                            <TableRow><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                        {isLoadingRoles ? (
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                            ))
                         ) : standardRoles && standardRoles.length > 0 ? (
                             standardRoles.map(role => (
                                 <TableRow key={role.id}>
@@ -175,8 +177,10 @@ export default function AdminRolesPage() {
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                         {isLoading ? (
-                            <TableRow><TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                         {isLoadingRoles ? (
+                            Array.from({ length: 1 }).map((_, i) => (
+                                <TableRow key={i}><TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                            ))
                         ) : customRoles && customRoles.length > 0 ? (
                             customRoles.map(role => (
                                 <TableRow key={role.id}>
@@ -227,5 +231,3 @@ export default function AdminRolesPage() {
 
     </div>
   );
-
-    
