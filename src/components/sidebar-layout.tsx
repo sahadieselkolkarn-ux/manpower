@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -44,7 +43,8 @@ import {
   Settings,
   AlertCircle,
   Banknote,
-  Send
+  Send,
+  UserRoundCog
 } from "lucide-react";
 
 import {
@@ -68,7 +68,7 @@ import { Button } from "./ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "./ui/collapsible";
 import { type Role } from "@/types/user";
 import { useRoles } from "@/context/RolesContext";
-import { hasAnyRole } from "@/lib/authz";
+import { hasAnyRole, canManageHR } from "@/lib/authz";
 
 
 export default function SidebarLayout({ children }: { children: React.ReactNode }) {
@@ -95,7 +95,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
   const isAdmin = userProfile?.isAdmin;
 
   const canViewOperation = hasAnyRole(userProfile, "OPERATION_MANAGER", "OPERATION_OFFICER");
-  const canViewHR = hasAnyRole(userProfile, "HR_MANAGER", "HR_OFFICER");
+  const canViewHR = canManageHR(userProfile);
   const canViewFinance = hasAnyRole(userProfile, "FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER");
   
   const roleDisplayNames = React.useMemo(() => {
@@ -178,22 +178,31 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
             {canViewHR && (
               <SidebarGroup>
                 <SidebarGroupLabel>HR &amp; Manpower</SidebarGroupLabel>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/employees/office")}>
-                    <Link href="/dashboard/hr/employees/office">
-                      <BookUser />
-                      <span>Office Employees</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/employees/field")}>
-                    <Link href="/dashboard/hr/employees/field">
-                      <Users />
-                      <span>Manpower Employees</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                 <Collapsible>
+                    <CollapsibleTrigger asChild className="w-full">
+                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/hr/employees")}>
+                            <UserRoundCog />
+                            <span>การจัดการบุคลากร</span>
+                       </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/employees/office")}>
+                                <Link href="/dashboard/hr/employees/office"><BookUser /><span>Office Employees</span></Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/employees/field")}>
+                                <Link href="/dashboard/hr/employees/field"><Users /><span>Manpower Employees</span></Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/manpower-costing")}>
+                                <Link href="/dashboard/hr/manpower-costing"><DollarSign /><span>ต้นทุน Manpower ในสัญญา</span></Link>
+                            </SidebarMenuButton>
+                         </SidebarMenuItem>
+                    </CollapsibleContent>
+                 </Collapsible>
                  <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/timesheets")}>
                     <Link href="/dashboard/hr/timesheets">

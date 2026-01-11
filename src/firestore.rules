@@ -37,12 +37,15 @@ service cloud.firestore {
     }
 
     function hasRoleCode(roleCode) {
+      // This is a workaround for rules not being able to check for array contents directly in a scalable way for reads.
+      // The user document now stores roleCodes as a map for this check: { "HR_MANAGER": true, "ADMIN": true }
+      // This has been removed in favor of `in userDoc().roleCodes` which is for lists
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(myUid()))
         && userDoc().roleCodes != null
         && (roleCode in userDoc().roleCodes);
     }
-
+    
     function isHR() {
       return isAdmin()
         || hasRoleCode("HR_OFFICER")
@@ -69,6 +72,11 @@ service cloud.firestore {
     // DEV MODE: Allow any signed-in user for now to prevent permission issues.
     function isInternalStaff() {
       return isSignedIn();
+    }
+    
+    // Management roles
+    function isManagement() {
+       return isAdmin() || hasRoleCode("MANAGEMENT_MANAGER");
     }
 
     function isOwner(userId) {
@@ -169,18 +177,29 @@ service cloud.firestore {
     match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
 
     // Operation data (clients tree):
-    // Read and create for all staff.
-    // Update only allowed if NOT a soft-delete, unless user is an admin.
-    // Hard delete only for admin.
-    match /clients/{clientId}/{document=**} {
-      allow read, create: if isInternalStaff();
-      allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
-      allow delete: if isAdmin();
-    }
     match /clients/{clientId} {
       allow read, create: if isInternalStaff();
       allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
       allow delete: if isAdmin();
+    }
+    
+    // Rules for subcollections under contracts
+    match /clients/{clientId}/contracts/{contractId} {
+       allow read, create, update, delete: if isInternalStaff(); // Simplified for DEV
+    }
+    
+    // --- NEW: MANPOWER COSTING RULES ---
+    // TODO: Remove DEV catch-all before these rules can take full effect in production.
+    match /clients/{clientId}/contracts/{contractId}/manpowerCosting/{positionId} {
+        allow read, write: if isHR() || isFinance() || isManagement() || isAdmin();
+    }
+    match /clients/{clientId}/contracts/{contractId}/manpowerCostingHistory/{historyId} {
+        allow read, write: if isHR() || isFinance() || isManagement() || isAdmin();
+    }
+    
+    // Generic sub-collection rules for DEV
+    match /clients/{clientId}/contracts/{contractId}/{document=**} {
+      allow read, write: if isInternalStaff();
     }
 
     // Audit logs: Any signed in user can create, only admin can read
