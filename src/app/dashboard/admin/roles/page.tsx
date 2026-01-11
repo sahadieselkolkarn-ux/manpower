@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { getFallbackRoles } from '@/lib/roles-fallback';
 
 
 function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | null; onEdit: (role: Role) => void; onDelete: (role: Role) => void; canManage: boolean; }) {
@@ -110,6 +111,11 @@ export default function AdminRolesPage() {
   }, [db, authLoading, userProfile]);
 
   const { data: roles, isLoading: isLoadingRoles, refetch, error: rolesError } = useCollection<Role>(rolesQuery);
+  
+  const rolesEffective = useMemo(() => {
+    if (roles && roles.length > 0) return roles;
+    return getFallbackRoles();
+  }, [roles]);
 
   const isAdmin = userProfile?.isAdmin;
 
@@ -196,7 +202,7 @@ export default function AdminRolesPage() {
         <Card className="bg-destructive/10">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert/> Permission Error</CardTitle>
-            <CardDescription className="text-destructive">Could not load roles. This might be a temporary permission issue or misconfigured Firestore rules.</CardDescription>
+            <CardDescription className="text-destructive">Could not load roles from Firestore. Displaying fallback standard roles. This might be a temporary permission issue or misconfigured Firestore rules.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={refetch}>Retry</Button>
@@ -205,17 +211,15 @@ export default function AdminRolesPage() {
         </Card>
       )}
 
-      {!rolesError && (
-        <Card>
-            <CardHeader>
-                <CardTitle>All Roles</CardTitle>
-                <CardDescription>System and custom roles available in the application.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <RolesTable roles={roles} onEdit={handleEdit} onDelete={setRoleToDelete} canManage={isAdmin} />
-            </CardContent>
-        </Card>
-      )}
+      <Card>
+          <CardHeader>
+              <CardTitle>All Roles</CardTitle>
+              <CardDescription>System and custom roles available in the application.</CardDescription>
+          </CardHeader>
+          <CardContent>
+              <RolesTable roles={rolesEffective} onEdit={handleEdit} onDelete={setRoleToDelete} canManage={isAdmin} />
+          </CardContent>
+      </Card>
       
       {isFormOpen && (
         <RoleForm open={isFormOpen} onOpenChange={setIsFormOpen} role={selectedRole} onSuccess={refetch} />

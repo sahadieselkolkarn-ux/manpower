@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
+import { getFallbackRoles } from '@/lib/roles-fallback';
 
 function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate, currentUserProfile }: { user: UserProfile, roles: Role[], open: boolean, onOpenChange: (open: boolean) => void, onUpdate: () => void, currentUserProfile: UserProfile | null }) {
   const [isAdmin, setIsAdmin] = useState(user.isAdmin);
@@ -204,8 +205,14 @@ export default function AdminUsersPage() {
     return query(collection(db, 'roles'), orderBy('department'), orderBy('code'));
   }, [db, authLoading, currentUserProfile]);
   const { data: roles, isLoading: isLoadingRoles } = useCollection<Role>(rolesQuery);
-  const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name ?? r.code])), [roles]);
-  const rolesByCode = useMemo(() => new Map(roles?.map(r => [r.code, r])), [roles]);
+  
+  const rolesEffective = useMemo(() => {
+    if (roles && roles.length > 0) return roles;
+    return getFallbackRoles();
+  }, [roles]);
+
+  const roleMap = useMemo(() => new Map(rolesEffective?.map(r => [r.id, r.name ?? r.code])), [rolesEffective]);
+  const rolesByCode = useMemo(() => new Map(rolesEffective?.map(r => [r.code, r])), [rolesEffective]);
   
   const officeEmployeesQuery = useMemoFirebase(() => (db ? collection(db, 'employees') : null), [db]);
   const { data: officeEmployees, isLoading: isLoadingEmployees } = useCollection<Employee>(officeEmployeesQuery);
@@ -387,10 +394,10 @@ export default function AdminUsersPage() {
         </CardContent>
       </Card>
       
-      {userToEdit && roles && (
+      {userToEdit && rolesEffective.length > 0 && (
         <EditUserRolesModal
           user={userToEdit}
-          roles={roles}
+          roles={rolesEffective}
           open={!!userToEdit}
           onOpenChange={() => setUserToEdit(null)}
           onUpdate={refetchUsers}
