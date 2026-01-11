@@ -32,7 +32,12 @@ export interface UserProfile {
   roleIds: string[];
   roleCodes: RoleCode[];
   employeeId?: string; // Optional link to /employees collection
-  status: "ACTIVE" | "DISABLED";
+  status: "ACTIVE" | "DISABLED" | "PENDING";
+  requestedRoleCode?: RoleCode;
+  requestedAt?: Timestamp;
+  approvedAt?: Timestamp;
+  approvedByUid?: string;
+  approvedByName?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

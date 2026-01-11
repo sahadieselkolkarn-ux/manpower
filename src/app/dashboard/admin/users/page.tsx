@@ -2,14 +2,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { UserProfile, Role, RoleCode } from '@/types/user';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, ShieldAlert, Link as LinkIcon } from 'lucide-react';
+import { Users, ShieldAlert, Link as LinkIcon, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -27,8 +27,14 @@ import { useToast } from '@/hooks/use-toast';
 import FullPageLoader from '@/components/full-page-loader';
 import { Employee } from '@/types/employee';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { serverTimestamp } from 'firebase/firestore';
-
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal } from 'lucide-react';
 
 function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { user: UserProfile, roles: Role[], open: boolean, onOpenChange: (open: boolean) => void, onUpdate: () => void }) {
   const [isAdmin, setIsAdmin] = useState(user.isAdmin);
@@ -54,9 +60,8 @@ function EditUserRolesModal({ user, roles, open, onOpenChange, onUpdate }: { use
     try {
       const userRef = doc(db, 'users', user.uid);
       
-      const selectedRoleCodes = roles
-        .filter(r => selectedRoleIds.includes(r.id))
-        .map(r => r.code);
+      const selectedRoles = roles.filter(r => selectedRoleIds.includes(r.id));
+      const selectedRoleCodes = selectedRoles.map(r => r.code);
 
       if (isAdmin && !selectedRoleCodes.includes('ADMIN')) {
           selectedRoleCodes.push('ADMIN');
@@ -185,7 +190,6 @@ export default function AdminUsersPage() {
   
   const [userToEdit, setUserToEdit] = useState<UserProfile | null>(null);
   const [userToLink, setUserToLink] = useState<UserProfile | null>(null);
-  const [userToUnlink, setUserToUnlink] = useState<UserProfile | null>(null);
 
   const usersQuery = useMemoFirebase(() => (db ? collection(db, 'users') : null), [db]);
   const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
@@ -193,6 +197,7 @@ export default function AdminUsersPage() {
   const rolesQuery = useMemoFirebase(() => (db ? collection(db, 'roles') : null), [db]);
   const { data: roles, isLoading: isLoadingRoles } = useCollection<Role>(rolesQuery);
   const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name ?? r.code])), [roles]);
+  const rolesByCode = useMemo(() => new Map(roles?.map(r => [r.code, r])), [roles]);
   
   const officeEmployeesQuery = useMemoFirebase(() => (db ? collection(db, 'employees') : null), [db]);
   const { data: officeEmployees, isLoading: isLoadingEmployees } = useCollection<Employee>(officeEmployeesQuery);
@@ -201,16 +206,56 @@ export default function AdminUsersPage() {
 
   const { toast } = useToast();
 
-  const handleUnlink = async () => {
+  const handleApprove = async (userToApprove: UserProfile) => {
+    if (!db || !currentUserProfile) return;
+    try {
+        const userRef = doc(db, 'users', userToApprove.uid);
+        const requestedRoleCode = userToApprove.requestedRoleCode || 'MANAGEMENT_MANAGER';
+        const targetRole = rolesByCode.get(requestedRoleCode as RoleCode);
+
+        await updateDoc(userRef, {
+            status: 'ACTIVE',
+            roleIds: targetRole ? [targetRole.id] : [],
+            roleCodes: targetRole ? [targetRole.code] : [],
+            approvedAt: serverTimestamp(),
+            approvedByUid: currentUserProfile.uid,
+            approvedByName: currentUserProfile.displayName,
+            updatedAt: serverTimestamp(),
+        });
+
+        toast({ title: 'Success', description: 'User has been approved.' });
+        refetchUsers();
+    } catch(error) {
+        console.error("Error approving user:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to approve user.' });
+    }
+  }
+
+  const handleDisable = async (userToDisable: UserProfile) => {
+      if (!db || !currentUserProfile) return;
+      try {
+          await updateDoc(doc(db, 'users', userToDisable.uid), {
+              status: 'DISABLED',
+              updatedAt: serverTimestamp(),
+          });
+          toast({ title: 'Success', description: 'User has been disabled.' });
+          refetchUsers();
+      } catch(error) {
+          console.error(error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Failed to disable user.' });
+      }
+  };
+
+  const handleUnlink = async (userToUnlink: UserProfile) => {
     if (!db || !userToUnlink || !userToUnlink.employeeId) return;
     
     const batch = writeBatch(db);
     try {
         const userRef = doc(db, 'users', userToUnlink.uid);
-        batch.update(userRef, { employeeId: null });
+        batch.update(userRef, { employeeId: null, updatedAt: serverTimestamp() });
 
         const employeeRef = doc(db, 'employees', userToUnlink.employeeId);
-        batch.update(employeeRef, { userUid: null });
+        batch.update(employeeRef, { userUid: null, updatedAt: serverTimestamp() });
 
         await batch.commit();
 
@@ -219,8 +264,6 @@ export default function AdminUsersPage() {
     } catch (error) {
         console.error(error);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to unlink user.' });
-    } finally {
-        setUserToUnlink(null);
     }
   };
   
@@ -259,6 +302,7 @@ export default function AdminUsersPage() {
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Roles</TableHead>
                 <TableHead>Linked Employee</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -270,6 +314,7 @@ export default function AdminUsersPage() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                     <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
@@ -280,6 +325,11 @@ export default function AdminUsersPage() {
                   <TableRow key={user.uid}>
                     <TableCell className="font-medium">{user.displayName}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                        <Badge variant={user.status === 'ACTIVE' ? 'default' : user.status === 'PENDING' ? 'secondary' : 'destructive'}>
+                            {user.status}
+                        </Badge>
+                    </TableCell>
                     <TableCell className="flex flex-wrap gap-1">
                       {user.isAdmin && <span className="px-2 py-1 text-xs font-bold bg-destructive text-destructive-foreground rounded-full">ADMIN</span>}
                       {user.roleIds?.map(roleId => (
@@ -295,24 +345,33 @@ export default function AdminUsersPage() {
                       ) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
-                       <Button variant="ghost" size="sm" onClick={() => setUserToEdit(user)}>
-                        Edit Roles
-                      </Button>
-                       {user.employeeId ? (
-                         <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setUserToUnlink(user)}>
-                           Unlink
-                         </Button>
-                       ) : (
-                         <Button variant="ghost" size="sm" onClick={() => setUserToLink(user)}>
-                           Link
-                         </Button>
+                       {user.status === 'PENDING' && (
+                           <Button variant="ghost" size="sm" className="text-green-600" onClick={() => handleApprove(user)}>
+                               <CheckCircle className="mr-2 h-4 w-4" /> Approve
+                           </Button>
                        )}
+                       <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => setUserToEdit(user)}>Edit Roles</DropdownMenuItem>
+                                {user.employeeId ? (
+                                    <DropdownMenuItem onClick={() => handleUnlink(user)}>Unlink Employee</DropdownMenuItem>
+                                ) : (
+                                    <DropdownMenuItem onClick={() => setUserToLink(user)}>Link Employee</DropdownMenuItem>
+                                )}
+                                {user.status === 'ACTIVE' && (
+                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDisable(user)}>Disable User</DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">No users found.</TableCell>
+                  <TableCell colSpan={6} className="h-24 text-center">No users found.</TableCell>
                 </TableRow>
               )}
             </TableBody>

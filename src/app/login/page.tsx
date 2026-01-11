@@ -2,12 +2,12 @@
 'use client';
 
 import { useState } from 'react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { initializeFirebase } from '@/firebase';
-import { useRouter } from 'next/navigation';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-
-const { auth } = initializeFirebase();
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -15,14 +15,36 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+
+  const auth = useFirebaseAuth();
+  const db = useFirestore();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists() && userDocSnap.data().status === 'ACTIVE') {
+        const redirect = searchParams.get('redirect') || '/dashboard';
+        router.push(redirect);
+      } else {
+        toast({
+            variant: "destructive",
+            title: "Approval Required",
+            description: "This account is pending approval or is disabled.",
+        });
+        await signOut(auth);
+        router.replace(`/pending?email=${encodeURIComponent(email)}`);
+      }
+
     } catch (err: any) {
       setError(err.message);
     } finally {

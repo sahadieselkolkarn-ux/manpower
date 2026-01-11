@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, updateProfile, signOut } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth as useFirebaseAuth, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -55,25 +55,11 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      // 1. Create Firebase Auth user
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // 2. Update Auth profile
       const displayName = `${values.firstName} ${values.lastName}`;
       await updateProfile(user, { displayName });
-
-      // 3. Create user document in Firestore with bootstrap admin check
-      const securityRef = doc(db, 'settings', 'security');
-      const securitySnap = await getDoc(securityRef);
-      let isBootstrapAdmin = false;
-      if (securitySnap.exists()) {
-        const securityData = securitySnap.data();
-        const allowlist = securityData?.bootstrap?.adminEmailsAllowlist || [];
-        if (securityData?.bootstrap?.isOpen === true && values.email && allowlist.includes(values.email)) {
-          isBootstrapAdmin = true;
-        }
-      }
       
       const userDocRef = doc(db, 'users', user.uid);
       await setDoc(userDocRef, {
@@ -81,20 +67,27 @@ export default function SignUpPage() {
         email: values.email,
         displayName: displayName,
         phone: values.phone,
-        isAdmin: isBootstrapAdmin,
+        isAdmin: false,
         roleIds: [],
-        roleCodes: isBootstrapAdmin ? ['ADMIN'] : [],
-        status: 'ACTIVE',
+        roleCodes: [],
+        requestedRoleCode: 'MANAGEMENT_MANAGER',
+        status: 'PENDING',
+        requestedAt: serverTimestamp(),
+        approvedAt: null,
+        approvedByUid: null,
+        approvedByName: null,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
       
+      await signOut(auth);
+
       toast({
         title: 'สมัครสมาชิกสำเร็จ!',
-        description: 'กำลังนำคุณไปยังหน้า Dashboard',
+        description: 'บัญชีของคุณกำลังรอการอนุมัติจากผู้ดูแลระบบ',
       });
       
-      router.push('/dashboard');
+      router.push(`/pending?email=${encodeURIComponent(values.email)}`);
 
     } catch (err: any) {
       console.error(err);

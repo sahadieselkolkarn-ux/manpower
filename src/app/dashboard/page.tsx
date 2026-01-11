@@ -1,7 +1,7 @@
 // src/app/dashboard/page.tsx
 'use client';
 
-import { useAuth, UserProfile } from '@/context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 function PendingScreen() {
     return (
@@ -12,10 +12,10 @@ function PendingScreen() {
     )
 }
 
-function InactiveScreen() {
+function DisabledScreen() {
     return (
         <div>
-            <h1>Your account is inactive.</h1>
+            <h1>Your account has been disabled.</h1>
             <p>Please contact an administrator for assistance.</p>
         </div>
     )
@@ -28,8 +28,12 @@ export default function DashboardPage() {
     return <div>Loading profile...</div>;
   }
 
-  if (userProfile.status !== 'ACTIVE') {
-      return <InactiveScreen />;
+  if (userProfile.status === 'PENDING') {
+      return <PendingScreen />;
+  }
+
+  if (userProfile.status === 'DISABLED') {
+      return <DisabledScreen />;
   }
 
   return (

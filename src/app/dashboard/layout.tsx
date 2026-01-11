@@ -5,14 +5,12 @@ import FullPageLoader from '@/components/full-page-loader';
 import SidebarLayout from '@/components/sidebar-layout';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, usePathname } from 'next/navigation';
-import { FirebaseClientProvider } from "@/firebase/client-provider";
-import { RolesProvider } from "@/context/RolesContext";
-import { AuthProvider } from '@/context/AuthContext';
+
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   React.useEffect(() => {
     if (loading) {
@@ -61,14 +59,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <FirebaseClientProvider>
-        <AuthProvider>
-          <RolesProvider>
-            <AuthGuard>
-              {children}
-            </AuthGuard>
-          </RolesProvider>
-        </AuthProvider>
-    </FirebaseClientProvider>
+    <AuthGuard>
+      {children}
+    </AuthGuard>
   );
 }

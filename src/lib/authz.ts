@@ -25,13 +25,17 @@ export function hasAnyRole(userProfile: UserProfile | null, ...codes: RoleCode[]
 }
 
 export function canManageOperation(user: UserProfile | null): boolean {
-    return hasAnyRole(user, "OPERATION_MANAGER", "OPERATION_OFFICER");
+    return hasAnyRole(user, "OPERATION_MANAGER", "OPERATION_OFFICER", "MANAGEMENT_MANAGER");
 }
 
 export function canManageHR(user: UserProfile | null): boolean {
+    return hasAnyRole(user, "HR_MANAGER", "HR_OFFICER", "MANAGEMENT_MANAGER");
+}
+
+export function canManageHrSettings(user: UserProfile | null): boolean {
     return hasAnyRole(user, "HR_MANAGER", "HR_OFFICER");
 }
 
 export function canManageFinance(user: UserProfile | null): boolean {
-    return hasAnyRole(user, "FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER");
+    return hasAnyRole(user, "FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER", "MANAGEMENT_MANAGER");
 }

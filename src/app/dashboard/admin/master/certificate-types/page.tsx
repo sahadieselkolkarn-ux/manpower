@@ -24,6 +24,7 @@ import { CertificateType, CertificateCategory } from '@/types/certificate-type';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { canManageHrSettings } from '@/lib/authz';
 
 const formSchema = z.object({
   code: z.string().min(1, 'Code is required.'),
@@ -138,7 +139,7 @@ function CertificateTypeForm({ open, onOpenChange, certType, onSuccess }: Certif
   );
 }
 
-function CertificateTypesTable({ types, onEdit }: { types: CertificateType[] | null; onEdit: (ct: CertificateType) => void; }) {
+function CertificateTypesTable({ types, onEdit, canManage }: { types: CertificateType[] | null; onEdit: (ct: CertificateType) => void; canManage: boolean; }) {
   return (
     <Table>
       <TableHeader>
@@ -147,7 +148,7 @@ function CertificateTypesTable({ types, onEdit }: { types: CertificateType[] | n
           <TableHead>Name</TableHead>
           <TableHead>Category</TableHead>
           <TableHead>Requires Expiry</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
+          {canManage && <TableHead className="text-right">Actions</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -158,7 +159,7 @@ function CertificateTypesTable({ types, onEdit }: { types: CertificateType[] | n
               <TableCell><Skeleton className="h-5 w-48" /></TableCell>
               <TableCell><Skeleton className="h-5 w-20" /></TableCell>
               <TableCell><Skeleton className="h-5 w-20" /></TableCell>
-              <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+              {canManage && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
             </TableRow>
           ))
         ) : types.length > 0 ? (
@@ -168,18 +169,18 @@ function CertificateTypesTable({ types, onEdit }: { types: CertificateType[] | n
               <TableCell>{ct.name}</TableCell>
               <TableCell><Badge variant="secondary">{ct.type}</Badge></TableCell>
               <TableCell>{ct.requiresExpiry ? 'Yes' : 'No'}</TableCell>
-              <TableCell className="text-right">
+              {canManage && <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent>
                     <DropdownMenuItem onClick={() => onEdit(ct)}>Edit</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              </TableCell>
+              </TableCell>}
             </TableRow>
           ))
         ) : (
-          <TableRow><TableCell colSpan={5} className="h-24 text-center">No certificate types found in this category.</TableCell></TableRow>
+          <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">No certificate types found in this category.</TableCell></TableRow>
         )}
       </TableBody>
     </Table>
@@ -196,7 +197,7 @@ export default function CertificateTypesPage() {
   const certTypesQuery = useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]);
   const { data: certTypes, isLoading, refetch } = useCollection<CertificateType>(certTypesQuery);
 
-  const isAdmin = userProfile?.isAdmin;
+  const canManage = canManageHrSettings(userProfile);
 
   const handleCreate = () => {
     setSelectedCertType(null);
@@ -212,16 +213,10 @@ export default function CertificateTypesPage() {
     return <FullPageLoader />;
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Card className="m-4 text-center">
-          <CardHeader><CardTitle className="flex items-center justify-center gap-2"><ShieldAlert className="text-destructive" />Access Denied</CardTitle></CardHeader>
-          <CardContent><p>You do not have permission to view this page.</p></CardContent>
-        </Card>
-      </div>
-    );
+  if (!userProfile) {
+      return <FullPageLoader />; // Or an access denied message
   }
+
 
   const fieldTypes = certTypes?.filter(ct => ct.type === 'FIELD') || null;
   const officeTypes = certTypes?.filter(ct => ct.type === 'OFFICE') || null;
@@ -235,7 +230,7 @@ export default function CertificateTypesPage() {
           <h1 className="text-3xl font-bold tracking-tight font-headline">Certificate Types</h1>
           <p className="text-muted-foreground">Manage system-wide certificate types.</p>
         </div>
-        <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Type</Button>
+        {canManage && <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Type</Button>}
       </div>
 
       <Card>
@@ -247,19 +242,19 @@ export default function CertificateTypesPage() {
               <TabsTrigger value="general">General</TabsTrigger>
             </TabsList>
             <TabsContent value="field" className="mt-4">
-              <CertificateTypesTable types={fieldTypes} onEdit={handleEdit} />
+              <CertificateTypesTable types={fieldTypes} onEdit={handleEdit} canManage={canManage} />
             </TabsContent>
              <TabsContent value="office" className="mt-4">
-              <CertificateTypesTable types={officeTypes} onEdit={handleEdit} />
+              <CertificateTypesTable types={officeTypes} onEdit={handleEdit} canManage={canManage} />
             </TabsContent>
              <TabsContent value="general" className="mt-4">
-              <CertificateTypesTable types={generalTypes} onEdit={handleEdit} />
+              <CertificateTypesTable types={generalTypes} onEdit={handleEdit} canManage={canManage} />
             </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
       
-      <CertificateTypeForm open={isFormOpen} onOpenChange={setIsFormOpen} certType={selectedCertType} onSuccess={refetch} />
+      {canManage && isFormOpen && <CertificateTypeForm open={isFormOpen} onOpenChange={setIsFormOpen} certType={selectedCertType} onSuccess={refetch} />}
     </div>
   );
 }

@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import FullPageLoader from '@/components/full-page-loader';
 import { Hospital } from '@/types/hospital';
+import { canManageHrSettings } from '@/lib/authz';
 
 
 const formSchema = z.object({
@@ -117,7 +118,7 @@ export default function HospitalsPage() {
   const hospitalsQuery = useMemoFirebase(() => (db ? collection(db, 'hospitals') : null), [db]);
   const { data: hospitals, isLoading, refetch } = useCollection<Hospital>(hospitalsQuery);
 
-  const canManage = userProfile?.isAdmin || (userProfile?.roleIds || []).includes('HR_MANAGER');
+  const canManage = canManageHrSettings(userProfile);
 
   const handleCreate = () => {
     setSelectedHospital(null);
@@ -133,16 +134,10 @@ export default function HospitalsPage() {
     return <FullPageLoader />;
   }
 
-  if (!canManage) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <Card className="m-4 text-center">
-          <CardHeader><CardTitle className="flex items-center justify-center gap-2"><ShieldAlert className="text-destructive" />Access Denied</CardTitle></CardHeader>
-          <CardContent><p>You do not have permission to view this page.</p></CardContent>
-        </Card>
-      </div>
-    );
+  if (!userProfile) {
+    return <FullPageLoader />; // or access denied
   }
+
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -151,7 +146,7 @@ export default function HospitalsPage() {
           <h1 className="text-3xl font-bold tracking-tight font-headline">Hospitals</h1>
           <p className="text-muted-foreground">Manage Social Security hospitals.</p>
         </div>
-        <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Hospital</Button>
+        {canManage && <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Hospital</Button>}
       </div>
 
       <Card>
@@ -162,7 +157,7 @@ export default function HospitalsPage() {
                 <TableHead>Name</TableHead>
                 <TableHead>Address</TableHead>
                 <TableHead>Emergency Phone</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -172,7 +167,7 @@ export default function HospitalsPage() {
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-64" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-32" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    {canManage && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
               ) : hospitals && hospitals.length > 0 ? (
@@ -181,25 +176,25 @@ export default function HospitalsPage() {
                     <TableCell>{h.name}</TableCell>
                     <TableCell>{h.address}</TableCell>
                     <TableCell>{h.emergencyPhone}</TableCell>
-                    <TableCell className="text-right">
+                    {canManage && <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem onClick={() => handleEdit(h)}>Edit</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    </TableCell>
+                    </TableCell>}
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={4} className="h-24 text-center">No hospitals found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={canManage ? 4 : 3} className="h-24 text-center">No hospitals found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
       
-      <HospitalForm open={isFormOpen} onOpenChange={setIsFormOpen} hospital={selectedHospital} onSuccess={refetch} />
+      {canManage && isFormOpen && <HospitalForm open={isFormOpen} onOpenChange={setIsFormOpen} hospital={selectedHospital} onSuccess={refetch} />}
     </div>
   );
 }
