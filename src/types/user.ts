@@ -1,7 +1,7 @@
 import { type Timestamp } from "firebase/firestore";
 
-export type Department = "HR" | "OPERATION" | "FINANCE" | "MANAGEMENT" | "ADMIN";
-export type RoleLevel = "OFFICER" | "MANAGER" | "SYSTEM";
+export type Department = "HR" | "OPERATION" | "FINANCE" | "MANAGEMENT" | "ADMIN" | "CUSTOM";
+export type RoleLevel = "OFFICER" | "MANAGER" | "SYSTEM" | "CUSTOM";
 export type RoleCode = 
     | "ADMIN"
     | "HR_OFFICER"
@@ -11,16 +11,17 @@ export type RoleCode =
     | "PAYROLL_OFFICER"
     | "FINANCE_OFFICER"
     | "FINANCE_MANAGER"
-    | "MANAGEMENT_MANAGER";
+    | "MANAGEMENT_MANAGER"
+    | (string & {}); // Allow for custom string codes
 
 export interface Role {
     id: string;
-    name?: string;
+    name: string; // Made non-optional
     code: RoleCode;
     department: Department;
     level: RoleLevel;
     description: string;
-    isSystem: boolean;
+    isSystem: boolean; // True for standard roles, false for custom ones
 }
 
 export interface UserProfile {

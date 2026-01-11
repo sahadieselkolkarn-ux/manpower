@@ -37,9 +37,6 @@ service cloud.firestore {
     }
 
     function hasRoleCode(roleCode) {
-      // This is a workaround for rules not being able to check for array contents directly in a scalable way for reads.
-      // The user document now stores roleCodes as a map for this check: { "HR_MANAGER": true, "ADMIN": true }
-      // This has been removed in favor of `in userDoc().roleCodes` which is for lists
       return isSignedIn()
         && exists(/databases/$(database)/documents/users/$(myUid()))
         && userDoc().roleCodes != null
@@ -69,12 +66,10 @@ service cloud.firestore {
         || hasRoleCode("OPERATION_MANAGER");
     }
 
-    // DEV MODE: Allow any signed-in user for now to prevent permission issues.
     function isInternalStaff() {
       return isSignedIn();
     }
     
-    // Management roles
     function isManagement() {
        return isAdmin() || hasRoleCode("MANAGEMENT_MANAGER");
     }
@@ -85,7 +80,6 @@ service cloud.firestore {
 
     // --- RULE DEFINITIONS ---
 
-    // SETTINGS: bootstrap allowlist lives here
     match /settings/security {
       allow read: if isSignedIn();
       allow write: if isAdmin();
@@ -96,34 +90,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // USERS: Keep this strict
     match /users/{userId} {
-
       allow get: if isOwner(userId) || isAdmin();
       allow list: if isAdmin();
-
       allow create: if isOwner(userId)
         && request.resource.data.uid == myUid()
         && request.resource.data.email == myEmail()
-        && request.resource.data.status == "ACTIVE"
-        && (
-          (
-            isBootstrapAdminAllowlisted()
-            && request.resource.data.isAdmin == true
-            && request.resource.data.roleCodes != null
-            && ("ADMIN" in request.resource.data.roleCodes)
-          )
-          ||
-          (
-            !isBootstrapAdminAllowlisted()
-            && request.resource.data.isAdmin == false
-            && (
-              request.resource.data.roleCodes == null
-              || request.resource.data.roleCodes.size() == 0
-            )
-          )
-        );
-
+        && request.resource.data.status == "PENDING"; // New users must be PENDING
       allow update: if isAdmin()
         || (
           isOwner(userId)
@@ -134,17 +107,16 @@ service cloud.firestore {
           && request.resource.data.email == resource.data.email
           && request.resource.data.uid == resource.data.uid
         );
-
       allow delete: if isAdmin();
     }
 
-    // ROLES master: Read for any staff, write only for admin
     match /roles/{roleId} {
-      allow read: if isInternalStaff();
-      allow write: if isAdmin();
+      allow read: if isSignedIn();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource.data.isSystem == false;
+      allow delete: if isAdmin() && resource.data.isSystem == false;
     }
 
-    // COUNTERS & UNIQUE: Used for auto-incrementing codes and uniqueness
     match /counters/{docId} {
         allow read, write: if isInternalStaff();
     }
@@ -152,7 +124,6 @@ service cloud.firestore {
         allow read, write: if isInternalStaff();
     }
 
-    // HR master data: Open for any internal staff for now
     match /employees/{id} { allow read, write: if isInternalStaff(); }
     match /hospitals/{id} { allow read, write: if isInternalStaff(); }
     match /certificateTypes/{id} { allow read, write: if isInternalStaff(); }
@@ -161,12 +132,10 @@ service cloud.firestore {
     match /cooldownPolicies/{id} { allow read, write: if isInternalStaff(); }
     match /positions/{id} { allow read, write: if isInternalStaff(); } // Legacy
 
-    // Timesheets: Open for any internal staff for now
     match /timesheetBatches/{id} { allow read, write: if isInternalStaff(); }
     match /timesheetLines/{id} { allow read, write: if isInternalStaff(); }
     match /assignments/{id} { allow read, write: if isInternalStaff(); }
 
-    // Finance data: Open for any internal staff for now
     match /payrolls/{id} { allow read, write: if isInternalStaff(); }
     match /taxProfiles/{id} { allow read, write: if isInternalStaff(); }
     match /bankAccounts/{id} { allow read, write: if isInternalStaff(); }
@@ -176,20 +145,17 @@ service cloud.firestore {
     match /paymentsAP/{id} { allow read, write: if isInternalStaff(); }
     match /cashMovements/{id} { allow read, write: if isInternalStaff(); }
 
-    // Operation data (clients tree):
     match /clients/{clientId} {
       allow read, create: if isInternalStaff();
       allow update: if (isInternalStaff() && request.resource.data.isDeleted != true) || isAdmin();
       allow delete: if isAdmin();
     }
     
-    // Rules for subcollections under contracts
     match /clients/{clientId}/contracts/{contractId} {
-       allow read, create, update, delete: if isInternalStaff(); // Simplified for DEV
+       allow read, create, update, delete: if isInternalStaff();
     }
     
-    // --- NEW: MANPOWER COSTING RULES ---
-    // TODO: Remove DEV catch-all before these rules can take full effect in production.
+    // TODO: REMOVE DEV CATCH-ALL BEFORE PRODUCTION
     match /clients/{clientId}/contracts/{contractId}/manpowerCosting/{positionId} {
         allow read, write: if isHR() || isFinance() || isManagement() || isAdmin();
     }
@@ -197,22 +163,15 @@ service cloud.firestore {
         allow read, write: if isHR() || isFinance() || isManagement() || isAdmin();
     }
     
-    // Generic sub-collection rules for DEV
     match /clients/{clientId}/contracts/{contractId}/{document=**} {
       allow read, write: if isInternalStaff();
     }
 
-    // Audit logs: Any signed in user can create, only admin can read
     match /audit-logs/{id} { 
       allow read: if isAdmin();
       allow create: if isSignedIn();
     }
     
-    // --- DEV MODE CATCH-ALL ---
-    // This rule allows any signed-in user to read/write ANY document that hasn't been matched
-    // by a more specific rule above. This is crucial for development with collectionGroup queries
-    // to prevent permission errors from uncaught document paths.
-    // This is NOT secure for production and should be removed before deployment.
     match /{document=**} {
       allow read, write: if isSignedIn();
     }

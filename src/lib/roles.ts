@@ -4,6 +4,7 @@ import { Role } from "@/types/user";
 export const ROLES_SEED_DATA: Omit<Role, 'id'>[] = [
   {
     code: "ADMIN",
+    name: "System Administrator",
     department: "ADMIN",
     level: "SYSTEM",
     description: "Full system access.",
@@ -11,59 +12,67 @@ export const ROLES_SEED_DATA: Omit<Role, 'id'>[] = [
   },
   {
     code: "HR_OFFICER",
+    name: "HR Officer",
     department: "HR",
     level: "OFFICER",
     description: "Manages employee data and HR processes.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "HR_MANAGER",
+    name: "HR Manager",
     department: "HR",
     level: "MANAGER",
     description: "Oversees HR operations and approves HR-related tasks.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "OPERATION_OFFICER",
+    name: "Operation Officer",
     department: "OPERATION",
     level: "OFFICER",
     description: "Manages day-to-day manpower and wave assignments.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "OPERATION_MANAGER",
+    name: "Operation Manager",
     department: "OPERATION",
     level: "MANAGER",
     description: "Oversees all operational activities, contracts, and projects.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "PAYROLL_OFFICER",
+    name: "Payroll Officer",
     department: "FINANCE",
     level: "OFFICER",
     description: "Prepares payroll data.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "FINANCE_OFFICER",
+    name: "Finance Officer",
     department: "FINANCE",
     level: "OFFICER",
     description: "Prepares financial documents and tax forms like P.N.D.1.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "FINANCE_MANAGER",
+    name: "Finance Manager",
     department: "FINANCE",
     level: "MANAGER",
     description: "Approves payroll and tax submissions, manages all financial operations.",
-    isSystem: false
+    isSystem: true
   },
   {
     code: "MANAGEMENT_MANAGER",
+    name: "Management",
     department: "MANAGEMENT",
     level: "MANAGER",
     description: "General management with broad oversight.",
-    isSystem: false
+    isSystem: true
   }
 ];
 
@@ -82,4 +91,3 @@ export const isHRManager = (user: { roleIds: string[] } | null, roles: Role[]) =
 export const isOperationOfficer = (user: { roleIds: string[] } | null, roles: Role[]) => hasRole(user, roles, 'OPERATION_OFFICER');
 export const isOperationManager = (user: { roleIds: string[] } | null, roles: Role[]) => hasRole(user, roles, 'OPERATION_MANAGER');
 export const isFinanceManager = (user: { roleIds: string[] } | null, roles: Role[]) => hasRole(user, roles, 'FINANCE_MANAGER');
-
