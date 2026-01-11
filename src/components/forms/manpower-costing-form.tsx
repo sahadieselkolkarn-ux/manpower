@@ -39,6 +39,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { DATE_FORMAT, formatDate } from '@/lib/utils';
 import { Textarea } from '../ui/textarea';
+import { Separator } from '../ui/separator';
+import { OtPayRules } from '@/types/manpower-costing';
 
 const dateSchema = z.string().refine(
   (val) => isValid(parse(val, DATE_FORMAT, new Date())),
@@ -48,6 +50,11 @@ const dateSchema = z.string().refine(
 const formSchema = z.object({
   onshoreLaborCostDaily: z.coerce.number().min(0, 'Cost must be non-negative'),
   offshoreLaborCostDaily: z.coerce.number().min(0, 'Cost must be non-negative'),
+  otPayRules: z.object({
+      workdayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+      weeklyHolidayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+      contractHolidayMultiplier: z.coerce.number().min(0, "Must be non-negative"),
+  }),
   effectiveFrom: dateSchema,
   note: z.string(), // To be made required dynamically
 });
@@ -57,6 +64,7 @@ interface CostingRowData {
   positionName: string;
   onshoreCost?: number;
   offshoreCost?: number;
+  otPayRules?: OtPayRules;
 }
 
 interface ManpowerCostingFormProps {
@@ -79,11 +87,18 @@ export default function ManpowerCostingForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
+  const defaultOtRules = {
+      workdayMultiplier: 1.5,
+      weeklyHolidayMultiplier: 2,
+      contractHolidayMultiplier: 3,
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       onshoreLaborCostDaily: positionData.onshoreCost ?? 0,
       offshoreLaborCostDaily: positionData.offshoreCost ?? 0,
+      otPayRules: positionData.otPayRules ?? defaultOtRules,
       effectiveFrom: formatDate(new Date()),
       note: '',
     },
@@ -94,6 +109,7 @@ export default function ManpowerCostingForm({
       form.reset({
         onshoreLaborCostDaily: positionData.onshoreCost ?? 0,
         offshoreLaborCostDaily: positionData.offshoreCost ?? 0,
+        otPayRules: positionData.otPayRules ?? defaultOtRules,
         effectiveFrom: formatDate(new Date()),
         note: '',
       });
@@ -104,14 +120,20 @@ export default function ManpowerCostingForm({
     const originalCosting = {
         onshoreLaborCostDaily: positionData.onshoreCost ?? 0,
         offshoreLaborCostDaily: positionData.offshoreCost ?? 0,
+        otPayRules: positionData.otPayRules ?? defaultOtRules,
     };
     
-    const hasChanged =
+    const hasCostChanged =
       originalCosting.onshoreLaborCostDaily !== values.onshoreLaborCostDaily ||
       originalCosting.offshoreLaborCostDaily !== values.offshoreLaborCostDaily;
+      
+    const hasOtChanged = 
+        originalCosting.otPayRules.workdayMultiplier !== values.otPayRules.workdayMultiplier ||
+        originalCosting.otPayRules.weeklyHolidayMultiplier !== values.otPayRules.weeklyHolidayMultiplier ||
+        originalCosting.otPayRules.contractHolidayMultiplier !== values.otPayRules.contractHolidayMultiplier;
 
-    if (hasChanged && !values.note) {
-      form.setError('note', { message: 'A note is required when changing costs.' });
+    if ((hasCostChanged || hasOtChanged) && !values.note) {
+      form.setError('note', { message: 'A note is required when changing costs or OT rules.' });
       return;
     }
 
@@ -133,6 +155,7 @@ export default function ManpowerCostingForm({
         positionId: positionData.positionId,
         onshoreLaborCostDaily: values.onshoreLaborCostDaily,
         offshoreLaborCostDaily: values.offshoreLaborCostDaily,
+        otPayRules: values.otPayRules,
         effectiveFrom: Timestamp.fromDate(effectiveFromDate),
         note: values.note,
         updatedAt: serverTimestamp(),
@@ -143,13 +166,14 @@ export default function ManpowerCostingForm({
     );
 
     // 2. Create a history log if values changed
-    if (hasChanged) {
+    if (hasCostChanged || hasOtChanged) {
         batch.set(historyDocRef, {
             positionId: positionData.positionId,
             before: originalCosting,
             after: {
                 onshoreLaborCostDaily: values.onshoreLaborCostDaily,
                 offshoreLaborCostDaily: values.offshoreLaborCostDaily,
+                otPayRules: values.otPayRules,
             },
             effectiveFrom: Timestamp.fromDate(effectiveFromDate),
             note: values.note,
@@ -178,29 +202,25 @@ export default function ManpowerCostingForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Edit Cost for: {positionData.positionName}</DialogTitle>
           <DialogDescription>
-            Enter the daily labor cost for this position.
+            Enter the daily labor cost and OT rules for paying this position.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+             <h4 className="text-base font-medium">Daily Labor Cost</h4>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="onshoreLaborCostDaily"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Onshore Labor Cost</FormLabel>
+                    <FormLabel>Onshore Cost</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -211,20 +231,33 @@ export default function ManpowerCostingForm({
                 name="offshoreLaborCostDaily"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Offshore Labor Cost</FormLabel>
+                    <FormLabel>Offshore Cost</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        value={field.value ?? 0}
-                        onChange={(e) => field.onChange(Number(e.target.value))}
-                      />
+                      <Input type="number" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+            
+            <Separator className="my-4"/>
+
+            <h4 className="text-base font-medium">OT Pay Rules (for Payroll)</h4>
+            <div className="grid grid-cols-3 gap-4">
+                <FormField control={form.control} name="otPayRules.workdayMultiplier" render={({ field }) => (
+                    <FormItem><FormLabel>Workday</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={form.control} name="otPayRules.weeklyHolidayMultiplier" render={({ field }) => (
+                    <FormItem><FormLabel>Weekly Hol.</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={form.control} name="otPayRules.contractHolidayMultiplier" render={({ field }) => (
+                    <FormItem><FormLabel>Contract Hol.</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+            </div>
+            
+            <Separator className="my-4"/>
+
             <FormField
               control={form.control}
               name="effectiveFrom"
@@ -246,7 +279,7 @@ export default function ManpowerCostingForm({
                   <FormLabel>Note for Change</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Reason for this cost update..."
+                      placeholder="Reason for this cost/OT update..."
                       {...field}
                     />
                   </FormControl>

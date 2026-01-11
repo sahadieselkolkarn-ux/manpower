@@ -43,7 +43,7 @@ import { DollarSign, ShieldAlert } from 'lucide-react';
 import { Client } from '@/types/client';
 import { Contract } from '@/types/contract';
 import { ManpowerPosition } from '@/types/position';
-import { ManpowerCosting } from '@/types/manpower-costing';
+import { ManpowerCosting, OtPayRules } from '@/types/manpower-costing';
 import ManpowerCostingForm from '@/components/forms/manpower-costing-form';
 
 interface CostingRowData {
@@ -53,6 +53,7 @@ interface CostingRowData {
   offshoreSell: number;
   onshoreCost?: number;
   offshoreCost?: number;
+  otPayRules?: OtPayRules;
   effectiveFrom?: string;
   note?: string;
 }
@@ -123,6 +124,7 @@ export default function ManpowerCostingPage() {
         offshoreSell: rate.offshoreSellDailyRateExVat ?? rate.dailyRateExVat ?? 0,
         onshoreCost: costing?.onshoreLaborCostDaily,
         offshoreCost: costing?.offshoreLaborCostDaily,
+        otPayRules: costing?.otPayRules,
         effectiveFrom: costing?.effectiveFrom?.toDate().toLocaleDateString(),
         note: costing?.note,
       };
@@ -167,7 +169,7 @@ export default function ManpowerCostingPage() {
             ต้นทุน Manpower ในสัญญา
           </h1>
           <p className="text-muted-foreground">
-            จัดการต้นทุนค่าแรงของลูกจ้างสำหรับแต่ละสัญญา
+            จัดการต้นทุนค่าแรงและเงื่อนไข OT สำหรับจ่ายลูกจ้างของแต่ละสัญญา
           </p>
         </div>
       </div>
@@ -224,7 +226,7 @@ export default function ManpowerCostingPage() {
           <CardHeader>
             <CardTitle>Costing Table for: {contract?.name}</CardTitle>
             <CardDescription>
-              Costs are daily labor rates. Sell rates are read-only from the contract.
+              Sell rates are read-only from contract. Cost and OT rules are HR-managed for payroll.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -236,7 +238,7 @@ export default function ManpowerCostingPage() {
                   <TableHead>Offshore Sell</TableHead>
                   <TableHead className="bg-muted">Onshore Cost</TableHead>
                   <TableHead className="bg-muted">Offshore Cost</TableHead>
-                  <TableHead className="bg-muted">Effective From</TableHead>
+                  <TableHead className="bg-muted">OT (WD/WH/CH)</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -248,27 +250,32 @@ export default function ManpowerCostingPage() {
                         </TableRow>
                     ))
                 ) : tableData.length > 0 ? (
-                  tableData.map((row) => (
-                    <TableRow key={row.positionId}>
-                      <TableCell className="font-medium">
-                        {row.positionName}
-                      </TableCell>
-                      <TableCell className="font-mono">{row.onshoreSell.toLocaleString()}</TableCell>
-                      <TableCell className="font-mono">{row.offshoreSell.toLocaleString()}</TableCell>
-                      <TableCell className="font-mono bg-muted">{row.onshoreCost?.toLocaleString() ?? '-'}</TableCell>
-                      <TableCell className="font-mono bg-muted">{row.offshoreCost?.toLocaleString() ?? '-'}</TableCell>
-                      <TableCell className="bg-muted">{row.effectiveFrom ?? '-'}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(row)}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                  tableData.map((row) => {
+                    const ot = row.otPayRules;
+                    return (
+                        <TableRow key={row.positionId}>
+                        <TableCell className="font-medium">
+                            {row.positionName}
+                        </TableCell>
+                        <TableCell className="font-mono">{row.onshoreSell.toLocaleString()}</TableCell>
+                        <TableCell className="font-mono">{row.offshoreSell.toLocaleString()}</TableCell>
+                        <TableCell className="font-mono bg-muted">{row.onshoreCost?.toLocaleString() ?? '-'}</TableCell>
+                        <TableCell className="font-mono bg-muted">{row.offshoreCost?.toLocaleString() ?? '-'}</TableCell>
+                        <TableCell className="font-mono bg-muted text-xs">
+                          {ot ? `${ot.workdayMultiplier}x / ${ot.weeklyHolidayMultiplier}x / ${ot.contractHolidayMultiplier}x` : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                            <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(row)}
+                            >
+                            Edit
+                            </Button>
+                        </TableCell>
+                        </TableRow>
+                    );
+                   })
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-24 text-center">
