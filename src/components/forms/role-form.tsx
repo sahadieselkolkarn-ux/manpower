@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React from 'react';
@@ -118,14 +117,15 @@ export default function RoleForm({
       if (role) {
         // Update existing role
         const roleRef = doc(db, 'roles', role.id);
-        await updateDoc(roleRef, {
-          name: values.name,
-          department: values.department,
-          level: values.level,
-          description: values.description,
-          isSystem: values.isSystem,
-          updatedAt: serverTimestamp(),
-        });
+        const dataToUpdate = {
+            name: values.name,
+            department: values.department,
+            level: values.level,
+            description: values.description,
+            isSystem: values.isSystem,
+            updatedAt: serverTimestamp(),
+        };
+        await updateDoc(roleRef, dataToUpdate);
         toast({ title: 'Success', description: 'Role updated.' });
       } else {
         // Create new role
