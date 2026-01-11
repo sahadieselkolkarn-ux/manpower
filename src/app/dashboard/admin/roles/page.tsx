@@ -39,20 +39,24 @@ export default function AdminRolesPage() {
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
   const seedCalledRef = useRef(false);
 
-  const rolesQuery = useMemoFirebase(() => (db ? query(collection(db, 'roles'), orderBy('isProtected', 'desc'), orderBy('department'), orderBy('level')) : null), [db]);
-  const { data: roles, isLoading: isLoadingRoles, refetch } = useCollection<Role>(rolesQuery);
+  const rolesQuery = useMemoFirebase(() => {
+    if (!db || authLoading || !userProfile) return null;
+    return query(collection(db, 'roles'), orderBy('isProtected', 'desc'), orderBy('department'), orderBy('level'));
+  }, [db, authLoading, userProfile?.uid]);
 
-  // Auto-seed initial roles if needed when an admin visits
+  const { data: roles, isLoading: isLoadingRoles, refetch, error: rolesError } = useCollection<Role>(rolesQuery);
+
   useEffect(() => {
-    if (db && userProfile?.isAdmin && !isLoadingRoles && !seedCalledRef.current) {
-        seedCalledRef.current = true; // Prevent re-running in the same session
-        ensureStandardRolesSeeded(db).then(() => {
-            // Optional: You can add a toast here, but it might be noisy.
-            // The useCollection hook will automatically pick up the changes.
-            refetch(); // Trigger a refetch after seeding is complete
-        });
+    if (db && userProfile?.isAdmin && !isLoadingRoles && roles && !seedCalledRef.current) {
+        seedCalledRef.current = true;
+        if (roles.length === 0) {
+            ensureStandardRolesSeeded(db).then(() => {
+                toast({ title: 'Standard Roles Seeded', description: 'Initial system roles have been created.' });
+                refetch();
+            });
+        }
     }
-  }, [db, userProfile, isLoadingRoles, refetch]);
+  }, [db, userProfile, isLoadingRoles, roles, refetch, toast]);
 
   const isAdmin = userProfile?.isAdmin;
 
@@ -82,8 +86,9 @@ export default function AdminRolesPage() {
   
   const standardRoles = roles?.filter(r => r.isProtected);
   const customRoles = roles?.filter(r => !r.isProtected);
+  const isLoading = authLoading || isLoadingRoles;
 
-  if (authLoading || isLoadingRoles) {
+  if (isLoading && !rolesError) {
     return <FullPageLoader />;
   }
   
@@ -107,6 +112,19 @@ export default function AdminRolesPage() {
         </div>
         <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Custom Role</Button>
       </div>
+      
+      {rolesError && (
+        <Card className="bg-destructive/10">
+          <CardHeader>
+            <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert/> Permission Error</CardTitle>
+            <CardDescription className="text-destructive">Could not load roles. Please try again.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={refetch}>Retry</Button>
+            <p className="text-xs mt-2">{rolesError.message}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="space-y-6">
         <Card>
@@ -123,7 +141,7 @@ export default function AdminRolesPage() {
                         <TableHead>Description</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                        {isLoadingRoles ? (
+                        {isLoading ? (
                             <TableRow><TableCell colSpan={4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                         ) : standardRoles && standardRoles.length > 0 ? (
                             standardRoles.map(role => (
@@ -157,7 +175,7 @@ export default function AdminRolesPage() {
                         <TableHead className="text-right">Actions</TableHead>
                     </TableRow></TableHeader>
                     <TableBody>
-                         {isLoadingRoles ? (
+                         {isLoading ? (
                             <TableRow><TableCell colSpan={5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                         ) : customRoles && customRoles.length > 0 ? (
                             customRoles.map(role => (
@@ -209,3 +227,5 @@ export default function AdminRolesPage() {
 
     </div>
   );
+
+    

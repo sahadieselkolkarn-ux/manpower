@@ -194,7 +194,10 @@ export default function AdminUsersPage() {
   const usersQuery = useMemoFirebase(() => (db ? collection(db, 'users') : null), [db]);
   const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
 
-  const rolesQuery = useMemoFirebase(() => (db ? collection(db, 'roles') : null), [db]);
+  const rolesQuery = useMemoFirebase(() => {
+    if (!db || authLoading || !currentUserProfile) return null;
+    return collection(db, 'roles');
+  }, [db, authLoading, currentUserProfile?.uid]);
   const { data: roles, isLoading: isLoadingRoles } = useCollection<Role>(rolesQuery);
   const roleMap = useMemo(() => new Map(roles?.map(r => [r.id, r.name ?? r.code])), [roles]);
   const rolesByCode = useMemo(() => new Map(roles?.map(r => [r.code, r])), [roles]);
@@ -403,3 +406,5 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+    
