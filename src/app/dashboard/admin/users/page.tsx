@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, updateDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, updateDoc, writeBatch, serverTimestamp, query } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { UserProfile, Role, RoleCode } from '@/types/user';

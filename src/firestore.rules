@@ -25,12 +25,8 @@ service cloud.firestore {
        return isSignedIn() && userDoc().roleCodes.hasAny(roles);
     }
     
-    function isInternalStaff() {
-      return isSignedIn();
-    }
-    
     function canManageHR() {
-       return isAnyRole(['HR_MANAGER', 'HR_OFFICER', 'MANAGEMENT_MANAGER']) || isAdmin();
+       return hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
     }
 
     function isOwner(userId) {
@@ -49,9 +45,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    match /systemSettings/overtimeCalculation {
-       allow read: if isSignedIn();
-       allow write: if isAdmin();
+    match /hrSettings/{docId} {
+        allow read: if isSignedIn();
+        allow write: if canManageHR();
     }
 
     match /users/{userId} {
@@ -75,13 +71,12 @@ service cloud.firestore {
     }
 
     match /roles/{roleId} {
-      allow get, list: if isInternalStaff();
-      allow create: if isAdmin();
-      allow update, delete: if isAdmin() && resource.data.isProtected != true;
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
     
     match /clients/{clientId}/contracts/{contractId} {
-        allow update: if canManageHR() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payrollOtRules', 'updatedAt']);
+        allow update: if canManageHR() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['payrollOtRules', 'payrollDayRules', 'updatedAt']);
         // Allow other updates via DEV catch-all for now
     }
     

@@ -6,11 +6,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import {
-  addDoc,
-  collection,
+  setDoc,
   doc,
   serverTimestamp,
   updateDoc,
+  getDoc,
 } from 'firebase/firestore';
 
 import { Button } from '@/components/ui/button';
@@ -47,10 +47,11 @@ import {
 
 const formSchema = z.object({
   name: z.string().min(2, 'Role name is required.'),
-  code: z.string().min(2, 'Role code is required (e.g., CUSTOM_ROLE).').toUpperCase(),
+  code: z.string().min(2, 'Role code is required (e.g., CUSTOM_ROLE).').transform(val => val.toUpperCase().replace(/\s+/g, '_')),
   department: z.custom<Department>(),
   level: z.custom<RoleLevel>(),
   description: z.string().optional(),
+  isSystem: z.boolean(),
 });
 
 interface RoleFormProps {
@@ -71,8 +72,6 @@ export default function RoleForm({
   const { userProfile } = useAuth();
   const { toast } = useToast();
 
-  const isEditingSystemRole = role?.isProtected === true;
-
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -81,13 +80,21 @@ export default function RoleForm({
       department: 'CUSTOM',
       level: 'CUSTOM',
       description: '',
+      isSystem: false,
     },
   });
 
   React.useEffect(() => {
     if (open) {
       if (role) {
-        form.reset(role);
+        form.reset({
+          name: role.name || '',
+          code: role.code || '',
+          department: role.department || 'CUSTOM',
+          level: role.level || 'CUSTOM',
+          description: role.description || '',
+          isSystem: role.isSystem || false,
+        });
       } else {
         form.reset({
           name: '',
@@ -95,13 +102,14 @@ export default function RoleForm({
           department: 'CUSTOM',
           level: 'CUSTOM',
           description: '',
+          isSystem: false,
         });
       }
     }
   }, [open, role, form]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!userProfile || !db || isEditingSystemRole) return;
+    if (!userProfile || !db) return;
     setLoading(true);
 
     try {
@@ -109,20 +117,31 @@ export default function RoleForm({
         // Update existing role
         const roleRef = doc(db, 'roles', role.id);
         await updateDoc(roleRef, {
-          ...values,
+          name: values.name,
+          department: values.department,
+          level: values.level,
+          description: values.description,
+          isSystem: values.isSystem,
           updatedAt: serverTimestamp(),
         });
         toast({ title: 'Success', description: 'Role updated.' });
       } else {
         // Create new role
-        await addDoc(collection(db, 'roles'), {
+        const roleRef = doc(db, 'roles', values.code);
+        const docSnap = await getDoc(roleRef);
+        if (docSnap.exists()) {
+            form.setError('code', { message: 'This role code already exists.' });
+            setLoading(false);
+            return;
+        }
+
+        await setDoc(roleRef, {
           ...values,
-          isSystem: false,
-          isProtected: false,
+          isProtected: false, // Custom roles are never protected
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
-        toast({ title: 'Success', description: 'Custom role created.' });
+        toast({ title: 'Success', description: 'New role created.' });
       }
       onSuccess();
       onOpenChange(false);
@@ -142,11 +161,9 @@ export default function RoleForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{role ? 'Edit Role' : 'Create Custom Role'}</DialogTitle>
+          <DialogTitle>{role ? 'Edit Role' : 'Create Role'}</DialogTitle>
           <DialogDescription>
-            {isEditingSystemRole
-              ? 'Standard system roles cannot be edited.'
-              : 'Define the details for this role.'}
+            Define the details for this role.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -158,7 +175,7 @@ export default function RoleForm({
                 <FormItem>
                   <FormLabel>Role Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g., Document Controller" {...field} disabled={isEditingSystemRole}/>
+                    <Input placeholder="e.g., Document Controller" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -183,14 +200,34 @@ export default function RoleForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Department</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={isEditingSystemRole}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
                     <SelectContent>
                         <SelectItem value="CUSTOM">CUSTOM</SelectItem>
+                        <SelectItem value="ADMIN">ADMIN</SelectItem>
                         <SelectItem value="HR">HR</SelectItem>
                         <SelectItem value="OPERATION">OPERATION</SelectItem>
                         <SelectItem value="FINANCE">FINANCE</SelectItem>
                         <SelectItem value="MANAGEMENT">MANAGEMENT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="level"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Level</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                    <SelectContent>
+                        <SelectItem value="CUSTOM">CUSTOM</SelectItem>
+                        <SelectItem value="SYSTEM">SYSTEM</SelectItem>
+                        <SelectItem value="OFFICER">OFFICER</SelectItem>
+                        <SelectItem value="MANAGER">MANAGER</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -204,9 +241,21 @@ export default function RoleForm({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Briefly describe the role's purpose." {...field} disabled={isEditingSystemRole}/>
+                    <Textarea placeholder="Briefly describe the role's purpose." {...field} />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+             <FormField
+              control={form.control}
+              name="isSystem"
+              render={({ field }) => (
+                <FormItem className="flex items-center gap-2 pt-2">
+                    <FormControl>
+                        <input type="checkbox" checked={field.value} onChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel>Is System Role?</FormLabel>
                 </FormItem>
               )}
             />
@@ -217,11 +266,9 @@ export default function RoleForm({
                   Cancel
                 </Button>
               </DialogClose>
-              {!isEditingSystemRole && (
-                <Button type="submit" disabled={loading}>
-                    {loading ? 'Saving...' : 'Save Role'}
-                </Button>
-              )}
+              <Button type="submit" disabled={loading}>
+                  {loading ? 'Saving...' : 'Save Role'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
