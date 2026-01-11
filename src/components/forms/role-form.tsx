@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -47,7 +48,7 @@ import {
 
 const formSchema = z.object({
   name: z.string().min(2, 'Role name is required.'),
-  code: z.string().min(2, 'Role code is required (e.g., CUSTOM_ROLE).').transform(val => val.toUpperCase().replace(/\s+/g, '_')),
+  code: z.string().min(2, 'Role code is required (e.g., CUSTOM_ROLE).').transform(val => val.trim().toUpperCase().replace(/\s+/g, '_')),
   department: z.custom<Department>(),
   level: z.custom<RoleLevel>(),
   description: z.string().optional(),
@@ -162,7 +163,7 @@ export default function RoleForm({
         <DialogHeader>
           <DialogTitle>{role ? 'Edit Role' : 'Create Role'}</DialogTitle>
           <DialogDescription>
-            Define the details for this role.
+            Define the details for this role. The Role Code will be used as the ID and cannot be changed.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -260,11 +261,7 @@ export default function RoleForm({
             />
 
             <DialogFooter className="pt-4">
-              <DialogClose asChild>
-                <Button type="button" variant="secondary">
-                  Cancel
-                </Button>
-              </DialogClose>
+              <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
               <Button type="submit" disabled={loading}>
                   {loading ? 'Saving...' : 'Save Role'}
               </Button>

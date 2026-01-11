@@ -3,7 +3,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, query, orderBy, doc, deleteDoc, getDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, deleteDoc, getDoc, getDocs, limit } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/user';
@@ -16,7 +16,7 @@ import { ShieldAlert, PlusCircle, MoreHorizontal, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import RoleForm from '@/components/forms/role-form';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +27,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { canManageHR } from '@/lib/authz';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | null; onEdit: (role: Role) => void; onDelete: (role: Role) => void; canManage: boolean; }) {
@@ -36,13 +38,14 @@ function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | nu
                 <TableHead>Role Name</TableHead>
                 <TableHead>Role Code</TableHead>
                 <TableHead>Department</TableHead>
+                <TableHead>Level</TableHead>
                 <TableHead>Description</TableHead>
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
             </TableRow></TableHeader>
             <TableBody>
                 {!roles ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                        <TableRow key={i}><TableCell colSpan={canManage ? 5 : 4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                        <TableRow key={i}><TableCell colSpan={canManage ? 6 : 5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                     ))
                 ) : roles.length > 0 ? (
                     roles.map(role => (
@@ -50,6 +53,7 @@ function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | nu
                             <TableCell className="font-medium">{role.name}</TableCell>
                             <TableCell className="font-mono">{role.code}</TableCell>
                             <TableCell><Badge variant="outline">{role.department}</Badge></TableCell>
+                            <TableCell><Badge variant="secondary">{role.level}</Badge></TableCell>
                             <TableCell>{role.description}</TableCell>
                             {canManage && (
                                 <TableCell className="text-right">
@@ -57,13 +61,26 @@ function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | nu
                                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                         <DropdownMenuContent>
                                             <DropdownMenuItem onClick={() => onEdit(role)}>Edit</DropdownMenuItem>
-                                            <DropdownMenuItem
-                                                className="text-destructive"
-                                                onClick={() => onDelete(role)}
-                                                disabled={role.code === 'ADMIN'}
-                                            >
-                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
-                                            </DropdownMenuItem>
+                                             <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <div className={role.code === 'ADMIN' ? 'relative' : ''}>
+                                                            <DropdownMenuItem
+                                                                className="text-destructive"
+                                                                onClick={() => onDelete(role)}
+                                                                disabled={role.code === 'ADMIN'}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                            </DropdownMenuItem>
+                                                        </div>
+                                                    </TooltipTrigger>
+                                                    {role.code === 'ADMIN' && (
+                                                        <TooltipContent>
+                                                            <p>The ADMIN role cannot be deleted.</p>
+                                                        </TooltipContent>
+                                                    )}
+                                                </Tooltip>
+                                            </TooltipProvider>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -71,7 +88,7 @@ function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | nu
                         </TableRow>
                     ))
                 ) : (
-                    <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">No roles found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canManage ? 6 : 5} className="h-24 text-center">No roles found.</TableCell></TableRow>
                 )}
             </TableBody>
         </Table>
@@ -86,6 +103,8 @@ export default function AdminRolesPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [roleToDelete, setRoleToDelete] = useState<Role | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+
 
   const rolesQuery = useMemoFirebase(() => {
     if (!db || authLoading || !userProfile) return null;
@@ -124,10 +143,28 @@ export default function AdminRolesPage() {
         setRoleToDelete(null);
     }
   }
+
+  const handleTestAccess = async () => {
+      if (!db) return;
+      let results: string[] = [];
+      try {
+        await getDoc(doc(db, 'roles', 'ADMIN'));
+        results.push('GET OK');
+      } catch (e) {
+        results.push('GET DENIED');
+      }
+      try {
+        await getDocs(query(collection(db, 'roles'), limit(1)));
+        results.push('LIST OK');
+      } catch (e) {
+        results.push('LIST DENIED');
+      }
+      setTestResult(results.join(' / '));
+  }
   
   const isLoading = authLoading || (isLoadingRoles && !roles);
 
-  if (isLoading) {
+  if (isLoading && !rolesError) {
     return <FullPageLoader />;
   }
   
@@ -149,14 +186,19 @@ export default function AdminRolesPage() {
           <h1 className="text-3xl font-bold tracking-tight font-headline">System Roles</h1>
           <p className="text-muted-foreground">Master list of all functional roles in the application.</p>
         </div>
-        <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Role</Button>
+        <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleTestAccess}>Test Roles Access</Button>
+            <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Role</Button>
+        </div>
       </div>
+
+       {testResult && <p className="text-sm text-muted-foreground">Test Result: {testResult}</p>}
       
       {rolesError && (
         <Card className="bg-destructive/10">
           <CardHeader>
             <CardTitle className="text-destructive flex items-center gap-2"><ShieldAlert/> Permission Error</CardTitle>
-            <CardDescription className="text-destructive">Could not load roles. This is often a temporary issue during authentication. Try retrying.</CardDescription>
+            <CardDescription className="text-destructive">Could not load roles. This is often a temporary issue during authentication or a misconfiguration of Firestore rules.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={refetch}>Retry</Button>
@@ -201,4 +243,3 @@ export default function AdminRolesPage() {
     </div>
   );
 }
-
