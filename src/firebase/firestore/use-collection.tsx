@@ -96,12 +96,14 @@ export function useCollection<T = any>(
       setError(null);
       return;
     }
+    
+    let active = true;
+    let unsubscribed = false;
 
     // Secondary guard: Extract path.
     let path = getPathFromRefOrQuery(memoizedTargetRefOrQuery);
 
-    // If path is still null or an explicit root query, do not proceed.
-    // This allows collectionGroup queries (which have a non-null, non-root path like "collectionGroup:waves") to pass.
+    // If path is a root query, do not proceed.
     if (path === '/') {
         setData(null);
         setIsLoading(false);
@@ -114,14 +116,13 @@ export function useCollection<T = any>(
       path = '(unknown)';
     }
 
-
     setIsLoading(true);
     setError(null);
 
-    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
+        if (!active) return;
         const results: ResultItemType[] = [];
         for (const doc of snapshot.docs) {
           results.push({ ...(doc.data() as T), id: doc.id, path: doc.ref.path });
@@ -131,24 +132,30 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
+        if (!active) return;
         const contextualError = new FirestorePermissionError({
           operation: 'list',
-          path: path!, // Use the path we already validated/set
+          path: path!,
         })
 
         setError(contextualError)
         setData(null)
         setIsLoading(false)
 
-        // trigger global error propagation
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
-    return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery, refetchIndex]); // Re-run if the target query/reference changes or on refetch
+    return () => {
+        active = false;
+        if (!unsubscribed) {
+            unsubscribed = true;
+            unsubscribe();
+        }
+    };
+  }, [memoizedTargetRefOrQuery, refetchIndex]);
   
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
+  if(memoizedTargetRefOrQuery && !(memoizedTargetRefOrQuery as any).__memo) {
     throw new Error('A non-null query/reference was passed to useCollection without being memoized. Use useMemoFirebase to wrap your query.');
   }
 

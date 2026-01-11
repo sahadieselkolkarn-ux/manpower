@@ -1,3 +1,4 @@
+
 'use client';
     
 import { useState, useEffect, useCallback } from 'react';
@@ -60,23 +61,26 @@ export function useDoc<T = any>(
       return;
     }
 
+    let active = true;
+    let unsubscribed = false;
+
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
       (snapshot: DocumentSnapshot<DocumentData>) => {
+        if (!active) return;
         if (snapshot.exists()) {
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
-          // Document does not exist
           setData(null);
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setError(null);
         setIsLoading(false);
       },
       (error: FirestoreError) => {
+        if (!active) return;
         const contextualError = new FirestorePermissionError({
           operation: 'get',
           path: memoizedDocRef.path,
@@ -86,13 +90,18 @@ export function useDoc<T = any>(
         setData(null)
         setIsLoading(false)
 
-        // trigger global error propagation
         errorEmitter.emit('permission-error', contextualError);
       }
     );
 
-    return () => unsubscribe();
-  }, [memoizedDocRef, refetchIndex]); // Re-run if the memoizedDocRef changes.
+    return () => {
+      active = false;
+      if (!unsubscribed) {
+        unsubscribed = true;
+        unsubscribe();
+      }
+    };
+  }, [memoizedDocRef, refetchIndex]);
 
   return { data, isLoading, error, refetch };
 }
