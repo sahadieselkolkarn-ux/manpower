@@ -1,30 +1,31 @@
 'use client';
 
-import React, { use, useMemo, useCallback } from 'react';
+import React, { use, useMemo, useCallback, useState, useEffect } from 'react';
 import {
   collection,
   query,
   where,
   doc,
   DocumentReference,
+  getDoc,
+  getDocs,
 } from 'firebase/firestore';
-import { useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Download, ShieldAlert, Users } from 'lucide-react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { canManageFinance } from '@/lib/authz';
-import { TimesheetBatch, TimesheetLine } from '@/types/timesheet';
-import { Assignment } from '@/types/assignment';
 import {
   Table,
   TableBody,
@@ -33,22 +34,15 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/utils';
-import { groupBy, map } from 'lodash';
+import { Payroll } from '@/types/payroll';
+import { Employee } from '@/types/employee';
 
-interface PayrollSummary {
-  employeeId: string;
-  employeeName: string;
-  employeeCode: string;
-  positionName: string;
-  totalDays: number;
-  totalNormalHours: number;
-  totalOtHours: number;
-  anomaliesCount: number;
+interface PayrollLineWithEmployee extends Payroll['lineItems'][0] {
+    employeeName?: string;
+    employeeCode?: string;
 }
 
-export default function PayrollPreviewPage({
+export default function PayrollRunDetailsPage({
   params,
 }: {
   params: Promise<{ batchId: string }>;
@@ -58,71 +52,63 @@ export default function PayrollPreviewPage({
   const router = useRouter();
   const { userProfile, loading: authLoading } = useAuth();
   const canAccess = canManageFinance(userProfile);
+  const [linesWithNames, setLinesWithNames] = useState<PayrollLineWithEmployee[]>([]);
+  const [isEmployeeDataLoading, setIsEmployeeDataLoading] = useState(true);
 
-  const batchRef = useMemoFirebase(
+  const payrollRunRef = useMemoFirebase(
     () =>
       db
-        ? (doc(db, 'timesheetBatches', batchId) as DocumentReference<TimesheetBatch>)
+        ? (doc(db, 'payrolls', batchId) as DocumentReference<Payroll>)
         : null,
     [db, batchId]
   );
-  const { data: batch, isLoading: isLoadingBatch } = useDoc<TimesheetBatch>(batchRef);
+  const { data: payroll, isLoading: isLoadingPayroll, error } = useDoc<Payroll>(payrollRunRef);
 
-  const linesQuery = useMemoFirebase(
-    () => (db ? query(collection(db, 'timesheetLines'), where('batchId', '==', batchId)) : null),
-    [db, batchId]
-  );
-  const { data: lines, isLoading: isLoadingLines } = useCollection<TimesheetLine>(linesQuery);
-
-  const assignmentIds = useMemo(() => Array.from(new Set(lines?.map(l => l.assignmentId))), [lines]);
-  
-  const { data: assignments, isLoading: isLoadingAssignments } = useCollection<Assignment>(
-      useMemoFirebase(() => (db && assignmentIds.length > 0) ? query(collection(db, 'assignments'), where('__name__', 'in', assignmentIds)) : null, [db, assignmentIds])
-  );
-
-  const payrollSummary = useMemo((): PayrollSummary[] => {
-    if (!lines || !assignments) return [];
+  useEffect(() => {
+    if (!payroll || !payroll.lineItems || !db) {
+        if (!isLoadingPayroll) setIsEmployeeDataLoading(false);
+        return;
+    };
     
-    const assignmentMap = new Map(assignments.map(a => [a.id, a]));
-    const groupedByEmployee = groupBy(lines, 'employeeId');
+    const fetchEmployeeData = async () => {
+        setIsEmployeeDataLoading(true);
+        const employeeIds = [...new Set(payroll.lineItems.map(line => line.employeeId))];
+        if (employeeIds.length === 0) {
+            setLinesWithNames([]);
+            setIsEmployeeDataLoading(false);
+            return;
+        }
 
-    return map(groupedByEmployee, (employeeLines, employeeId) => {
-      const firstLine = employeeLines[0];
-      const assignment = assignmentMap.get(firstLine.assignmentId);
-      
-      const summary = employeeLines.reduce(
-        (acc, line) => {
-          acc.totalNormalHours += line.normalHours || 0;
-          acc.totalOtHours += line.otHours || 0;
-          acc.anomaliesCount += (line.anomalies || []).length;
-          return acc;
-        },
-        { totalNormalHours: 0, totalOtHours: 0, anomaliesCount: 0 }
-      );
-      
-      return {
-        employeeId,
-        employeeName: assignment?.employeeName || 'Unknown Employee',
-        employeeCode: assignment?.employeeCode || 'N/A',
-        positionName: assignment?.positionName || 'N/A',
-        totalDays: employeeLines.length,
-        ...summary,
-      };
-    });
-  }, [lines, assignments]);
+        const employeesQuery = query(collection(db, 'employees'), where('__name__', 'in', employeeIds));
+        const employeeSnaps = await getDocs(employeesQuery);
+        const employeeMap = new Map(employeeSnaps.docs.map(doc => [doc.id, doc.data() as Employee]));
+
+        const enrichedLines = payroll.lineItems.map(line => {
+            const employee = employeeMap.get(line.employeeId);
+            return {
+                ...line,
+                employeeName: employee ? `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}` : 'Unknown',
+                employeeCode: employee?.employeeCode || 'N/A',
+            };
+        });
+        setLinesWithNames(enrichedLines);
+        setIsEmployeeDataLoading(false);
+    };
+
+    fetchEmployeeData();
+
+  }, [payroll, db, isLoadingPayroll]);
   
   const downloadCSV = useCallback(() => {
-    if (payrollSummary.length === 0) return;
+    if (linesWithNames.length === 0) return;
     
-    const headers = ['Employee Code', 'Employee Name', 'Position', 'Total Days', 'Total Normal Hours', 'Total OT Hours', 'Anomalies'];
-    const rows = payrollSummary.map(s => [
+    const headers = ['Employee Code', 'Employee Name', 'Normal Pay', 'OT Pay', 'Total Pay'];
+    const rows = linesWithNames.map(s => [
         s.employeeCode,
         s.employeeName,
-        s.positionName,
-        s.totalDays,
-        s.totalNormalHours,
-        s.totalOtHours,
-        s.anomaliesCount
+        s.normalPay,
+        s.otPay,
+        s.totalPay
     ]);
     
     let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
@@ -130,14 +116,22 @@ export default function PayrollPreviewPage({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `payroll_summary_${batchId}.csv`);
+    link.setAttribute("download", `payroll_run_${batchId}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [payrollSummary, batchId]);
+  }, [linesWithNames, batchId]);
 
+  const summary = useMemo(() => {
+    if (!payroll) return { totalCost: 0, totalSale: 0, employees: 0 };
+    return {
+        totalCost: payroll.lineItems?.reduce((sum, item) => sum + item.totalPay, 0) ?? 0,
+        totalSale: payroll.saleLineItems?.reduce((sum, item) => sum + item.totalPay, 0) ?? 0,
+        employees: payroll.lineItems?.length ?? 0
+    }
+  }, [payroll]);
 
-  const isLoading = authLoading || isLoadingBatch || isLoadingLines || isLoadingAssignments;
+  const isLoading = authLoading || isLoadingPayroll || isEmployeeDataLoading;
 
   if (isLoading) {
     return <FullPageLoader />;
@@ -154,7 +148,7 @@ export default function PayrollPreviewPage({
     );
   }
 
-  if (!batch) {
+  if (error || !payroll) {
     return (
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <Button variant="ghost" onClick={() => router.back()}>
@@ -162,7 +156,7 @@ export default function PayrollPreviewPage({
         </Button>
         <Card>
           <CardHeader><CardTitle className="text-destructive">Error</CardTitle></CardHeader>
-          <CardContent><p>Timesheet batch not found.</p></CardContent>
+          <CardContent><p>{error?.message || 'Payroll Run not found for this batch.'}</p></CardContent>
         </Card>
       </div>
     );
@@ -175,61 +169,99 @@ export default function PayrollPreviewPage({
           <Button variant="ghost" onClick={() => router.push('/dashboard/finance/payroll')} className="mb-2">
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Payroll List
           </Button>
-          <h1 className="text-3xl font-bold tracking-tight font-headline">Payroll Preview</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline">Payroll Run</h1>
            <p className="text-muted-foreground">
-            Summary for Timesheet Batch ID: <span className="font-mono">{batchId}</span>
+            Costing & Sale Summary for Timesheet Batch: <span className="font-mono">{batchId}</span>
           </p>
         </div>
-        <Button onClick={downloadCSV} disabled={payrollSummary.length === 0}>
+        <Button onClick={downloadCSV} disabled={linesWithNames.length === 0}>
             <Download className="mr-2 h-4 w-4"/>
             Export CSV
         </Button>
       </div>
+      
+       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Cost (Payroll)</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono">
+              {summary.totalCost.toLocaleString('en-US', { style: 'currency', currency: 'THB' })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total payroll cost for {summary.employees} employees
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Sale (Billing)</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono">
+                {summary.totalSale.toLocaleString('en-US', { style: 'currency', currency: 'THB' })}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Total billable amount to client
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Gross Margin</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono">
+              {(summary.totalSale - summary.totalCost).toLocaleString('en-US', { style: 'currency', currency: 'THB' })}
+            </div>
+             <p className="text-xs text-muted-foreground">
+              {summary.totalSale > 0 ? `${((summary.totalSale - summary.totalCost) / summary.totalSale * 100).toFixed(2)}%` : 'N/A'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader>
-            <CardTitle>Employee Hour Summary</CardTitle>
-            <CardDescription>A summary of total hours per employee for this batch.</CardDescription>
+            <CardTitle>Payroll Cost Breakdown</CardTitle>
+            <CardDescription>A summary of total payroll cost per employee for this run.</CardDescription>
         </CardHeader>
         <CardContent>
              <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Total Days</TableHead>
-                    <TableHead>Total Normal Hr</TableHead>
-                    <TableHead>Total OT Hr</TableHead>
-                    <TableHead>Anomalies</TableHead>
+                    <TableHead>Normal Pay</TableHead>
+                    <TableHead>OT Pay</TableHead>
+                    <TableHead className="text-right font-bold">Total Pay</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {payrollSummary.length > 0 ? (
-                        payrollSummary.map(summary => (
-                            <TableRow key={summary.employeeId}>
+                    {linesWithNames.length > 0 ? (
+                        linesWithNames.map(line => (
+                            <TableRow key={line.employeeId}>
                                 <TableCell>
-                                    <div className="font-medium">{summary.employeeName}</div>
-                                    <div className="text-xs text-muted-foreground">{summary.employeeCode}</div>
+                                    <div className="font-medium">{line.employeeName}</div>
+                                    <div className="text-xs text-muted-foreground">{line.employeeCode}</div>
                                 </TableCell>
-                                <TableCell>{summary.positionName}</TableCell>
-                                <TableCell>{summary.totalDays}</TableCell>
-                                <TableCell>{summary.totalNormalHours}</TableCell>
-                                <TableCell>{summary.totalOtHours}</TableCell>
-                                <TableCell>
-                                    {summary.anomaliesCount > 0 ? (
-                                        <Badge variant="destructive">{summary.anomaliesCount}</Badge>
-                                    ) : (
-                                        <span>0</span>
-                                    )}
-                                </TableCell>
+                                <TableCell className="font-mono">{line.normalPay.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                                <TableCell className="font-mono">{line.otPay.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
+                                <TableCell className="text-right font-mono font-bold">{line.totalPay.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</TableCell>
                             </TableRow>
                         ))
                     ) : (
                          <TableRow>
-                            <TableCell colSpan={6} className="h-24 text-center">No timesheet lines found for this batch.</TableCell>
+                            <TableCell colSpan={4} className="h-24 text-center">No payroll lines found for this run.</TableCell>
                          </TableRow>
                     )}
                 </TableBody>
+                <CardFooter className="font-bold text-right">
+                    Total: {summary.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                </CardFooter>
              </Table>
         </CardContent>
       </Card>

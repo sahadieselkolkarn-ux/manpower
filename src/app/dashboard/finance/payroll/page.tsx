@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -27,32 +27,88 @@ import { canManageFinance } from '@/lib/authz';
 import { formatDate } from '@/lib/utils';
 import { TimesheetBatch } from '@/types/timesheet';
 import FullPageLoader from '@/components/full-page-loader';
-import { ShieldAlert } from 'lucide-react';
+import { FileCog, FileUp, ShieldAlert, Sparkles } from 'lucide-react';
+import { createPayrollRun } from '@/lib/payroll/payroll.service';
+import { useToast } from '@/hooks/use-toast';
+import { Payroll } from '@/types/payroll';
+
+interface BatchWithPayrollStatus extends TimesheetBatch {
+  payrollGenerated: boolean;
+}
 
 export default function PayrollPage() {
   const db = useFirestore();
   const router = useRouter();
   const { userProfile, loading: authLoading } = useAuth();
+  const { toast } = useToast();
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [batchesWithStatus, setBatchesWithStatus] = useState<BatchWithPayrollStatus[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const pendingBatchesQuery = useMemoFirebase(
+  const batchesQuery = useMemoFirebase(
     () =>
       db
         ? query(
             collection(db, 'timesheetBatches'),
-            where('status', '==', 'HR_APPROVED'),
+            where('status', 'in', ['HR_APPROVED', 'FINANCE_PAID']),
             orderBy('approvedAt', 'desc')
           )
         : null,
     [db]
   );
+  const { data: batches, isLoading: isLoadingBatches, refetch } = useCollection<TimesheetBatch>(batchesQuery);
 
-  const { data: batches, isLoading } = useCollection<TimesheetBatch>(
-    pendingBatchesQuery
-  );
+  useEffect(() => {
+    if (isLoadingBatches || !batches) {
+      if (!isLoadingBatches) setIsLoading(false);
+      return;
+    }
+
+    const checkPayrollStatus = async () => {
+      if (!db) return;
+      setIsLoading(true);
+      const payrollsSnapshot = await getDocs(collection(db, 'payrolls'));
+      const generatedIds = new Set(payrollsSnapshot.docs.map(doc => doc.id));
+
+      const updatedBatches = batches.map(batch => ({
+        ...batch,
+        payrollGenerated: generatedIds.has(batch.id),
+      }));
+      setBatchesWithStatus(updatedBatches);
+      setIsLoading(false);
+    };
+
+    checkPayrollStatus();
+
+  }, [batches, isLoadingBatches, db]);
+
+  const handleGenerate = async (batchId: string) => {
+    if (!db) return;
+    setProcessingId(batchId);
+    try {
+      await createPayrollRun(db, batchId);
+      toast({
+        title: 'Success!',
+        description: `Payroll run for batch ${batchId} has been generated.`,
+      });
+      refetch(); // Refetch to update the list
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'Could not generate payroll.';
+      toast({
+        variant: 'destructive',
+        title: 'Error Generating Payroll',
+        description: errorMessage,
+      });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
 
   const canAccess = canManageFinance(userProfile);
 
-  if (authLoading || (isLoading && !batches)) {
+  if (authLoading) {
     return <FullPageLoader />;
   }
 
@@ -82,7 +138,7 @@ export default function PayrollPage() {
         </h1>
       </div>
       <p className="text-muted-foreground">
-        Select a batch that has been approved by HR to preview payroll summary.
+        Generate and review payroll runs from HR-approved timesheet batches.
       </p>
 
       <Card>
@@ -98,8 +154,8 @@ export default function PayrollPage() {
               <TableRow>
                 <TableHead>Wave ID</TableHead>
                 <TableHead>Period</TableHead>
-                <TableHead>Approved At</TableHead>
-                <TableHead>Approved By</TableHead>
+                <TableHead>Timesheet Status</TableHead>
+                <TableHead>Payroll Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -113,36 +169,54 @@ export default function PayrollPage() {
                     <TableCell>
                       <Skeleton className="h-5 w-40" />
                     </TableCell>
-                    <TableCell>
-                      <Skeleton className="h-5 w-24" />
+                     <TableCell>
+                      <Skeleton className="h-6 w-28" />
                     </TableCell>
                     <TableCell>
-                      <Skeleton className="h-5 w-20" />
+                      <Skeleton className="h-6 w-32" />
                     </TableCell>
                     <TableCell className="text-right">
-                      <Skeleton className="h-8 w-24 ml-auto" />
+                      <Skeleton className="h-8 w-32 ml-auto" />
                     </TableCell>
                   </TableRow>
                 ))
-              ) : batches && batches.length > 0 ? (
-                batches.map((batch) => (
+              ) : batchesWithStatus.length > 0 ? (
+                batchesWithStatus.map((batch) => (
                   <TableRow key={batch.id}>
                     <TableCell className="font-mono text-xs">{batch.waveId}</TableCell>
                     <TableCell className="font-medium">
                       {formatDate(batch.periodStart)} - {formatDate(batch.periodEnd)}
                     </TableCell>
-                    <TableCell>{formatDate(batch.approvedAt)}</TableCell>
-                    <TableCell>{batch.approvedBy}</TableCell>
+                     <TableCell>
+                      <Badge variant={batch.status === 'FINANCE_PAID' ? 'default' : 'secondary'}>{batch.status.replace('_', ' ')}</Badge>
+                    </TableCell>
+                    <TableCell>
+                       {batch.payrollGenerated ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600"><FileCog className="mr-2 h-4 w-4" /> Generated</Badge>
+                       ) : (
+                          <Badge variant="outline"><FileUp className="mr-2 h-4 w-4"/>Not Generated</Badge>
+                       )}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          router.push(`/dashboard/finance/payroll/${batch.id}`)
-                        }
-                      >
-                        Preview Payroll
-                      </Button>
+                      {batch.payrollGenerated ? (
+                         <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/dashboard/finance/payroll/${batch.id}`)}
+                        >
+                            Open Payroll
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={processingId === batch.id}
+                          onClick={() => handleGenerate(batch.id)}
+                        >
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          {processingId === batch.id ? 'Generating...' : 'Generate Payroll'}
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
