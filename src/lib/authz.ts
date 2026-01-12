@@ -1,3 +1,4 @@
+
 'use client';
 
 import { UserProfile, RoleCode } from '@/types/user';
@@ -39,3 +40,5 @@ export function canManageHrSettings(user: UserProfile | null): boolean {
 export function canManageFinance(user: UserProfile | null): boolean {
     return hasAnyRole(user, "FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER", "MANAGEMENT_MANAGER");
 }
+
+    

@@ -21,8 +21,16 @@ service cloud.firestore {
        return isSignedIn() && user.roleCodes.hasAny(roles);
     }
     
+    function canManageOperation() {
+       return hasAnyRole(userDoc(), ["OPERATION_MANAGER", "OPERATION_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
+    }
+    
     function canManageHR() {
        return hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
+    }
+    
+    function canManageHrSettings() {
+       return hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER"]) || isAdmin();
     }
 
     function canManageFinance() {
@@ -35,7 +43,7 @@ service cloud.firestore {
 
     // --- RULE DEFINITIONS ---
 
-    match /settings/security {
+    match /settings/{docId} {
       allow read: if isSignedIn();
       allow write: if isAdmin();
     }
@@ -47,12 +55,25 @@ service cloud.firestore {
     
     match /hrSettings/{docId} {
         allow read: if isSignedIn();
-        allow write: if canManageHR();
+        allow write: if canManageHrSettings();
     }
     
     match /systemSettings/{docId} {
       allow read: if isSignedIn();
-      allow write: if canManageHR() || isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    match /cooldownPolicies/{docId} {
+        allow read: if isSignedIn();
+        allow write: if isAdmin();
+    }
+    
+    match /counters/{docId} {
+        allow read, write: if isSignedIn(); // System services need to update this
+    }
+    
+    match /unique/{docId} {
+        allow read, write: if isSignedIn(); // System services need to update this
     }
 
     match /users/{userId} {
@@ -76,18 +97,58 @@ service cloud.firestore {
     }
 
     match /roles/{roleId} {
-      // Allow any signed-in user to read roles (both single and list).
       allow get, list: if isSignedIn();
-    
-      // Only admins can create, update, or delete roles.
       allow create, update, delete: if isAdmin();
     }
     
-    match /clients/{clientId}/contracts/{contractId} {
-        allow update: if (canManageHR() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['payrollOtRules', 'payrollDayRules', 'updatedAt'])) || isAdmin();
-        // Allow other updates via DEV catch-all for now
+    match /clients/{clientId} {
+        allow read: if canManageOperation() || canManageFinance();
+        allow create, update, delete: if canManageOperation();
     }
     
+    match /clients/{clientId}/contracts/{contractId} {
+        allow read: if canManageOperation() || canManageFinance() || canManageHR();
+        allow create, update: if canManageOperation() || canManageHR(); // HR needs to edit payroll OT rules
+    }
+    
+    match /clients/{clientId}/contracts/{contractId}/projects/{projectId} {
+        allow read: if canManageOperation() || canManageFinance() || canManageHR();
+        allow create, update: if canManageOperation();
+    }
+
+    match /clients/{clientId}/contracts/{contractId}/projects/{projectId}/waves/{waveId} {
+       allow read: if canManageOperation() || canManageFinance() || canManageHR();
+       allow create, update: if canManageOperation();
+       
+       match /assignments/{assignmentId} {
+         allow read, write: if canManageOperation() || canManageHR();
+       }
+    }
+    
+    match /employees/{employeeId} {
+      allow read: if canManageHR() || canManageOperation() || canManageFinance();
+      allow write: if canManageHR();
+    }
+    
+    match /assignments/{assignmentId} {
+       allow read, write: if canManageOperation() || canManageHR();
+    }
+    
+    match /timesheetBatches/{batchId} {
+        allow read: if canManageHR() || canManageFinance();
+        allow create: if canManageHR();
+        allow update: if (canManageHR() && resource.data.status == 'DRAFT') || (canManageFinance() && resource.data.status == 'HR_APPROVED');
+    }
+    
+    match /timesheetLines/{lineId} {
+      function isBatchOpen() {
+        let batchId = request.resource.data.batchId;
+        return get(/databases/$(database)/documents/timesheetBatches/$(batchId)).data.status == 'DRAFT';
+      }
+       allow read: if canManageHR() || canManageFinance();
+       allow create, update, delete: if canManageHR() && isBatchOpen();
+    }
+
     match /clients/{clientId}/contracts/{contractId}/manpowerCosting/{positionId} {
         allow read, write: if canManageHR();
     }
@@ -100,20 +161,55 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isSignedIn();
     }
-
-    match /payrolls/{id} {
-      allow read: if canManageFinance() || isAdmin();
-      allow create, update: if canManageFinance() || isAdmin();
+    
+    match /payrolls/{payrollId} {
+      allow read, create, update: if canManageFinance();
     }
 
-    match /invoices/{id} {
-      allow read: if canManageFinance() || isAdmin();
-      allow create, update: if canManageFinance() || isAdmin();
+    match /invoices/{invoiceId} {
+      allow read, create, update: if canManageFinance();
+    }
+
+    match /manpowerPositions/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManageHrSettings();
+    }
+
+     match /officePositions/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManageHrSettings();
+    }
+
+    match /certificateTypes/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManageHrSettings();
     }
     
-    // DEV CATCH-ALL: prevent permission-denied from unknown collections breaking queries (esp. collectionGroup)
-    match /{document=**} {
-      allow read, write: if isSignedIn();
+     match /hospitals/{id} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if canManageHrSettings();
+    }
+
+     match /paymentsAR/{id} {
+       allow read, create: if canManageFinance();
+    }
+    
+     match /paymentsAP/{id} {
+       allow read, create: if canManageFinance();
+    }
+
+     match /billsAP/{id} {
+       allow read, create, update: if canManageFinance();
+    }
+
+     match /cashMovements/{id} {
+       allow read, create: if canManageFinance();
+    }
+
+     match /bankAccounts/{id} {
+       allow read, create, update: if canManageFinance();
     }
   }
 }
+
+    
