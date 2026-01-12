@@ -1,7 +1,7 @@
 // src/lib/rbac/permissions.ts
 import { UserProfile, RoleCode } from "@/types/user";
 
-type PermissionKey = 
+export type PermissionKey = 
   | 'ADMIN_ACCESS'
   | 'OFFICE_ACCESS'
   | 'TECH_FRONT_ACCESS'
@@ -29,7 +29,7 @@ type PermissionKey =
   | 'BILLS_WRITE';
 
 // This map defines which roles have which permissions.
-const PERMISSION_MAP: Record<PermissionKey, RoleCode[]> = {
+export const PERMISSION_MAP: Record<PermissionKey, RoleCode[]> = {
     ADMIN_ACCESS: ['ADMIN'],
     USERS_READ: ['ADMIN'],
     USERS_WRITE: ['ADMIN'],
