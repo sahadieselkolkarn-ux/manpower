@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { use, useMemo, useCallback, useState, useEffect } from 'react';
@@ -9,13 +10,15 @@ import {
   DocumentReference,
   getDoc,
   getDocs,
+  writeBatch,
+  serverTimestamp
 } from 'firebase/firestore';
 import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Download, ShieldAlert, Users } from 'lucide-react';
+import { ArrowLeft, Download, ShieldAlert, Users, CheckCircle } from 'lucide-react';
 import {
   Card,
   CardContent,
@@ -24,6 +27,17 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { canManageFinance } from '@/lib/authz';
 import {
@@ -36,6 +50,8 @@ import {
 } from '@/components/ui/table';
 import { Payroll } from '@/types/payroll';
 import { Employee } from '@/types/employee';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface PayrollLineWithEmployee extends Payroll['lineItems'][0] {
     employeeName?: string;
@@ -51,9 +67,12 @@ export default function PayrollRunDetailsPage({
   const db = useFirestore();
   const router = useRouter();
   const { userProfile, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const canAccess = canManageFinance(userProfile);
   const [linesWithNames, setLinesWithNames] = useState<PayrollLineWithEmployee[]>([]);
   const [isEmployeeDataLoading, setIsEmployeeDataLoading] = useState(true);
+  const [isMarkingPaid, setIsMarkingPaid] = useState(false);
+
 
   const payrollRunRef = useMemoFirebase(
     () =>
@@ -62,7 +81,7 @@ export default function PayrollRunDetailsPage({
         : null,
     [db, batchId]
   );
-  const { data: payroll, isLoading: isLoadingPayroll, error } = useDoc<Payroll>(payrollRunRef);
+  const { data: payroll, isLoading: isLoadingPayroll, error, refetch } = useDoc<Payroll>(payrollRunRef);
 
   useEffect(() => {
     if (!payroll || !payroll.lineItems || !db) {
@@ -122,6 +141,39 @@ export default function PayrollRunDetailsPage({
     document.body.removeChild(link);
   }, [linesWithNames, batchId]);
 
+  const handleMarkAsPaid = async () => {
+    if (!db || !userProfile || !payroll || payroll.status !== 'PENDING') return;
+    setIsMarkingPaid(true);
+
+    const payrollRef = doc(db, 'payrolls', batchId);
+    const timesheetRef = doc(db, 'timesheetBatches', batchId);
+    
+    const batch = writeBatch(db);
+    try {
+        batch.update(payrollRef, {
+            status: 'PAID',
+            paidAt: serverTimestamp(),
+            paidBy: userProfile.displayName || userProfile.email,
+        });
+        batch.update(timesheetRef, {
+            status: 'FINANCE_PAID',
+            paidAt: serverTimestamp(),
+            paidBy: userProfile.displayName || userProfile.email,
+        });
+        
+        await batch.commit();
+
+        toast({ title: 'Success', description: 'Payroll run and timesheet batch marked as paid.' });
+        refetch(); // Refetch payroll data to update UI
+
+    } catch (error) {
+        console.error(error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to mark payroll as paid.' });
+    } finally {
+        setIsMarkingPaid(false);
+    }
+  }
+
   const summary = useMemo(() => {
     if (!payroll) return { totalCost: 0, totalSale: 0, employees: 0 };
     return {
@@ -174,10 +226,36 @@ export default function PayrollRunDetailsPage({
             Costing & Sale Summary for Timesheet Batch: <span className="font-mono">{batchId}</span>
           </p>
         </div>
-        <Button onClick={downloadCSV} disabled={linesWithNames.length === 0}>
-            <Download className="mr-2 h-4 w-4"/>
-            Export CSV
-        </Button>
+        <div className="flex items-center gap-2">
+            <Badge variant={payroll.status === 'PAID' ? 'default' : 'secondary'} className="text-lg">
+                {payroll.status}
+            </Badge>
+            <Button onClick={downloadCSV} disabled={linesWithNames.length === 0} variant="outline">
+                <Download className="mr-2 h-4 w-4"/>
+                Export CSV
+            </Button>
+            {payroll.status === 'PENDING' && (
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button className="bg-green-600 hover:bg-green-700">
+                            <CheckCircle className="mr-2 h-4 w-4"/> Mark Payroll as Paid
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>This will mark the payroll as paid and update the original timesheet batch status. This action cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleMarkAsPaid} disabled={isMarkingPaid}>
+                                {isMarkingPaid ? 'Processing...' : 'Yes, Mark as Paid'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
+        </div>
       </div>
       
        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

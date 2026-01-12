@@ -1,15 +1,15 @@
 
 'use client';
 
-import { use, useState } from 'react';
+import { use, useState, useEffect } from 'react';
 import { doc, DocumentReference, serverTimestamp, writeBatch, updateDoc, arrayUnion } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { useFirestore, useDoc, useMemoFirebase, useStorage } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useCollection } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import FullPageLoader from '@/components/full-page-loader';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ShieldAlert, CheckCircle, Banknote, FileCheck, CircleDashed, Download, Upload } from 'lucide-react';
+import { ArrowLeft, ShieldAlert, CheckCircle, Banknote, FileCheck, CircleDashed, Download, Upload, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TimesheetBatch } from '@/types/timesheet';
@@ -20,6 +20,8 @@ import FinancePaidForm from './_components/FinancePaidForm';
 import { canManageFinance, canManageHR } from '@/lib/authz';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
+import { Alert } from '@/components/ui/alert';
+import { Payroll } from '@/types/payroll';
 
 function getStatusInfo(status: TimesheetBatch['status']) {
     switch (status) {
@@ -136,7 +138,10 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
     const batchRef = useMemoFirebase(() => db ? (doc(db, 'timesheetBatches', batchId) as DocumentReference<TimesheetBatch>) : null, [db, batchId]);
     const { data: batch, isLoading: isLoadingBatch, error, refetch } = useDoc<TimesheetBatch>(batchRef);
 
-    const isLoading = authLoading || isLoadingBatch;
+    const payrollRunRef = useMemoFirebase(() => db ? doc(db, 'payrolls', batchId) : null, [db, batchId]);
+    const { data: payrollRun, isLoading: isLoadingPayroll } = useDoc<Payroll>(payrollRunRef);
+
+    const isLoading = authLoading || isLoadingBatch || isLoadingPayroll;
     
     const canApproveHR = canManageHR(userProfile);
     const canPayFinance = canManageFinance(userProfile);
@@ -190,6 +195,7 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
     }
 
     const statusInfo = getStatusInfo(batch.status);
+    const showPayrollWarning = batch.status === 'HR_APPROVED' && !payrollRun;
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -235,13 +241,29 @@ export default function TimesheetBatchDetailsPage({ params }: { params: Promise<
                                 </AlertDialog>
                             )}
                             {canPayFinance && batch.status === 'HR_APPROVED' && (
-                                <Button size="sm" variant="secondary" onClick={() => setIsPaidFormOpen(true)}>
-                                    <Banknote className="mr-2 h-4 w-4"/> Mark as Paid
+                                <Button 
+                                    size="sm" 
+                                    variant="secondary" 
+                                    onClick={() => router.push('/dashboard/finance/payroll')}
+                                    disabled={!payrollRun}
+                                >
+                                    <Banknote className="mr-2 h-4 w-4"/> Go to Payroll
                                 </Button>
                             )}
                             </div>
                         </div>
                     </div>
+                     {showPayrollWarning && (
+                        <Alert variant="default" className="mt-4 bg-amber-50 border-amber-200">
+                            <AlertTriangle className="h-4 w-4 !text-amber-600" />
+                            <AlertTitle className="text-amber-800">Action Required</AlertTitle>
+                            <AlertDescription className="text-amber-700">
+                                Payroll has not been generated for this batch. Please go to the 
+                                <Button variant="link" className="p-0 h-auto text-amber-700 font-bold" onClick={() => router.push('/dashboard/finance/payroll')}>Payroll Page</Button> 
+                                to generate it before marking as paid.
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </CardHeader>
             </Card>
 
