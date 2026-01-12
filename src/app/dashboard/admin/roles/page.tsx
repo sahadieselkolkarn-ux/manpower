@@ -4,6 +4,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { collection, query, orderBy, doc, getDoc, getDocs, limit, deleteDoc } from 'firebase/firestore';
+import Link from 'next/link';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Role } from '@/types/user';
@@ -12,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import FullPageLoader from '@/components/full-page-loader';
-import { ShieldAlert, PlusCircle, MoreHorizontal, Trash2 } from 'lucide-react';
+import { ShieldAlert, PlusCircle, MoreHorizontal, Trash2, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import RoleForm from '@/components/forms/role-form';
@@ -188,10 +189,14 @@ export default function AdminRolesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight font-headline">System Roles</h1>
-          <p className="text-muted-foreground">Master list of all functional roles in the application.</p>
+          <p className="text-muted-foreground">
+            Roles are labels assigned to users. Permissions are defined by a fixed mapping in Admin &gt; Permissions.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleTestAccess}>Test Roles Access</Button>
+            <Button variant="outline" asChild>
+                <Link href="/dashboard/admin/permissions"><ShieldCheck className="mr-2 h-4 w-4" /> View Permissions</Link>
+            </Button>
             <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Role</Button>
         </div>
       </div>
@@ -245,5 +250,3 @@ export default function AdminRolesPage() {
     </div>
   );
 }
-
-    

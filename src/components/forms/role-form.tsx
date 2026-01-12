@@ -45,6 +45,8 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Switch } from '../ui/switch';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Role name is required.'),
@@ -165,6 +167,16 @@ export default function RoleForm({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {!role && (
+                <Alert variant="default" className="bg-amber-50 border-amber-200 text-amber-900">
+                    <AlertCircle className="h-4 w-4 !text-amber-600"/>
+                    <AlertTitle>Important</AlertTitle>
+                    <AlertDescription>
+                        New roles will not grant any access until they are added to the PERMISSION_MAP in the application code by a developer.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <FormField
               control={form.control}
               name="name"
