@@ -1,6 +1,10 @@
 // src/components/sidebar.tsx
 'use client';
 
+// LEGACY COMPONENT: This file is no longer used for the main dashboard layout.
+// The active sidebar is now implemented in `src/components/sidebar-layout.tsx`.
+// This file is kept for historical reference and can be removed in a future cleanup.
+
 import Link from 'next/link';
 import { useAuth } from '@/hooks/use-auth';
 import { generateMenu } from '@/lib/rbac/menu';

@@ -1,4 +1,9 @@
 // src/lib/rbac/menu.ts
+
+// LEGACY FILE: This file is no longer used for generating the main dashboard menu.
+// The active menu structure is now built directly within `src/components/sidebar-layout.tsx`.
+// This file is kept for historical reference and can be removed in a future cleanup.
+
 import { UserProfile } from "@/types/user";
 import { hasPermission } from "./permissions";
 

@@ -1,37 +1,62 @@
-# App Name: ManpowerFlow (Project: Manpower OPEC)
+# Manpower OPEC - Blueprint
 
-## Goal
-End-to-end manpower operations for onshore/offshore work:
-Customer/Contract/Project planning → Wave requirements → Assignment → Timesheet/Attendance → Payroll → Billing/Accounting → Compliance & Audit.
+## Overall Vision
+ระบบบริหารกำลังคน (Onshore/Offshore) ครอบคลุมตั้งแต่ Operation planning → Assignment → Timesheet/Attendance → Payroll → Billing/Accounting → Compliance & Admin
 
-## Core Features (as implemented)
-- Firebase Auth (email/password)
-- Role-based access control (RBAC)
-- Firestore-backed master data and transactions
-- Admin utilities: roles, permissions, audit logs, company profile, cooldown policy
+> ชื่อที่แสดงใน UI ปัจจุบันคือ “ManpowerFlow”
 
-## Roles (source of truth)
-Seed into Firestore `/roles` using the role codes in `src/lib/roles.ts`:
+## Core Modules (under /dashboard)
 
-- ADMIN
-- HR_OFFICER, HR_MANAGER
-- OPERATION_OFFICER, OPERATION_MANAGER
-- PAYROLL_OFFICER
-- FINANCE_OFFICER, FINANCE_MANAGER
-- MANAGEMENT_MANAGER
+### Operation
+- **Customers (ลูกค้า)**: `/dashboard/clients`
+- **Contracts**: `/dashboard/contracts`
+  - Sale Rates (Onshore/Offshore)
+  - OT Rules (Billing-side) & Day Pay Rules
+  - Payroll-side OT Rules (Cost-side)
+  - Custom Holiday Calendar
+- **Projects**: `/dashboard/projects`
+- **Waves**: `/dashboard/waves`
+  - Planning Work Period
+  - Manpower Requirement (Position, Count, Certificates, Skills)
 
-Notes:
-- Users are stored in `/users` (doc id = Firebase Auth UID).
-- Users reference roles via `roleIds` (role document ids).
-- `isAdmin` is an override for full access (ops/dev).
+### HR & Manpower
+- **Employee Management**:
+  - `/dashboard/hr/employees/field`: Manpower employees
+  - `/dashboard/hr/employees/office`: Office employees
+- **Assignments**: `/dashboard/hr/assignments`
+  - Central view of all assignments across all waves.
+- **Timesheets**: `/dashboard/hr/timesheets`
+  - **Intake**: Create batches from a wave for a specific cutoff month (YYYY-MM).
+  - **Batch Details**: Add/edit lines, approve, and lock for Finance.
+- **Office Attendance**: `/dashboard/hr/attendance`
+- **P.N.D.1 Tax Forms**: `/dashboard/hr/pnd1`
+- **L.Y.01 Tax Forms**: `/dashboard/hr/tax-profiles`
+- **Compliance Alerts**: `/dashboard/hr/compliance-alerts`
+  - Monitors expiring documents (passports, certificates).
+- **HR Settings**:
+  - Holidays: `/dashboard/hr/holidays`
+  - OT Settings: `/dashboard/hr/settings/overtime`
+  - Master Data (Positions, Cert Types, Hospitals)
 
-## Navigation / Modules
-Operation: Customers, Contracts, Projects, Waves, Assignments  
-HR & Manpower: Employees (Office/Manpower), Timesheets, Attendance, P.N.D.1, L.Y.01, Compliance Alerts, HR Settings  
-Accounting: Pending Processing, Billing Runs, Invoices, A/R, A/P, Cash, Payroll  
-Admin: Users, Roles, Permissions, Company Profile, Cooldown Policy, Employee History, Audit Logs
+### Accounting & Finance
+- **Pending Processing**: `/dashboard/finance/pending-billing`
+  - A queue of HR-approved timesheet batches ready for payroll/billing.
+- **Payroll**: `/dashboard/finance/payroll`
+  - **Payroll Run**: A snapshot calculation of costs from an approved timesheet batch.
+- **Billing**:
+  - Billing Runs: `/dashboard/billing/runs`
+  - Invoices: `/dashboard/billing/invoices`
+- **Core Accounting (A/R, A/P, Cash)**:
+  - Accessible from the "Core Accounting" menu group.
 
-## Style Guidelines
-- Tailwind + shadcn/ui
-- Inter for body, Space Grotesk for headlines
-- Role-based module grouping for clarity
+### Admin
+- **Users**: `/dashboard/admin/users`
+- **Roles**: `/dashboard/admin/roles`
+- **Permissions**: `/dashboard/admin/permissions`
+- **System**:
+  - Company Profile: `/dashboard/admin/system/company-profile`
+  - **Security**: `/dashboard/admin/system/security` (Manages bootstrap admin allowlist & lock)
+- **Cooldown Policy**: `/dashboard/admin/cooldown`
+- **Auditing**:
+  - Employee History: `/dashboard/admin/employee-history`
+  - Audit Logs: `/dashboard/admin/audit-logs`

@@ -152,7 +152,7 @@ export default function PayrollOtRulesForm({
                         <FormItem><FormLabel>Weekend OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
                     <FormField control={form.control} name="payrollOtRules.contractHolidayMultiplier" render={({ field }) => (
-                        <FormItem><FormLabel>Holiday OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormMessage>
+                        <FormItem><FormLabel>Holiday OT</FormLabel><FormControl><Input type="number" step="0.1" {...field} /></FormControl><FormMessage /></FormItem>
                     )}/>
                 </div>
             </div>

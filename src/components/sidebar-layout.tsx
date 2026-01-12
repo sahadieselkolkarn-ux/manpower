@@ -374,6 +374,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/permissions")}>
+                    <Link href="/dashboard/admin/permissions">
+                      <ShieldCheck />
+                      <span>Permissions</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                  <SidebarSeparator />
                  <Collapsible>
                     <CollapsibleTrigger asChild className="w-full">

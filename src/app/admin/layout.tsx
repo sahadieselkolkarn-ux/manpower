@@ -1,24 +1,18 @@
 // src/app/admin/layout.tsx
 'use client';
+import { useEffect } from 'react';
+import { redirect } from 'next/navigation';
 
-import { ReactNode, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { hasPermission } from '@/lib/rbac/permissions';
-import { useRouter } from 'next/navigation';
-
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  const { userProfile, loading } = useAuth();
-  const router = useRouter();
-
+// This old layout is deprecated. We redirect any requests within /admin to /dashboard/admin.
+export default function DeprecatedAdminLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    if (!loading && userProfile && !userProfile.isAdmin) {
-      router.replace('/dashboard');
-    }
-  }, [userProfile, loading, router]);
+    redirect('/dashboard/admin');
+  }, []);
 
-  if (loading || !userProfile || !userProfile.isAdmin) {
-    return <div>Loading or checking permissions...</div>;
-  }
-
-  return <>{children}</>;
+  return (
+    <div>
+        <h1>Redirecting to Dashboard...</h1>
+        {children}
+    </div>
+    );
 }
