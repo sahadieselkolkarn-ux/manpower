@@ -391,6 +391,14 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                                 </Link>
                             </SidebarMenuButton>
                         </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/admin/system/security")}>
+                                <Link href="/dashboard/admin/system/security">
+                                    <ShieldCheck />
+                                    <span>Security</span>
+                                </Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
                     </CollapsibleContent>
                  </Collapsible>
                  <SidebarMenuItem>
