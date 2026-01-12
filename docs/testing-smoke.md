@@ -4,7 +4,7 @@ This document outlines the minimum end-to-end flow to verify that the core syste
 
 ## Prerequisites
 1.  **Run the app**: `npm run dev`
-2.  **Login**: Access `http://localhost:9002` and log in with a user that has at least `OPERATION` and `HR` roles. An Admin account is recommended for full access.
+2.  **Login**: Access `http://localhost:9002` and log in with a user that has `OPERATION`, `HR`, and `FINANCE` roles. An Admin account is recommended for full access.
 
 ## Test Steps
 
@@ -34,8 +34,10 @@ This document outlines the minimum end-to-end flow to verify that the core syste
 ### 3. Create and Process a Timesheet
 - **Action**: Navigate to `HR & Manpower > Timesheets` (`/dashboard/hr/timesheets`).
 - **Action**: Click **"New Intake Batch"**.
-- **Action**: Select the same **Wave** used in the previous step.
-- **Action**: Verify the period dates and click **"Create Batch"**.
+- **Action**:
+    - Select the same **Wave** used in the previous step.
+    - Select the correct **Cutoff Month**.
+    - Click **"Create Batch"**.
 - **Check**: You are redirected to the Timesheet Batch Details page (e.g., `/dashboard/hr/timesheets/[batchId]`).
 
 ### 4. Add Timesheet Lines
@@ -46,20 +48,39 @@ This document outlines the minimum end-to-end flow to verify that the core syste
 - **Check**: The new line appears correctly in the "Timesheet Lines" table.
 - **Action**: Add a few more lines for different days or work types if needed.
 
-### 5. Approve Timesheet
+### 5. Approve Timesheet (HR)
 - **Action**: On the Batch Details page, click **"Approve & Lock"**.
 - **Action**: Confirm the action in the dialog.
 - **Check**:
     - The batch status changes to **"HR APPROVED"**.
     - The "Add Line" button and editing actions are now disabled.
-    - A log should appear in `Firestore: /audit-logs` for this action.
 
-### 6. Mark as Paid (Finance)
-- **Action**: On the Batch Details page, click **"Mark as Paid"**. (Note: Requires finance role).
-- **Action**: Confirm the date and click **"Confirm Payment"**.
-- **Check**: The batch status changes to **"FINANCE_PAID"**.
+### 6. Generate Payroll (Finance)
+- **Action**: Navigate to `Finance > Payroll` (`/dashboard/finance/payroll`).
+- **Check**: The batch from the previous step should appear with a "Not Generated" payroll status.
+- **Action**: Click the **"Generate Payroll"** button for that batch.
+- **Check**: The button should change to "Open Payroll".
 
-### 7. Firestore Verification
-- **assignments**: Check the `/assignments` collection. A new document should exist for the assignment created in step 2. It should have `status: 'ACTIVE'`.
-- **timesheetBatches**: Check the `/timesheetBatches` collection. The batch document should have its final status as `FINANCE_PAID`, with `approvedBy` and `paidBy` fields populated.
-- **timesheetLines**: Check the `/timesheetLines` collection. Documents corresponding to the lines added in step 4 should exist and be linked to the correct `batchId`.
+### 7. Review and Mark Payroll Paid (Finance)
+- **Action**: Click **"Open Payroll"**.
+- **Check**: You are on the Payroll Run detail page. Verify the summary table shows calculated costs.
+- **Action**: Click **"Export CSV"** and check the downloaded file.
+- **Action**: Click **"Mark Payroll as Paid"** and confirm.
+- **Check**:
+    - The payroll status on this page changes to `PAID`.
+    - Navigate back to the original timesheet batch (`/dashboard/hr/timesheets/[batchId]`). Its status should now be `FINANCE_PAID`.
+
+### 8. Generate Invoice (Finance)
+- **Action**: Navigate to `Billing > Billing Runs` (`/dashboard/billing/runs`).
+- **Check**: The same batch should appear in this list.
+- **Action**: Click **"Generate Invoice"**.
+- **Check**: The button changes to "View Invoice" and an invoice number appears.
+- **Action**: Click **"View Invoice"**.
+- **Check**: You are on the Invoice Detail page, and the financial summary (subtotal, VAT, total) is calculated correctly.
+
+### 9. Firestore Verification (Optional)
+- **assignments**: Check the `/assignments` collection.
+- **timesheetBatches**: Check the `/timesheetBatches` collection for the final `FINANCE_PAID` status.
+- **timesheetLines**: Check the `/timesheetLines` collection.
+- **payrolls**: A document with ID equal to the batch ID should exist in `/payrolls` with `status: 'PAID'`.
+- **invoices**: A new document should exist in `/invoices` with `status: 'DRAFT'`.
