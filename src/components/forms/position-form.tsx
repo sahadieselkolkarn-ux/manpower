@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -14,12 +15,12 @@ import { useFirestore } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { type OfficePosition, type ManpowerPosition } from '@/types/position';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '../ui/switch';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name is required.'),
   description: z.string().optional(),
-  costRateOnshore: z.coerce.number().min(0, "Cost must be non-negative.").optional(),
-  costRateOffshore: z.coerce.number().min(0, "Cost must be non-negative.").optional(),
+  active: z.boolean(),
 });
 
 type PositionVariant = OfficePosition | ManpowerPosition;
@@ -42,8 +43,7 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
     defaultValues: {
       name: '',
       description: '',
-      costRateOnshore: 0,
-      costRateOffshore: 0,
+      active: true,
     },
   });
 
@@ -53,15 +53,13 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
         form.reset({
           name: position.name || '',
           description: position.description || '',
-          costRateOnshore: (position as ManpowerPosition).costRateOnshore || 0,
-          costRateOffshore: (position as ManpowerPosition).costRateOffshore || 0,
+          active: position.active !== undefined ? position.active : true,
         });
       } else {
         form.reset({
           name: '',
           description: '',
-          costRateOnshore: 0,
-          costRateOffshore: 0,
+          active: true,
         });
       }
     }
@@ -73,16 +71,10 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
 
     const collectionName = positionType === 'MANPOWER' ? 'manpowerPositions' : 'officePositions';
     const dataToSave: any = {
-        name: values.name,
-        description: values.description,
+        ...values,
         updatedAt: serverTimestamp(),
     };
     
-    if (positionType === 'MANPOWER') {
-        dataToSave.costRateOnshore = values.costRateOnshore;
-        dataToSave.costRateOffshore = values.costRateOffshore;
-    }
-
     try {
       if (position) {
         const posRef = doc(db, collectionName, position.id);
@@ -111,7 +103,9 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
         <DialogHeader>
           <DialogTitle>{position ? 'Edit' : 'Create'} {positionType === 'MANPOWER' ? 'Manpower Position' : 'Office Position'}</DialogTitle>
            <DialogDescription>
-            {positionType === 'MANPOWER' ? 'Define the position and its associated daily labor costs.' : 'Define the office position name.'}
+             {positionType === 'MANPOWER' 
+                ? "Define the position name. Labor costs and sale prices are set per contract." 
+                : 'Define the office position name.'}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -120,20 +114,27 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
               <FormItem><FormLabel>Position Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
             )} />
 
-            {positionType === 'MANPOWER' && (
-                <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="costRateOnshore" render={({ field }) => (
-                    <FormItem><FormLabel>Onshore Cost / Day</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                <FormField control={form.control} name="costRateOffshore" render={({ field }) => (
-                    <FormItem><FormLabel>Offshore Cost / Day</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-                )} />
-                </div>
-            )}
-
             <FormField control={form.control} name="description" render={({ field }) => (
               <FormItem><FormLabel>Description (Optional)</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
             )} />
+            
+            <FormField
+              control={form.control}
+              name="active"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Active</FormLabel>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>

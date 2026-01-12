@@ -886,11 +886,11 @@
         },
         "costRateOnshore": {
           "type": "number",
-          "description": "The standard cost rate for this position for Onshore work."
+          "description": "DEPRECATED: The standard cost rate for this position for Onshore work. Now managed per-contract."
         },
         "costRateOffshore": {
           "type": "number",
-          "description": "The standard cost rate for this position for Offshore work."
+          "description": "DEPRECATED: The standard cost rate for this position for Offshore work. Now managed per-contract."
         }
       },
       "required": [
@@ -1803,5 +1803,3 @@
     }
   }
 }
-
-    

@@ -274,7 +274,7 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                          </SidebarMenuItem>
                          <SidebarMenuItem>
                             <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/hr/master/manpower-positions")}>
-                                <Link href="/dashboard/hr/master/manpower-positions"><Users /><span>Manpower Position</span></Link>
+                                <Link href="/dashboard/hr/master/manpower-positions"><Users /><span>Manpower Position (Master)</span></Link>
                             </SidebarMenuButton>
                          </SidebarMenuItem>
                          <SidebarMenuItem>

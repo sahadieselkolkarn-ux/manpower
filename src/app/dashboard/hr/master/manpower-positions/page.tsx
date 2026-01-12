@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, PlusCircle, ShieldAlert, Users } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, ShieldAlert, Users, DollarSign, FileText } from 'lucide-react';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,6 +16,9 @@ import FullPageLoader from '@/components/full-page-loader';
 import { type ManpowerPosition } from '@/types/position';
 import PositionForm from '@/components/forms/position-form';
 import { canManageHrSettings } from '@/lib/authz';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
 
 export default function ManpowerPositionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -52,11 +55,21 @@ export default function ManpowerPositionsPage() {
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><Users />Manpower Positions</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-headline flex items-center gap-2"><Users />Manpower Positions (Master)</h1>
           <p className="text-muted-foreground">Manage system-wide job positions for manpower.</p>
         </div>
         {canManage && <Button onClick={handleCreate}><PlusCircle className="mr-2 h-4 w-4" />Create Position</Button>}
       </div>
+
+       <Alert>
+        <AlertTitle className="font-bold">Important Note on Pricing</AlertTitle>
+        <AlertDescription>
+          <ul className="list-disc pl-5 space-y-1 mt-2">
+            <li>Labor costs for payroll are defined per-contract in the <Button variant="link" asChild className="p-0 h-auto"><Link href="/dashboard/hr/manpower-costing">Manpower Costing</Link></Button> section.</li>
+            <li>Sale prices for billing are defined in each <Button variant="link" asChild className="p-0 h-auto"><Link href="/dashboard/contracts">Contract's</Link></Button> Sale Rates section.</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
 
       <Card>
         <CardContent className="pt-6">
@@ -64,9 +77,8 @@ export default function ManpowerPositionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Onshore Cost/Day</TableHead>
-                <TableHead>Offshore Cost/Day</TableHead>
                 <TableHead>Description</TableHead>
+                <TableHead>Status</TableHead>
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
@@ -75,9 +87,8 @@ export default function ManpowerPositionsPage() {
                 Array.from({ length: 3 }).map((_, i) => (
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
-                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-64" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
                     {canManage && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
@@ -85,9 +96,12 @@ export default function ManpowerPositionsPage() {
                 manpowerPositions.map((pos) => (
                   <TableRow key={pos.id}>
                     <TableCell className="font-medium">{pos.name}</TableCell>
-                    <TableCell className="font-mono">{pos.costRateOnshore?.toLocaleString() || '-'}</TableCell>
-                    <TableCell className="font-mono">{pos.costRateOffshore?.toLocaleString() || '-'}</TableCell>
                     <TableCell>{pos.description}</TableCell>
+                    <TableCell>
+                        <Badge variant={pos.active ? 'default' : 'secondary'}>
+                            {pos.active ? 'Active' : 'Inactive'}
+                        </Badge>
+                    </TableCell>
                     {canManage && <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -99,7 +113,7 @@ export default function ManpowerPositionsPage() {
                   </TableRow>
                 ))
               ) : (
-                <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">No manpower positions found.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={canManage ? 4 : 3} className="h-24 text-center">No manpower positions found.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

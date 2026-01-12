@@ -20,8 +20,10 @@ export interface ManpowerPosition {
   id: string;
   name: string;
   description?: string;
-  costRateOnshore: number;
-  costRateOffshore: number;
+  /** @deprecated legacy, costs are per-contract in manpowerCosting */
+  costRateOnshore?: number;
+  /** @deprecated legacy, costs are per-contract in manpowerCosting */
+  costRateOffshore?: number;
   active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
