@@ -17,12 +17,16 @@ service cloud.firestore {
         && userDoc().isAdmin == true;
     }
     
-    function isAnyRole(roles) {
-       return isSignedIn() && userDoc().roleCodes.hasAny(roles);
+    function hasAnyRole(user, roles) {
+       return isSignedIn() && user.roleCodes.hasAny(roles);
     }
     
     function canManageHR() {
        return hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
+    }
+
+    function canManageFinance() {
+      return hasAnyRole(userDoc(), ["FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
     }
 
     function isOwner(userId) {
@@ -95,6 +99,16 @@ service cloud.firestore {
     match /audit-logs/{id} { 
       allow read: if isAdmin();
       allow create: if isSignedIn();
+    }
+
+    match /payrolls/{id} {
+      allow read: if canManageFinance() || isAdmin();
+      allow create, update: if canManageFinance() || isAdmin();
+    }
+
+    match /invoices/{id} {
+      allow read: if canManageFinance() || isAdmin();
+      allow create, update: if canManageFinance() || isAdmin();
     }
     
     // DEV CATCH-ALL: prevent permission-denied from unknown collections breaking queries (esp. collectionGroup)
