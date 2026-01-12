@@ -1,4 +1,3 @@
-
 import { type Timestamp } from 'firebase/firestore';
 
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'VOID' | 'UNPAID' | 'PARTIAL';
@@ -34,4 +33,11 @@ export interface Invoice {
 
     paidAmount?: number;     // Total cash received so far
     whtReceivedAmount?: number; // Total WHT recorded so far
+    
+    // --- References for Auditing ---
+    batchId?: string;       // Ref to timesheetBatches
+    waveId?: string;
+    projectId?: string;
+    contractId?: string;
+    cycleKey?: string;      // YYYY-MM
 }
