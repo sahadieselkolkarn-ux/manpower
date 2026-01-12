@@ -1,12 +1,14 @@
+
 'use client';
 
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { addDoc, collection, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { format, parse, isValid } from 'date-fns';
+import { addDoc, collection, serverTimestamp, Timestamp, query, where, getDocs, limit } from 'firebase/firestore';
+import { format, parse, isValid, startOfMonth, endOfMonth } from 'date-fns';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -26,26 +28,13 @@ import { ArrowLeft, ShieldAlert } from 'lucide-react';
 import WaveSelector, { WaveSelectorData } from '@/components/selectors/wave-selector';
 import { type Wave } from '@/types/wave';
 import FullPageLoader from '@/components/full-page-loader';
-import { DATE_FORMAT } from '@/lib/utils';
 import { canManageHR } from '@/lib/authz';
 
-const dateSchema = z.preprocess((arg) => {
-  if (typeof arg === 'string' && arg) {
-    try {
-      const parsedDate = parse(arg, DATE_FORMAT, new Date());
-      if (isValid(parsedDate)) return parsedDate;
-    } catch (e) { /* ignore */ }
-  }
-  return arg;
-}, z.date({ required_error: 'Date is required.' }));
+const monthSchema = z.string().regex(/^\d{4}-\d{2}$/, "Format must be YYYY-MM");
 
 const formSchema = z.object({
-  periodStart: dateSchema,
-  periodEnd: dateSchema,
+  cycleKey: monthSchema,
   templateVersion: z.string().min(1, 'Template version is required'),
-}).refine(data => data.periodEnd >= data.periodStart, {
-    message: "End date must be on or after start date.",
-    path: ["periodEnd"],
 });
 
 export default function TimesheetIntakePage() {
@@ -59,14 +48,13 @@ export default function TimesheetIntakePage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      cycleKey: format(new Date(), 'yyyy-MM'),
       templateVersion: 'v1.0',
     },
   });
   
   const handleWaveSelected = (wave: Wave & { id: string }, data: WaveSelectorData) => {
       setSelectedWaveData(data);
-      form.setValue('periodStart', data.wave.planningWorkPeriod.startDate.toDate());
-      form.setValue('periodEnd', data.wave.planningWorkPeriod.endDate.toDate());
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -75,14 +63,45 @@ export default function TimesheetIntakePage() {
         return;
     }
     setLoading(true);
+
     try {
+      // Check for existing batch
+      const q = query(
+        collection(db, 'timesheetBatches'),
+        where('waveId', '==', selectedWaveData.wave.id),
+        where('cycleKey', '==', values.cycleKey),
+        limit(1)
+      );
+      const existingSnap = await getDocs(q);
+      
+      if (!existingSnap.empty) {
+        const existingBatchId = existingSnap.docs[0].id;
+        toast({
+            variant: 'destructive',
+            title: 'Batch Already Exists',
+            description: `A batch for this wave and month already exists.`,
+            action: (
+              <Button asChild variant="secondary" size="sm">
+                <Link href={`/dashboard/hr/timesheets/${existingBatchId}`}>Open Batch</Link>
+              </Button>
+            ),
+        });
+        setLoading(false);
+        return;
+      }
+
+      const cycleDate = parse(values.cycleKey, 'yyyy-MM', new Date());
+      const periodStart = startOfMonth(cycleDate);
+      const periodEnd = endOfMonth(cycleDate);
+
       const newBatchRef = await addDoc(collection(db, 'timesheetBatches'), {
         clientId: selectedWaveData.routeParams.clientId,
         contractId: selectedWaveData.routeParams.contractId,
         projectId: selectedWaveData.routeParams.projectId,
         waveId: selectedWaveData.routeParams.waveId,
-        periodStart: Timestamp.fromDate(values.periodStart),
-        periodEnd: Timestamp.fromDate(values.periodEnd),
+        cycleKey: values.cycleKey,
+        periodStart: Timestamp.fromDate(periodStart),
+        periodEnd: Timestamp.fromDate(periodEnd),
         templateVersion: values.templateVersion,
         status: 'DRAFT',
         createdAt: serverTimestamp(),
@@ -126,7 +145,7 @@ export default function TimesheetIntakePage() {
         <CardHeader>
           <CardTitle>New Timesheet Intake</CardTitle>
           <CardDescription>
-            Select a wave to create a new timesheet batch. The period will be pre-filled from the wave's planning dates.
+            Select a wave and a cutoff month to create a new timesheet batch.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,21 +153,20 @@ export default function TimesheetIntakePage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
               <FormItem>
-                <FormLabel>Wave</FormLabel>
+                <FormLabel>1. Select Wave</FormLabel>
                 <WaveSelector onWaveSelected={handleWaveSelected} />
                 <FormMessage />
               </FormItem>
 
               {selectedWaveData && (
                 <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField control={form.control} name="periodStart" render={({ field }) => (
-                            <FormItem><FormLabel>Period Start Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="periodEnd" render={({ field }) => (
-                            <FormItem><FormLabel>Period End Date</FormLabel><FormControl><Input placeholder={DATE_FORMAT} {...field} value={field.value ? format(field.value, DATE_FORMAT) : ''} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                    </div>
+                    <FormField control={form.control} name="cycleKey" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>2. Cutoff Month</FormLabel>
+                          <FormControl><Input placeholder="YYYY-MM" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                    )} />
                     <FormField control={form.control} name="templateVersion" render={({ field }) => (
                         <FormItem><FormLabel>Template Version</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />

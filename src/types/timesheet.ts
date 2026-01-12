@@ -12,6 +12,7 @@ export interface TimesheetBatch {
   contractId: string;
   projectId: string;
   waveId: string;
+  cycleKey?: string; // YYYY-MM
   periodStart: Timestamp;
   periodEnd: Timestamp;
   templateVersion: string;
