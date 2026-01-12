@@ -18,23 +18,26 @@ service cloud.firestore {
     }
     
     function hasAnyRole(user, roles) {
-       return isSignedIn() && user.roleCodes.hasAny(roles);
+      return isSignedIn()
+        && user != null
+        && user.roleCodes != null
+        && user.roleCodes.hasAny(roles);
     }
     
     function canManageOperation() {
-       return hasAnyRole(userDoc(), ["OPERATION_MANAGER", "OPERATION_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
+       return isAdmin() || hasAnyRole(userDoc(), ["OPERATION_MANAGER", "OPERATION_OFFICER", "MANAGEMENT_MANAGER"]);
     }
     
     function canManageHR() {
-       return hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
+       return isAdmin() || hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER", "MANAGEMENT_MANAGER"]);
     }
     
     function canManageHrSettings() {
-       return hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER"]) || isAdmin();
+       return isAdmin() || hasAnyRole(userDoc(), ["HR_MANAGER", "HR_OFFICER"]);
     }
 
     function canManageFinance() {
-      return hasAnyRole(userDoc(), ["FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER", "MANAGEMENT_MANAGER"]) || isAdmin();
+      return isAdmin() || hasAnyRole(userDoc(), ["FINANCE_MANAGER", "FINANCE_OFFICER", "PAYROLL_OFFICER", "MANAGEMENT_MANAGER"]);
     }
 
     function isOwner(userId) {
@@ -141,12 +144,18 @@ service cloud.firestore {
     }
     
     match /timesheetLines/{lineId} {
-      function isBatchOpen() {
-        let batchId = request.resource.data.batchId;
-        return get(/databases/$(database)/documents/timesheetBatches/$(batchId)).data.status == 'DRAFT';
+      function batchId() {
+        return (request.resource != null && request.resource.data.batchId != null)
+          ? request.resource.data.batchId
+          : resource.data.batchId;
       }
-       allow read: if canManageHR() || canManageFinance();
-       allow create, update, delete: if canManageHR() && isBatchOpen();
+      function isBatchOpen() {
+        let id = batchId();
+        return id != null
+          && get(/databases/$(database)/documents/timesheetBatches/$(id)).data.status == 'DRAFT';
+      }
+      allow read: if canManageHR() || canManageFinance();
+      allow create, update, delete: if canManageHR() && isBatchOpen();
     }
 
     match /clients/{clientId}/contracts/{contractId}/manpowerCosting/{positionId} {
