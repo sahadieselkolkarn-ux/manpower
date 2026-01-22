@@ -66,7 +66,7 @@ export default function LoginPage() {
             backgroundRepeat: 'no-repeat',
         }}
     >
-      <Card className="w-full max-w-sm">
+      <Card className="w-full max-w-sm mt-[76px]">
         <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
                 <img 
