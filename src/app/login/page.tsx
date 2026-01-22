@@ -62,8 +62,9 @@ export default function LoginPage() {
         className="flex min-h-screen items-center justify-center p-4"
         style={{
             backgroundImage: "url('https://firebasestorage.googleapis.com/v0/b/studio-9091954631-7f4e0.firebasestorage.app/o/OPEC_Image.jpg?alt=media&token=b76e6822-bdc9-42b5-b0c1-49d445fbf9b4')",
-            backgroundSize: 'cover',
+            backgroundSize: 'contain',
             backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
         }}
     >
       <Card className="w-full max-w-sm">
