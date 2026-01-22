@@ -58,7 +58,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+    <div 
+        className="flex min-h-screen items-center justify-center p-4"
+        style={{
+            backgroundImage: "url('https://firebasestorage.googleapis.com/v0/b/studio-9091954631-7f4e0.firebasestorage.app/o/OPEC_Image.jpg?alt=media&token=b76e6822-bdc9-42b5-b0c1-49d445fbf9b4')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+        }}
+    >
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
