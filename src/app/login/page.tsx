@@ -1,4 +1,3 @@
-
 // src/app/login/page.tsx
 'use client';
 
@@ -13,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Icons } from '@/components/icons';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -71,7 +69,11 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-                <Icons.logo className="h-16 w-16" />
+                <img 
+                    src="https://firebasestorage.googleapis.com/v0/b/studio-9091954631-7f4e0.firebasestorage.app/o/OPEC%20LOGO1.jpg?alt=media&token=841119c9-17c3-4808-aed9-aaa816c18c5c"
+                    alt="OPEC Logo"
+                    className="h-20 w-20 rounded-full object-cover"
+                />
             </div>
           <CardTitle className="text-2xl">Welcome Back!</CardTitle>
           <CardDescription>Enter your credentials to access your account.</CardDescription>
