@@ -48,12 +48,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Payroll } from '@/types/payroll';
+import { Payroll, PayrollLineItem } from '@/types/payroll';
 import { Employee } from '@/types/employee';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 
-interface PayrollLineWithEmployee extends Payroll['lineItems'][0] {
+interface PayrollLineWithEmployee extends PayrollLineItem {
     employeeName?: string;
     employeeCode?: string;
 }
