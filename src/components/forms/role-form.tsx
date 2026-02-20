@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React from 'react';
@@ -172,7 +173,7 @@ export default function RoleForm({
                     <AlertCircle className="h-4 w-4 !text-amber-600"/>
                     <AlertTitle>Important</AlertTitle>
                     <AlertDescription>
-                        New roles will not grant any access until they are added to the PERMISSION_MAP in the application code by a developer.
+                        New roles will not grant any access unless added to the PERMISSION_MAP in the application code by a developer.
                     </AlertDescription>
                 </Alert>
             )}

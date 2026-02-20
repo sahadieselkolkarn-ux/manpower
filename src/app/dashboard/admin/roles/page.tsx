@@ -37,22 +37,20 @@ function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | nu
         <Table>
             <TableHeader><TableRow>
                 <TableHead>Role Name</TableHead>
-                <TableHead>Role Code</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Level</TableHead>
+                <TableHead>Role</TableHead>
                 <TableHead>Description</TableHead>
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
             </TableRow></TableHeader>
             <TableBody>
                 {!roles ? (
                     Array.from({ length: 5 }).map((_, i) => (
-                        <TableRow key={i}><TableCell colSpan={canManage ? 6 : 5}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
+                        <TableRow key={i}><TableCell colSpan={canManage ? 5 : 4}><Skeleton className="h-5 w-full" /></TableCell></TableRow>
                     ))
                 ) : roles.length > 0 ? (
                     roles.map(role => (
                         <TableRow key={role.id}>
                             <TableCell className="font-medium">{role.name}</TableCell>
-                            <TableCell className="font-mono">{role.code}</TableCell>
                             <TableCell><Badge variant="outline">{role.department}</Badge></TableCell>
                             <TableCell><Badge variant="secondary">{role.level}</Badge></TableCell>
                             <TableCell>{role.description}</TableCell>
@@ -89,7 +87,7 @@ function RolesTable({ roles, onEdit, onDelete, canManage }: { roles: Role[] | nu
                         </TableRow>
                     ))
                 ) : (
-                    <TableRow><TableCell colSpan={canManage ? 6 : 5} className="h-24 text-center">No roles found.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={canManage ? 5 : 4} className="h-24 text-center">No roles found.</TableCell></TableRow>
                 )}
             </TableBody>
         </Table>
