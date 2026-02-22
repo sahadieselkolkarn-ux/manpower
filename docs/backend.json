@@ -1559,6 +1559,24 @@
         "lateMinutesTotal": { "type": "number" },
         "flags": { "type": "array", "items": { "type": "string" } }
       }
+    },
+    "Tool": {
+      "title": "Tool/Equipment",
+      "description": "Represents a single type of tool or piece of equipment.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "description": "Unique code for the tool, e.g., TOOL-0001." },
+        "name": { "type": "string", "description": "Name of the tool." },
+        "category": { "type": "string", "description": "Category of the tool, e.g., Safety, Power Tool." },
+        "unit": { "type": "string", "description": "The unit of measurement, e.g., piece, set." },
+        "totalQuantity": { "type": "number", "description": "The total quantity owned." },
+        "availableQuantity": { "type": "number", "description": "The quantity currently available in storage." },
+        "assignedQuantity": { "type": "number", "description": "The quantity currently checked out or assigned." },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "code", "totalQuantity", "availableQuantity", "assignedQuantity", "unit"]
     }
   },
   "auth": {
@@ -1717,6 +1735,10 @@
         "$ref": "#/backend/entities/AttendanceBatchLine"
       },
       "description": "Summary lines for the monthly attendance batch."
+    },
+    "/tools/{toolId}": {
+      "schema": { "$ref": "#/backend/entities/Tool" },
+      "description": "Master list of all tools and equipment."
     }
   },
   "documentation": {

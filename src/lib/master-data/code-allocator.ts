@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -17,16 +18,16 @@ import {
  *
  * @param transaction The Firestore transaction object provided by `runTransaction`.
  * @param db The Firestore instance.
- * @param entity The name of the collection (e.g., 'officePositions').
- * @param prefix The prefix for the code (e.g., 'OP').
+ * @param entity The name of the collection (e.g., 'officePositions', 'tools').
+ * @param prefix The prefix for the code (e.g., 'OP', 'TOOL').
  * @returns A promise that resolves with the newly allocated code and its sequence number.
  * @throws Throws an error if the generated code already exists, which should be caught by the transaction's retry mechanism.
  */
 export async function allocateCode(
   transaction: Transaction,
   db: Firestore,
-  entity: 'certificateTypes' | 'officePositions' | 'manpowerPositions',
-  prefix: 'CT' | 'OP' | 'MP'
+  entity: 'certificateTypes' | 'officePositions' | 'manpowerPositions' | 'tools',
+  prefix: 'CT' | 'OP' | 'MP' | 'TOOL'
 ): Promise<{ code: string; seq: number }> {
   
   const counterRef = doc(db, 'counters', `${entity}Codes`);
