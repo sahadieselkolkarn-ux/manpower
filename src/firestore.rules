@@ -129,7 +129,7 @@ service cloud.firestore {
     }
     
     match /employees/{employeeId} {
-      allow read: if canManageHR() || canManageOperation() || canManageFinance();
+      allow read: if canManageHR() || canManageOperation() || canManageFinance() || isAdmin();
       allow write: if canManageHR();
     }
     
@@ -220,5 +220,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
