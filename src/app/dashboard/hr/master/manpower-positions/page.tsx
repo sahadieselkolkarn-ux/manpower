@@ -1,24 +1,42 @@
 
 'use client';
 
-import React, { useState } from 'react';
-import { collection, query } from 'firebase/firestore';
-
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, PlusCircle, ShieldAlert, Users, DollarSign, FileText } from 'lucide-react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, PlusCircle, Users, Download, Award, Hammer } from 'lucide-react';
+import { collection, query } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import FullPageLoader from '@/components/full-page-loader';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { type ManpowerPosition } from '@/types/position';
 import PositionForm from '@/components/forms/position-form';
+import { Badge } from '@/components/ui/badge';
+import { useRouter, usePathname } from 'next/navigation';
+import FullPageLoader from '@/components/full-page-loader';
 import { canManageHrSettings } from '@/lib/authz';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
 
 export default function ManpowerPositionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -26,6 +44,7 @@ export default function ManpowerPositionsPage() {
 
   const db = useFirestore();
   const { userProfile, loading: authLoading } = useAuth();
+  const router = useRouter();
 
   const manpowerPositionsQuery = useMemoFirebase(() => (db ? query(collection(db, 'manpowerPositions')) : null), [db]);
   const { data: manpowerPositions, isLoading: isLoadingManpower, refetch: refetchManpower } = useCollection<ManpowerPosition>(manpowerPositionsQuery);
@@ -42,7 +61,7 @@ export default function ManpowerPositionsPage() {
     setIsFormOpen(true);
   };
   
-  if (authLoading) {
+  if (authLoading || isLoadingManpower) {
     return <FullPageLoader />;
   }
 
@@ -78,7 +97,7 @@ export default function ManpowerPositionsPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Requirements</TableHead>
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
@@ -88,7 +107,7 @@ export default function ManpowerPositionsPage() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-5 w-48" /></TableCell>
                     <TableCell><Skeleton className="h-5 w-64" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                     {canManage && <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>}
                   </TableRow>
                 ))
@@ -98,9 +117,12 @@ export default function ManpowerPositionsPage() {
                     <TableCell className="font-medium">{pos.name}</TableCell>
                     <TableCell>{pos.description}</TableCell>
                     <TableCell>
-                        <Badge variant={pos.active ? 'default' : 'secondary'}>
-                            {pos.active ? 'Active' : 'Inactive'}
-                        </Badge>
+                      <div className="flex flex-col gap-1 items-start">
+                        {(pos.requiredCertificateIds?.length ?? 0) > 0 && 
+                            <Badge variant="outline" className="flex items-center gap-1"><Award className="h-3 w-3" /> Certs: {pos.requiredCertificateIds?.length}</Badge>}
+                        {(pos.requiredToolIds?.length ?? 0) > 0 && 
+                            <Badge variant="outline" className="flex items-center gap-1"><Hammer className="h-3 w-3" /> Tools: {pos.requiredToolIds?.length}</Badge>}
+                      </div>
                     </TableCell>
                     {canManage && <TableCell className="text-right">
                       <DropdownMenu>

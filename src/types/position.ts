@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export type PositionType = 'OFFICE' | 'FIELD';
@@ -24,7 +25,8 @@ export interface ManpowerPosition {
   costRateOnshore?: number;
   /** @deprecated legacy, costs are per-contract in manpowerCosting */
   costRateOffshore?: number;
-  active: boolean;
+  requiredCertificateIds?: string[];
+  requiredToolIds?: string[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -33,7 +35,6 @@ export interface OfficePosition {
   id: string;
   name: string;
   description?: string;
-  active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

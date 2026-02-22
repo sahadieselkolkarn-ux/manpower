@@ -891,6 +891,20 @@
         "costRateOffshore": {
           "type": "number",
           "description": "DEPRECATED: The standard cost rate for this position for Offshore work. Now managed per-contract."
+        },
+        "requiredCertificateIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of certificate type IDs required for this position (manpower only)."
+        },
+        "requiredToolIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of tool IDs required for this position (manpower only)."
         }
       },
       "required": [
