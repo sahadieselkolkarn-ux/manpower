@@ -73,6 +73,8 @@ export default function CompanyProfilePage() {
   const { toast } = useToast();
   const [isLoadingData, setIsLoadingData] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
+  const originalData = React.useRef<z.infer<typeof formSchema> | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -97,6 +99,7 @@ export default function CompanyProfilePage() {
       getCompanyProfile(db).then((profile) => {
         if (profile) {
           form.reset(profile);
+          originalData.current = profile;
         }
         setIsLoadingData(false);
       });
@@ -109,6 +112,8 @@ export default function CompanyProfilePage() {
     try {
       await upsertCompanyProfile(db, userProfile, values);
       toast({ title: 'Success', description: 'Company profile updated.' });
+      originalData.current = values;
+      setIsEditing(false);
     } catch (error) {
       console.error(error);
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to update profile.' });
@@ -117,11 +122,20 @@ export default function CompanyProfilePage() {
     }
   };
   
+  const handleCancel = () => {
+    if(originalData.current) {
+        form.reset(originalData.current);
+    }
+    setIsEditing(false);
+  };
+  
   if (authLoading || isLoadingData) {
       return <FullPageLoader />;
   }
   
   const lastUpdated = toDate(form.getValues('updatedAt' as any));
+  const isAdmin = userProfile?.isAdmin;
+  const isFormDisabled = !isEditing || isSaving;
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
@@ -141,44 +155,44 @@ export default function CompanyProfilePage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="legalNameTH" render={({ field }) => (
-                  <FormItem><FormLabel>Company Name (TH)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Company Name (TH)</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="legalNameEN" render={({ field }) => (
-                  <FormItem><FormLabel>Company Name (EN)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Company Name (EN)</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="taxId" render={({ field }) => (
-                  <FormItem><FormLabel>Tax ID</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Tax ID</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="branchNo" render={({ field }) => (
-                  <FormItem><FormLabel>Branch No.</FormLabel><FormControl><Input placeholder="e.g., 00000 (สำนักงานใหญ่)" {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Branch No.</FormLabel><FormControl><Input placeholder="e.g., 00000 (สำนักงานใหญ่)" {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
               <FormField control={form.control} name="addressLine1" render={({ field }) => (
-                <FormItem><FormLabel>Address Line 1</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Address Line 1</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="addressLine2" render={({ field }) => (
-                <FormItem><FormLabel>Address Line 2</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Address Line 2</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
               )} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField control={form.control} name="district" render={({ field }) => (
-                  <FormItem><FormLabel>District / Area</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>District / Area</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="province" render={({ field }) => (
-                  <FormItem><FormLabel>Province</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Province</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
                 <FormField control={form.control} name="postalCode" render={({ field }) => (
-                  <FormItem><FormLabel>Postal Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Postal Code</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
               </div>
                 <FormField control={form.control} name="country" render={({ field }) => (
-                  <FormItem><FormLabel>Country</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                  <FormItem><FormLabel>Country</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                 )} />
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField control={form.control} name="phone" render={({ field }) => (
-                    <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Phone</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="email" render={({ field }) => (
-                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} disabled={isFormDisabled} /></FormControl><FormMessage /></FormItem>
                     )} />
                  </div>
             </CardContent>
@@ -188,9 +202,24 @@ export default function CompanyProfilePage() {
                         <p>Last updated: {lastUpdated.toLocaleString()}</p>
                     )}
                  </div>
-                 <Button type="submit" disabled={isSaving}>
-                    {isSaving ? 'Saving...' : 'Save Changes'}
-                </Button>
+                 {isAdmin && (
+                    <div className="flex gap-2">
+                        {isEditing ? (
+                            <>
+                                <Button type="button" variant="ghost" onClick={handleCancel} disabled={isSaving}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={isSaving}>
+                                    {isSaving ? 'Saving...' : 'Save Changes'}
+                                </Button>
+                            </>
+                        ) : (
+                            <Button type="button" onClick={() => setIsEditing(true)}>
+                                Edit
+                            </Button>
+                        )}
+                    </div>
+                 )}
             </CardFooter>
           </Card>
         </form>
