@@ -45,7 +45,10 @@ import {
   Banknote,
   Send,
   UserRoundCog,
-  Timer
+  Timer,
+  Wrench,
+  Hammer,
+  ClipboardList
 } from "lucide-react";
 
 import {
@@ -173,6 +176,26 @@ export default function SidebarLayout({ children }: { children: React.ReactNode 
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <Collapsible>
+                    <CollapsibleTrigger asChild className="w-full">
+                       <SidebarMenuButton isActive={pathname.startsWith("/dashboard/operation/tools")}>
+                            <Wrench />
+                            <span>Personal Tools & safety</span>
+                       </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pl-4">
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/operation/tools/requisitions")}>
+                                <Link href="/dashboard/operation/tools/requisitions"><ClipboardList /><span>จัดการการเบิก</span></Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/operation/tools/equipment")}>
+                                <Link href="/dashboard/operation/tools/equipment"><Hammer /><span>อุปกรณ์และเครื่องมือ</span></Link>
+                            </SidebarMenuButton>
+                        </SidebarMenuItem>
+                    </CollapsibleContent>
+                 </Collapsible>
               </SidebarGroup>
             )}
 
