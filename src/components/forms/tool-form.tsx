@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -23,10 +22,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Tool } from '@/types/tool';
 import { Textarea } from '../ui/textarea';
 import { allocateCode } from '@/lib/master-data/code-allocator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Tool name is required.'),
-  category: z.string().min(2, 'Category is required.'),
+  category: z.string().min(1, 'Category is required.'),
   unit: z.string().min(1, 'Unit is required.'),
   totalQuantity: z.coerce.number().int().min(0, 'Quantity cannot be negative.'),
   note: z.string().optional(),
@@ -47,7 +47,7 @@ export default function ToolForm({ open, onOpenChange, tool, onSuccess }: ToolFo
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', category: '', unit: 'piece', totalQuantity: 0, note: '' },
+    defaultValues: { name: '', category: 'Tools', unit: 'piece', totalQuantity: 0, note: '' },
   });
 
   React.useEffect(() => {
@@ -55,7 +55,7 @@ export default function ToolForm({ open, onOpenChange, tool, onSuccess }: ToolFo
       if (tool) {
         form.reset(tool);
       } else {
-        form.reset({ name: '', category: '', unit: 'piece', totalQuantity: 0, note: '' });
+        form.reset({ name: '', category: 'Tools', unit: 'piece', totalQuantity: 0, note: '' });
       }
     }
   }, [open, tool, form]);
@@ -128,9 +128,28 @@ export default function ToolForm({ open, onOpenChange, tool, onSuccess }: ToolFo
             <FormField control={form.control} name="name" render={({ field }) => (
               <FormItem><FormLabel>Tool Name</FormLabel><FormControl><Input placeholder="e.g., Safety Helmet" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            <FormField control={form.control} name="category" render={({ field }) => (
-              <FormItem><FormLabel>Category</FormLabel><FormControl><Input placeholder="e.g., Safety Gear, Power Tools" {...field} /></FormControl><FormMessage /></FormItem>
-            )} />
+             <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="Tools">Tools</SelectItem>
+                      <SelectItem value="Safety Equipment">Safety Equipment</SelectItem>
+                      <SelectItem value="Consumable">Consumable</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormField control={form.control} name="totalQuantity" render={({ field }) => (
                 <FormItem><FormLabel>Total Quantity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
