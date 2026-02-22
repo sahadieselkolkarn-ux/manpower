@@ -48,8 +48,21 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
 
   const certOptions = useMemo((): {label: string, value: string}[] => {
     if (!certificateTypes) return [];
-    return certificateTypes.map(ct => ({ label: ct.name, value: ct.id }));
-  }, [certificateTypes]);
+    // Filter certificates based on the position type.
+    // OFFICE positions can only have OFFICE or GENERAL certs.
+    // MANPOWER positions can only have FIELD or GENERAL certs.
+    return certificateTypes
+      .filter(ct => {
+        if (positionType === 'OFFICE') {
+          return ct.type === 'OFFICE' || ct.type === 'GENERAL';
+        }
+        if (positionType === 'MANPOWER') {
+          return ct.type === 'FIELD' || ct.type === 'GENERAL';
+        }
+        return false; // Should not happen
+      })
+      .map(ct => ({ label: ct.name, value: ct.id }));
+  }, [certificateTypes, positionType]);
   
   const toolOptions = useMemo((): {label: string, value: string}[] => {
     if (!tools) return [];

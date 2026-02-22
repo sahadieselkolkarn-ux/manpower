@@ -136,7 +136,7 @@ export default function WaveForm({
   const positionsQuery = useMemoFirebase(() => (db ? query(collection(db, "manpowerPositions")) : null), [db]);
   const { data: positions, isLoading: isLoadingPositions } = useCollection<ManpowerPosition>(positionsQuery);
 
-  const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, "certificateTypes") : null), [db]);
+  const certificateTypesQuery = useMemoFirebase(() => (db ? query(collection(db, "certificateTypes")) : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
   const { data: tools, isLoading: isLoadingTools } = useCollection<Tool>(useMemoFirebase(() => (db ? collection(db, 'tools') : null), [db]));
@@ -170,7 +170,10 @@ export default function WaveForm({
   
   const certificateOptions = useMemo(() => {
     if (!certificateTypes) return [];
-    return certificateTypes.map(ct => ({ label: ct.name, value: ct.id }));
+    // Waves are for manpower, so filter for FIELD or GENERAL certificates.
+    return certificateTypes
+      .filter(ct => ct.type === 'FIELD' || ct.type === 'GENERAL')
+      .map(ct => ({ label: ct.name, value: ct.id }));
   }, [certificateTypes]);
 
   const toolOptions = useMemo(() => {
