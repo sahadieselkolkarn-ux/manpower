@@ -1598,6 +1598,24 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "code", "totalQuantity", "availableQuantity", "assignedQuantity", "unit"]
+    },
+    "ToolAssignment": {
+      "title": "Tool Assignment",
+      "description": "Records the checkout of a tool to an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string", "description": "Reference to the employee." },
+        "employeeCode": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "toolId": { "type": "string", "description": "Reference to the tool." },
+        "toolName": { "type": "string" },
+        "toolCode": { "type": "string" },
+        "quantity": { "type": "number", "description": "The quantity checked out." },
+        "requisitionDate": { "type": "string", "format": "date-time" },
+        "waveId": { "type": "string", "description": "Optional wave this was for." },
+        "notes": { "type": "string" }
+      },
+      "required": ["employeeId", "toolId", "quantity", "requisitionDate"]
     }
   },
   "auth": {
@@ -1760,6 +1778,10 @@
     "/tools/{toolId}": {
       "schema": { "$ref": "#/backend/entities/Tool" },
       "description": "Master list of all tools and equipment."
+    },
+    "/toolAssignments/{assignmentId}": {
+      "schema": { "$ref": "#/backend/entities/ToolAssignment" },
+      "description": "Master list of all tool checkout records."
     }
   },
   "documentation": {
@@ -1846,3 +1868,5 @@
     }
   }
 }
+
+    
