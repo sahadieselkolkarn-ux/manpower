@@ -32,6 +32,7 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { Tool } from '@/types/tool';
 import ToolForm from '@/components/forms/tool-form';
 import { useToast } from '@/hooks/use-toast';
+import ToolStockManagerForm from '@/components/forms/tool-stock-manager-form';
 
 export default function EquipmentPage() {
     const db = useFirestore();
@@ -39,6 +40,8 @@ export default function EquipmentPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
+    const [isStockManagerOpen, setIsStockManagerOpen] = useState(false);
+    const [selectedToolForStock, setSelectedToolForStock] = useState<Tool | null>(null);
 
     const toolsQuery = useMemoFirebase(() => (db ? query(collection(db, 'tools'), orderBy('name')) : null), [db]);
     const { data: tools, isLoading, refetch } = useCollection<Tool>(toolsQuery);
@@ -63,11 +66,9 @@ export default function EquipmentPage() {
         setIsFormOpen(true);
     };
     
-    const handleManageStock = () => {
-        toast({
-            title: "Under Construction",
-            description: "Stock management functionality will be added soon."
-        })
+    const handleManageStock = (tool: Tool) => {
+        setSelectedToolForStock(tool);
+        setIsStockManagerOpen(true);
     }
 
     return (
@@ -142,7 +143,7 @@ export default function EquipmentPage() {
                                                 <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent>
-                                                <DropdownMenuItem onClick={handleManageStock}>
+                                                <DropdownMenuItem onClick={() => handleManageStock(tool)}>
                                                     <ArrowRightLeft className="mr-2 h-4 w-4" />
                                                     Manage Stock
                                                 </DropdownMenuItem>
@@ -171,8 +172,15 @@ export default function EquipmentPage() {
                 onSuccess={refetch}
             />
         )}
+
+        {isStockManagerOpen && (
+             <ToolStockManagerForm
+                open={isStockManagerOpen}
+                onOpenChange={setIsStockManagerOpen}
+                tool={selectedToolForStock}
+                onSuccess={refetch}
+            />
+        )}
         </div>
     );
 }
-
-    
