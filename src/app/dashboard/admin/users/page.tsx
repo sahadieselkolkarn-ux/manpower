@@ -3,14 +3,14 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { collection, doc, updateDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, doc, updateDoc, writeBatch, serverTimestamp, query, orderBy, deleteDoc } from 'firebase/firestore';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { UserProfile, Role, RoleCode } from '@/types/user';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, ShieldAlert, Link as LinkIcon, CheckCircle } from 'lucide-react';
+import { Users, ShieldAlert, Link as LinkIcon, CheckCircle, Undo2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,6 +21,17 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -33,6 +44,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal } from 'lucide-react';
@@ -196,6 +208,8 @@ export default function AdminUsersPage() {
   
   const [userToEdit, setUserToEdit] = useState<UserProfile | null>(null);
   const [userToLink, setUserToLink] = useState<UserProfile | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+
 
   const usersQuery = useMemoFirebase(() => (db && !authLoading && currentUserProfile) ? query(collection(db, 'users'), orderBy('createdAt', 'desc')) : null, [db, authLoading, currentUserProfile]);
   const { data: users, isLoading: isLoadingUsers, refetch: refetchUsers } = useCollection<UserProfile>(usersQuery);
@@ -260,6 +274,43 @@ export default function AdminUsersPage() {
           toast({ variant: 'destructive', title: 'Error', description: 'Failed to disable user.' });
       }
   };
+
+  const handleActivate = async (userToActivate: UserProfile) => {
+    if (!db || !currentUserProfile) return;
+    try {
+        await updateDoc(doc(db, 'users', userToActivate.uid), {
+            status: 'ACTIVE',
+            updatedAt: serverTimestamp(),
+        });
+        toast({ title: 'Success', description: 'User has been activated.' });
+        refetchUsers();
+    } catch(error) {
+        console.error("Error activating user:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to activate user.' });
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete || !db || !currentUserProfile) return;
+    if (userToDelete.uid === currentUserProfile.uid) {
+        toast({ variant: 'destructive', title: 'Action Forbidden', description: "You cannot delete your own account."});
+        setUserToDelete(null);
+        return;
+    }
+    
+    // This is a hard delete of the Firestore document. It does NOT delete the user from Firebase Authentication.
+    try {
+        await deleteDoc(doc(db, 'users', userToDelete.uid));
+        toast({ title: 'Success', description: `User "${userToDelete.displayName}" has been deleted.` });
+        refetchUsers();
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete user.' });
+    } finally {
+        setUserToDelete(null);
+    }
+  };
+
 
   const handleUnlink = async (userToUnlink: UserProfile) => {
     if (!db || !userToUnlink || !userToUnlink.employeeId) return;
@@ -376,9 +427,18 @@ export default function AdminUsersPage() {
                                 ) : (
                                     <DropdownMenuItem onClick={() => setUserToLink(user)}>Link Employee</DropdownMenuItem>
                                 )}
+                                <DropdownMenuSeparator />
                                 {user.status === 'ACTIVE' && (
                                     <DropdownMenuItem className="text-destructive" onClick={() => handleDisable(user)}>Disable User</DropdownMenuItem>
                                 )}
+                                 {user.status === 'DISABLED' && (
+                                    <DropdownMenuItem className="text-green-600" onClick={() => handleActivate(user)}>
+                                        <Undo2 className="mr-2 h-4 w-4"/> Activate User
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem className="text-destructive" onClick={() => setUserToDelete(user)} disabled={user.uid === currentUserProfile?.uid}>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete User
+                                </DropdownMenuItem>
                             </DropdownMenuContent>
                        </DropdownMenu>
                        )}
@@ -415,6 +475,26 @@ export default function AdminUsersPage() {
             allOfficeEmployees={officeEmployees}
             allUsers={users}
         />
+      )}
+
+      {userToDelete && (
+        <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        This will permanently delete the user profile for "{userToDelete.displayName}" from the database. 
+                        This action does not delete the user from Firebase Authentication but will prevent them from logging in. This cannot be undone.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive hover:bg-destructive/90">
+                        Delete User Profile
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
       )}
 
     </div>
