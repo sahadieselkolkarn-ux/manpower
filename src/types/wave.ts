@@ -6,6 +6,7 @@ export interface ManpowerRequirement {
   positionName?: string; // Snapshot of the position name for display purposes
   count: number;
   requiredCertificateIds?: string[];
+  requiredToolIds?: string[];
   requiredSkillTags?: string[];
   originalPositionId?: string; // For debugging repaired data
 }

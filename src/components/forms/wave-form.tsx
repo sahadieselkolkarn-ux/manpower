@@ -59,6 +59,7 @@ import { CertificateType } from "@/types/certificate-type";
 import { MultiSelect } from "../ui/multi-select";
 import { type Contract, type ContractSaleRate } from "@/types/contract";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { Tool } from "@/types/tool";
 
 
 const dateStringSchema = z.string().refine(val => val ? isValid(parse(val, DATE_FORMAT, new Date())) : false, {
@@ -71,6 +72,7 @@ const manpowerRequirementSchema = z.object({
   positionName: z.string().optional(),
   count: z.coerce.number().int().min(1, "Count must be at least 1."),
   requiredCertificateIds: z.array(z.string()).optional(),
+  requiredToolIds: z.array(z.string()).optional(),
   requiredSkillTags: z.string().optional(),
 });
 
@@ -136,11 +138,13 @@ export default function WaveForm({
   const certificateTypesQuery = useMemoFirebase(() => (db ? collection(db, "certificateTypes") : null), [db]);
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(certificateTypesQuery);
 
+  const { data: tools, isLoading: isLoadingTools } = useCollection<Tool>(useMemoFirebase(() => (db ? collection(db, 'tools') : null), [db]));
+
   const form = useForm<WaveFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       projectId: routeParams?.projectId || "",
-      manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
+      manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredToolIds: [], requiredSkillTags: '' }],
       planningWorkPeriod: {
           startDate: format(new Date(), DATE_FORMAT),
           endDate: format(new Date(), DATE_FORMAT)
@@ -167,6 +171,11 @@ export default function WaveForm({
     if (!certificateTypes) return [];
     return certificateTypes.map(ct => ({ label: ct.name, value: ct.id }));
   }, [certificateTypes]);
+
+  const toolOptions = useMemo(() => {
+    if (!tools) return [];
+    return tools.map(t => ({ label: `${t.name} (${t.code})`, value: t.id }));
+  }, [tools]);
   
   const positionMap = useMemo(() => new Map(positions?.map(p => [p.id, p.name])), [positions]);
   
@@ -197,6 +206,7 @@ export default function WaveForm({
                 positionName: req.positionName || positionMap.get(req.positionId) || 'Unknown',
                 count: req.count,
                 requiredCertificateIds: req.requiredCertificateIds || [],
+                requiredToolIds: req.requiredToolIds || [],
                 requiredSkillTags: req.requiredSkillTags?.join(', ') || ''
               })
             );
@@ -211,7 +221,7 @@ export default function WaveForm({
             startDate: startDate ? formatDate(startDate) : format(new Date(), DATE_FORMAT),
             endDate: endDate ? formatDate(endDate) : format(new Date(), DATE_FORMAT),
           },
-          manpowerRequirement: requirements.length > 0 ? requirements : [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
+          manpowerRequirement: requirements.length > 0 ? requirements : [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredToolIds: [], requiredSkillTags: '' }],
         });
       } else {
         form.reset({
@@ -220,7 +230,7 @@ export default function WaveForm({
             startDate: format(new Date(), DATE_FORMAT),
             endDate: format(new Date(), DATE_FORMAT)
           },
-          manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' }],
+          manpowerRequirement: [{ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredToolIds: [], requiredSkillTags: '' }],
         });
       }
     }
@@ -259,6 +269,7 @@ export default function WaveForm({
             positionName: positionMap.get(item.positionId) || item.positionName,
             count: item.count,
             requiredCertificateIds: item.requiredCertificateIds || [],
+            requiredToolIds: item.requiredToolIds || [],
             requiredSkillTags: item.requiredSkillTags ? item.requiredSkillTags.split(',').map(s => s.trim()).filter(Boolean) : [],
         }));
 
@@ -509,6 +520,23 @@ export default function WaveForm({
                           </FormItem>
                           )}
                       />
+                       <FormField
+                          control={form.control}
+                          name={`manpowerRequirement.${index}.requiredToolIds`}
+                          render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>Required Tools (Optional)</FormLabel>
+                              <MultiSelect
+                                  options={toolOptions}
+                                  selected={field.value || []}
+                                  onChange={field.onChange}
+                                  placeholder="Select tools..."
+                                  disabled={isLoadingTools}
+                              />
+                              <FormMessage />
+                          </FormItem>
+                          )}
+                      />
                       <FormField
                           control={form.control}
                           name={`manpowerRequirement.${index}.requiredSkillTags`}
@@ -531,7 +559,7 @@ export default function WaveForm({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredSkillTags: '' })}
+                  onClick={() => append({ positionId: "", positionName: "", count: 1, requiredCertificateIds: [], requiredToolIds: [], requiredSkillTags: '' })}
                 >
                   Add Requirement
                 </Button>

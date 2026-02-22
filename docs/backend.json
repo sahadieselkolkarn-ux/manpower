@@ -828,6 +828,13 @@
                 },
                 "description": "List of certificate type IDs required for this role."
               },
+              "requiredToolIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of tool IDs required for this role."
+              },
               "requiredSkillTags": {
                 "type": "array",
                 "items": {
