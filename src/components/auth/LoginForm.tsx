@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState } from 'react';
@@ -42,8 +43,8 @@ export function LoginForm() {
       } else {
         toast({
             variant: "destructive",
-            title: "Approval Required",
-            description: "This account is pending approval or is disabled.",
+            title: "รอการอนุมัติ",
+            description: "บัญชีนี้กำลังรอการอนุมัติหรือถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ",
         });
         await signOut(auth);
         router.replace(`/pending?email=${encodeURIComponent(email)}`);

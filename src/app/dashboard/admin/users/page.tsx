@@ -360,11 +360,11 @@ export default function AdminUsersPage() {
                       ) : '—'}
                     </TableCell>
                     <TableCell className="text-right">
-                       {user.status === 'PENDING' && (
+                       {user.status === 'PENDING' ? (
                            <Button variant="ghost" size="sm" className="text-green-600" onClick={() => handleApprove(user)}>
                                <CheckCircle className="mr-2 h-4 w-4" /> Approve
                            </Button>
-                       )}
+                       ) : (
                        <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button>
@@ -381,6 +381,7 @@ export default function AdminUsersPage() {
                                 )}
                             </DropdownMenuContent>
                        </DropdownMenu>
+                       )}
                     </TableCell>
                   </TableRow>
                 ))

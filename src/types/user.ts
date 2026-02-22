@@ -38,9 +38,9 @@ export interface UserProfile {
   status: "ACTIVE" | "DISABLED" | "PENDING";
   requestedRoleCode?: RoleCode;
   requestedAt?: Timestamp;
-  approvedAt?: Timestamp;
-  approvedByUid?: string;
-  approvedByName?: string;
+  approvedAt?: Timestamp | null;
+  approvedByUid?: string | null;
+  approvedByName?: string | null;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
