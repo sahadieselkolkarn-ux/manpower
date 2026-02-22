@@ -46,6 +46,7 @@ const addStockSchema = z.object({
 });
 
 const returnStockSchema = z.object({
+  employeeId: z.string().min(1, 'Please select an employee.'),
   quantity: z.coerce.number().int().min(1, 'Quantity must be at least 1.'),
   notes: z.string().optional(),
 });
@@ -82,7 +83,12 @@ export default function ToolStockManagerForm({ open, onOpenChange, tool, onSucce
       const map = new Map<string, number>();
       if (!assignments) return map;
       assignments.forEach(a => {
-          map.set(a.employeeId, (map.get(a.employeeId) || 0) + a.quantity);
+          const currentQty = map.get(a.employeeId) || 0;
+          if (a.transactionType === 'RETURN') {
+              map.set(a.employeeId, currentQty - a.quantity);
+          } else { // Default to CHECKOUT
+              map.set(a.employeeId, currentQty + a.quantity);
+          }
       });
       return map;
   }, [assignments]);
@@ -91,10 +97,10 @@ export default function ToolStockManagerForm({ open, onOpenChange, tool, onSucce
   // Forms
   const checkoutForm = useForm<z.infer<typeof checkoutSchema>>({ resolver: zodResolver(checkoutSchema), defaultValues: { employeeId: '', quantity: 1, notes: '' } });
   const addStockForm = useForm<z.infer<typeof addStockSchema>>({ resolver: zodResolver(addStockSchema), defaultValues: { quantity: 1, reason: '' } });
-  const returnStockForm = useForm<z.infer<typeof returnStockSchema>>({ resolver: zodResolver(returnStockSchema), defaultValues: { quantity: 1, notes: '' } });
+  const returnStockForm = useForm<z.infer<typeof returnStockSchema>>({ resolver: zodResolver(returnStockSchema), defaultValues: { employeeId: '', quantity: 1, notes: '' } });
 
   const selectedEmployeeId = checkoutForm.watch('employeeId');
-  const hasExistingCheckout = selectedEmployeeId && assignmentsByEmployee.has(selectedEmployeeId);
+  const hasExistingCheckout = selectedEmployeeId && (assignmentsByEmployee.get(selectedEmployeeId) || 0) > 0;
 
   // Handlers
   const handleFinalCheckout = async (values: z.infer<typeof checkoutSchema>) => {
@@ -141,9 +147,15 @@ export default function ToolStockManagerForm({ open, onOpenChange, tool, onSucce
   
   const onReturnStockSubmit = async (values: z.infer<typeof returnStockSchema>) => {
     if (!userProfile || !db || !tool) return;
+    const selectedEmployee = employees?.find(e => e.id === values.employeeId);
+    if (!selectedEmployee) {
+        toast({variant: 'destructive', title: 'Error', description: 'Selected employee not found.'});
+        return;
+    };
+    
     setLoading(true);
     try {
-        await returnToolStock(db, userProfile, tool, values.quantity, values.notes || 'Employee return');
+        await returnToolStock(db, userProfile, tool, selectedEmployee, values.quantity, values.notes);
         toast({ title: "Success", description: `${values.quantity} unit(s) of ${tool.name} returned to stock.`});
         onSuccess();
         onOpenChange(false);
@@ -218,6 +230,24 @@ export default function ToolStockManagerForm({ open, onOpenChange, tool, onSucce
           <TabsContent value="return">
             <Form {...returnStockForm}>
                  <form onSubmit={returnStockForm.handleSubmit(onReturnStockSubmit)} className="space-y-4 pt-4">
+                     <FormField control={returnStockForm.control} name="employeeId" render={({ field }) => (
+                        <FormItem><FormLabel>Employee Returning</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl><SelectTrigger><SelectValue placeholder="Select an employee..." /></SelectTrigger></FormControl>
+                              <SelectContent>
+                                  {Array.from(assignmentsByEmployee.entries()).map(([employeeId, qty]) => {
+                                      if (qty <= 0) return null;
+                                      const emp = employees?.find(e => e.id === employeeId);
+                                      return (
+                                          <SelectItem key={employeeId} value={employeeId}>
+                                              {emp?.personalInfo.firstName} {emp?.personalInfo.lastName} ({qty} checked out)
+                                          </SelectItem>
+                                      );
+                                  })}
+                              </SelectContent>
+                          </Select>
+                        <FormMessage /></FormItem>
+                     )}/>
                      <FormField control={returnStockForm.control} name="quantity" render={({ field }) => (
                         <FormItem><FormLabel>Quantity to Return</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
@@ -269,3 +299,5 @@ export default function ToolStockManagerForm({ open, onOpenChange, tool, onSucce
     </>
   );
 }
+
+    

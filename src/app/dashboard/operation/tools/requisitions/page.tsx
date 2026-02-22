@@ -130,8 +130,14 @@ export default function RequisitionsPage() {
                     {filteredEmployees.map(employee => {
                         const employeeAssignments = assignmentsByEmployee.get(employee.id) || [];
                         const checkedOutTools = new Map<string, number>();
+                        
                         employeeAssignments.forEach(a => {
-                            checkedOutTools.set(a.toolId, (checkedOutTools.get(a.toolId) || 0) + a.quantity);
+                            const currentQty = checkedOutTools.get(a.toolId) || 0;
+                            if (a.transactionType === 'RETURN') {
+                                checkedOutTools.set(a.toolId, currentQty - a.quantity);
+                            } else { // CHECKOUT
+                                checkedOutTools.set(a.toolId, currentQty + a.quantity);
+                            }
                         });
 
                         const requiredTools: Tool[] = [];

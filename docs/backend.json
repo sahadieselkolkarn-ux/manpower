@@ -1601,7 +1601,7 @@
     },
     "ToolAssignment": {
       "title": "Tool Assignment",
-      "description": "Records the checkout of a tool to an employee.",
+      "description": "Records the checkout or return of a tool by an employee.",
       "type": "object",
       "properties": {
         "employeeId": { "type": "string", "description": "Reference to the employee." },
@@ -1610,12 +1610,13 @@
         "toolId": { "type": "string", "description": "Reference to the tool." },
         "toolName": { "type": "string" },
         "toolCode": { "type": "string" },
-        "quantity": { "type": "number", "description": "The quantity checked out." },
-        "requisitionDate": { "type": "string", "format": "date-time" },
+        "quantity": { "type": "number", "description": "The quantity transacted." },
+        "transactionDate": { "type": "string", "format": "date-time" },
+        "transactionType": { "type": "string", "enum": ["CHECKOUT", "RETURN"] },
         "waveId": { "type": "string", "description": "Optional wave this was for." },
         "notes": { "type": "string" }
       },
-      "required": ["employeeId", "toolId", "quantity", "requisitionDate"]
+      "required": ["employeeId", "toolId", "quantity", "transactionDate", "transactionType"]
     }
   },
   "auth": {

@@ -44,7 +44,8 @@ export async function checkoutTool(
       toolName: tool.name,
       quantity,
       notes: notes || '',
-      requisitionDate: serverTimestamp(),
+      transactionDate: serverTimestamp(),
+      transactionType: 'CHECKOUT',
       createdBy: user.displayName || user.email,
       createdAt: serverTimestamp(),
     });
@@ -97,8 +98,9 @@ export async function returnToolStock(
   db: Firestore,
   user: UserProfile,
   tool: Tool,
+  employee: Employee,
   quantity: number,
-  reason: string
+  notes?: string
 ) {
    return runTransaction(db, async (transaction) => {
     const toolRef = doc(db, 'tools', tool.id);
@@ -108,20 +110,34 @@ export async function returnToolStock(
     }
     const currentToolData = toolDoc.data() as Tool;
     
-    // We increase available but decrease assigned. Total quantity remains the same.
-    const newAssigned = Math.max(0, currentToolData.assignedQuantity - quantity);
+    if (currentToolData.assignedQuantity < quantity) {
+        throw new Error('Return quantity exceeds the total assigned quantity for this tool.');
+    }
+    
+    // Create a return record
+    const newReturnRef = doc(collection(db, 'toolAssignments'));
+    transaction.set(newReturnRef, {
+        employeeId: employee.id,
+        employeeCode: employee.employeeCode,
+        employeeName: `${employee.personalInfo.firstName} ${employee.personalInfo.lastName}`,
+        toolId: tool.id,
+        toolCode: tool.code,
+        toolName: tool.name,
+        quantity,
+        notes: notes || 'Employee return',
+        transactionDate: serverTimestamp(),
+        transactionType: 'RETURN',
+        createdBy: user.displayName || user.email,
+        createdAt: serverTimestamp(),
+    });
 
+    // Update the master tool quantities
     transaction.update(toolRef, {
       availableQuantity: currentToolData.availableQuantity + quantity,
-      assignedQuantity: newAssigned,
+      assignedQuantity: currentToolData.assignedQuantity - quantity,
       updatedAt: serverTimestamp(),
-      lastStockUpdate: {
-          type: 'RETURN',
-          quantity,
-          reason,
-          by: user.displayName || user.email,
-          at: serverTimestamp()
-      }
     });
   });
 }
+
+    

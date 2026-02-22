@@ -9,7 +9,8 @@ export interface ToolAssignment {
   toolName: string;
   toolCode: string;
   quantity: number;
-  requisitionDate: Timestamp;
+  transactionDate: Timestamp;
+  transactionType: 'CHECKOUT' | 'RETURN';
   waveId?: string;
   notes?: string;
   createdAt: Timestamp;
