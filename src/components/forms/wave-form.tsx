@@ -56,7 +56,8 @@ import { type ManpowerPosition } from "@/types/position";
 import { ProjectWithContract, Project } from "@/types/project";
 import { toDate, DATE_FORMAT, formatDate } from "@/lib/utils";
 import { CertificateType } from "@/types/certificate-type";
-import { MultiSelect } from "../ui/multi-select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Checkbox } from "@/components/ui/checkbox";
 import { type Contract, type ContractSaleRate } from "@/types/contract";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Tool } from "@/types/tool";
@@ -504,39 +505,65 @@ export default function WaveForm({
                       />
                     </div>
                     <FormField
-                          control={form.control}
-                          name={`manpowerRequirement.${index}.requiredCertificateIds`}
-                          render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Required Certificates (Optional)</FormLabel>
-                              <MultiSelect
-                                  options={certificateOptions}
-                                  selected={field.value || []}
-                                  onChange={field.onChange}
-                                  placeholder="Select certificates..."
-                                  disabled={isLoadingCertTypes}
-                              />
-                              <FormMessage />
-                          </FormItem>
-                          )}
-                      />
-                       <FormField
-                          control={form.control}
-                          name={`manpowerRequirement.${index}.requiredToolIds`}
-                          render={({ field }) => (
-                          <FormItem>
-                              <FormLabel>Required Tools (Optional)</FormLabel>
-                              <MultiSelect
-                                  options={toolOptions}
-                                  selected={field.value || []}
-                                  onChange={field.onChange}
-                                  placeholder="Select tools..."
-                                  disabled={isLoadingTools}
-                              />
-                              <FormMessage />
-                          </FormItem>
-                          )}
-                      />
+                      control={form.control}
+                      name={`manpowerRequirement.${index}.requiredCertificateIds`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Required Certificates (Optional)</FormLabel>
+                          <ScrollArea className="h-32 rounded-md border">
+                            <div className="p-4 space-y-2">
+                              {isLoadingCertTypes ? <p>Loading...</p> : certificateOptions.map((option) => (
+                                <FormItem key={option.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(option.value)}
+                                      onCheckedChange={(checked) => {
+                                        const updatedValue = checked
+                                          ? [...(field.value || []), option.value]
+                                          : (field.value || []).filter((value) => value !== option.value);
+                                        field.onChange(updatedValue);
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">{option.label}</FormLabel>
+                                </FormItem>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`manpowerRequirement.${index}.requiredToolIds`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Required Tools (Optional)</FormLabel>
+                          <ScrollArea className="h-32 rounded-md border">
+                            <div className="p-4 space-y-2">
+                              {isLoadingTools ? <p>Loading...</p> : toolOptions.map((option) => (
+                                <FormItem key={option.value} className="flex flex-row items-center space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value?.includes(option.value)}
+                                      onCheckedChange={(checked) => {
+                                        const updatedValue = checked
+                                          ? [...(field.value || []), option.value]
+                                          : (field.value || []).filter((value) => value !== option.value);
+                                        field.onChange(updatedValue);
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">{option.label}</FormLabel>
+                                </FormItem>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                       <FormField
                           control={form.control}
                           name={`manpowerRequirement.${index}.requiredSkillTags`}

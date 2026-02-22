@@ -18,7 +18,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '../ui/separator';
 import { CertificateType } from '@/types/certificate-type';
 import { Tool } from '@/types/tool';
-import { MultiSelect, OptionType } from '../ui/multi-select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name is required.'),
@@ -45,12 +46,12 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
   const { data: certificateTypes, isLoading: isLoadingCertTypes } = useCollection<CertificateType>(useMemoFirebase(() => (db ? collection(db, 'certificateTypes') : null), [db]));
   const { data: tools, isLoading: isLoadingTools } = useCollection<Tool>(useMemoFirebase(() => (db ? collection(db, 'tools') : null), [db]));
 
-  const certOptions = useMemo((): OptionType[] => {
+  const certOptions = useMemo((): {label: string, value: string}[] => {
     if (!certificateTypes) return [];
     return certificateTypes.map(ct => ({ label: ct.name, value: ct.id }));
   }, [certificateTypes]);
   
-  const toolOptions = useMemo((): OptionType[] => {
+  const toolOptions = useMemo((): {label: string, value: string}[] => {
     if (!tools) return [];
     return tools.map(t => ({ label: `${t.name} (${t.code})`, value: t.id }));
   }, [tools]);
@@ -93,7 +94,6 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
 
     const collectionName = positionType === 'MANPOWER' ? 'manpowerPositions' : 'officePositions';
     
-    // Only include manpower-specific fields for manpower positions
     const dataToSave: any = {
       name: values.name,
       description: values.description,
@@ -152,19 +152,38 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
               <>
                 <Separator />
                 <h3 className="text-base font-medium">Requirements</h3>
-                 <FormField
+                <FormField
                   control={form.control}
                   name="requiredCertificateIds"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>Required Certificates</FormLabel>
-                      <MultiSelect
-                        options={certOptions}
-                        selected={field.value || []}
-                        onChange={field.onChange}
-                        placeholder="Select required certificates..."
-                        disabled={isLoadingCertTypes}
-                      />
+                        <ScrollArea className="h-40 rounded-md border">
+                            <div className="p-4 space-y-2">
+                                {isLoadingCertTypes ? <p>Loading...</p> : certOptions.map(option => (
+                                    <FormField
+                                        key={option.value}
+                                        control={form.control}
+                                        name="requiredCertificateIds"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(option.value)}
+                                                        onCheckedChange={(checked) => {
+                                                            return checked
+                                                            ? field.onChange([...(field.value || []), option.value])
+                                                            : field.onChange(field.value?.filter((value) => value !== option.value))
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">{option.label}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        </ScrollArea>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -172,16 +191,35 @@ function PositionForm({ open, onOpenChange, position, positionType, onSuccess }:
                  <FormField
                   control={form.control}
                   name="requiredToolIds"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormLabel>Required Tools & Equipment</FormLabel>
-                       <MultiSelect
-                        options={toolOptions}
-                        selected={field.value || []}
-                        onChange={field.onChange}
-                        placeholder="Select required tools..."
-                        disabled={isLoadingTools}
-                      />
+                       <ScrollArea className="h-40 rounded-md border">
+                            <div className="p-4 space-y-2">
+                                {isLoadingTools ? <p>Loading...</p> : toolOptions.map(option => (
+                                     <FormField
+                                        key={option.value}
+                                        control={form.control}
+                                        name="requiredToolIds"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value?.includes(option.value)}
+                                                        onCheckedChange={(checked) => {
+                                                            return checked
+                                                            ? field.onChange([...(field.value || []), option.value])
+                                                            : field.onChange(field.value?.filter((value) => value !== option.value))
+                                                        }}
+                                                    />
+                                                </FormControl>
+                                                <FormLabel className="font-normal">{option.label}</FormLabel>
+                                            </FormItem>
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        </ScrollArea>
                       <FormMessage />
                     </FormItem>
                   )}
